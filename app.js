@@ -1,7 +1,17 @@
 (function(){
   try {
-    const session = JSON.parse(localStorage.getItem('mfhub.session.v4'));
-    if (session && session.user) document.documentElement.dataset.auth = '1';
+    // Supabase guarda a sessão na chave sb-<project-ref>-auth-token
+    // Checar isso evita o piscar da tela de login ao recarregar
+    const SUPA_KEY = 'sb-uadrygcorcpsvhxpimpd-auth-token';
+    const raw = localStorage.getItem(SUPA_KEY);
+    if (raw) {
+      const s = JSON.parse(raw);
+      // Só marca como autenticado se o token não estiver expirado
+      const expiresAt = s?.expires_at ?? 0;
+      if (s?.access_token && (expiresAt === 0 || expiresAt > Math.floor(Date.now() / 1000))) {
+        document.documentElement.dataset.auth = '1';
+      }
+    }
   } catch (e) {}
 })();
 
@@ -212,8 +222,10 @@ function requireSupabase(messageElId) {
 }
 function showLoginScreen(mode='login') {
   document.documentElement.removeAttribute('data-auth');
-  document.getElementById('login-screen').style.display = 'flex';
-  document.getElementById('app').style.display = 'none';
+  const ls = document.getElementById('login-screen');
+  const app = document.getElementById('app');
+  if (ls) ls.style.display = 'flex';
+  if (app) app.style.display = 'none';
   toggleAuth(mode);
 }
 function setAuthLoading(btnId, loading, label) {
@@ -392,15 +404,17 @@ function bindSupabaseAuthEvents() {
   });
 }
 function startApp(user, displayName = user) {
+  // Esconde a tela de login IMEDIATAMENTE antes de qualquer outra operação
+  document.documentElement.dataset.auth = '1';
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
   currentUser = user;
   loadUserData();
   applySavedTheme();
   ensureSeedData();
   ensureDailyGoalsSeeded();
-  document.documentElement.dataset.auth = '1';
   updateStreak();
   document.getElementById('sidebar-user').textContent = String(displayName || user).toUpperCase() + '@MFHUB';
-  document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   startClock();
   // Restore section from URL hash (browser back/forward support), fallback to saved last section
@@ -2076,8 +2090,10 @@ loadRememberedLogin();
 if (isRecoveryFlow()) {
   showLoginScreen('recovery');
 } else {
-  // tryRestoreSession decide — evita piscar a tela de login ao recarregar
+  // Enquanto resolve a sessão, mantém tela de login invisível para evitar o piscar
+  document.documentElement.classList.add('auth-resolving');
   tryRestoreSession().then(restored => {
+    document.documentElement.classList.remove('auth-resolving');
     if (!restored) showLoginScreen('login');
   });
 }
