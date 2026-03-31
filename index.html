@@ -21,13 +21,10 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Share+Tech+Mono&family=VT323&family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 <style>
-/* pre-auth flash prevention — keeps layout stable before JS sets data-auth */
-html:not([data-auth]) #app { display:none !important; }
-html[data-auth] #login-screen { display:none !important; }
-
-/* Enquanto tryRestoreSession está rodando, mantém login-screen invisível
-   para evitar o piscar. A classe .auth-resolving é removida pelo JS. */
-html.auth-resolving #login-screen { visibility:hidden !important; opacity:0 !important; }
+/* login-screen começa ESCONDIDO — JS o mostra apenas quando não há sessão  */
+/* app começa ESCONDIDO — JS o mostra após confirmar sessão                  */
+#login-screen { display:none; }
+#app { display:none; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js"></script>
@@ -127,7 +124,7 @@ html.auth-resolving #login-screen { visibility:hidden !important; opacity:0 !imp
     </div>
     <div class="side-nav">
       <div class="side-sec">Lab</div>
-      <div class="nav-item" data-section="lab" onclick="goSection('lab')">⬡ EMUNAH LAB</div>
+      <div class="nav-item" onclick="window.open('https://eliellmiranda.github.io/mainframe-hub/emunah-bank-lab.html','_blank')">⬡ EMUNAH BANK LAB</div>
       <div class="side-sec">Sistema</div>
       <div class="nav-item active" data-section="dashboard" onclick="goSection('dashboard')">⊞ DASHBOARD</div>
       <div class="nav-item" data-section="goals" onclick="goSection('goals')">🎯 METAS DIÁRIAS</div>
