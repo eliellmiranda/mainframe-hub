@@ -7,6 +7,13 @@
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Ctext y=%2752%27 font-size=%2752%27%3E%F0%9F%A6%96%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Share+Tech+Mono&family=VT323&family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
+<style>
+html,body{margin:0;min-height:100%;}
+html:not([data-auth]) #app{display:none !important;}
+html[data-auth] #login-screen{display:none !important;}
+#login-screen{position:fixed;inset:0;display:flex !important;align-items:center;justify-content:center;padding:24px;z-index:9999;}
+.terminal-shell{margin:0 auto !important;}
+</style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js"></script>
 <script src="app.js" defer></script>
@@ -40,7 +47,7 @@
             <div class="row"><label class="lbl">Senha</label><input id="register-pass" class="input" type="password" placeholder="PASSWORD" autocomplete="new-password"></div>
             <div class="row"><label class="lbl">Confirmar senha</label><input id="register-pass2" class="input" type="password" placeholder="CONFIRM" autocomplete="new-password"></div>
             <div id="register-error" class="err"></div>
-            <div id="register-help" class="auth-note">Cadastro com Supabase Auth: após criar a conta, o link de ativação será enviado para o seu e-mail. O código de convite continua obrigatório.</div>
+            <div id="register-help" class="auth-note">Cadastro com Supabase Auth: após criar a conta, o link de ativação será enviado para o seu e-mail. Se o e-mail não chegar, configure SMTP no Supabase.</div>
             <button class="btn primary full" onclick="doRegister()">Criar conta</button>
             <div class="tcenter muted" style="margin-top:14px">Já tem conta? <span class="toggle-link" onclick="toggleAuth('login')">Login</span></div>
           </div>
@@ -48,7 +55,7 @@
           <div id="forgot-form" class="hidden">
             <div class="row"><label class="lbl">E-mail</label><input id="forgot-user" class="input" type="email" placeholder="voce@exemplo.com" autocomplete="email"></div>
             <div id="forgot-error" class="err"></div>
-            <div id="forgot-help" class="auth-note">Digite o e-mail da conta. O Supabase enviará um link real de redefinição para esse endereço.</div>
+            <div id="forgot-help" class="auth-note">Digite o e-mail da conta. O Supabase enviará um link real de redefinição para esse endereço. Se não chegar, faltou configurar SMTP no projeto.</div>
             <button class="btn primary full" onclick="sendResetCode()">Enviar link de redefinição</button>
             <div class="tcenter muted" style="margin-top:14px">Lembrou a senha? <span class="toggle-link" onclick="toggleAuth('login')">Voltar ao login</span></div>
           </div>
