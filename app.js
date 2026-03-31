@@ -1681,60 +1681,58 @@ function renderLab() {
     { label:'IBM DB2 for z/OS', url:'https://www.ibm.com/docs/en/db2-for-zos', icon:'🗄' },
     { label:'GitHub — mainframe-hub', url:'https://github.com/eliellmiranda/mainframe-hub', icon:'🐙' },
   ];
-  document.getElementById('section-lab').innerHTML = \`
+  const labUrl = appData.lab.url ? `<a class="btn primary" target="_blank" href="${esc(appData.lab.url)}">⬡ Abrir zXplore</a>` : '';
+  const modRows = modules.map(m =>
+    `<div class="row-item" style="display:flex;align-items:center;gap:10px;padding:10px 12px">
+       <span style="font-size:18px">${m.icon}</span>
+       <div style="flex:1">
+         <div style="font-weight:700;font-size:14px">${m.name}</div>
+         <div style="font-size:12px;color:var(--text-soft)">${m.desc}</div>
+       </div>
+       <span class="badge">${m.status}</span>
+     </div>`
+  ).join('');
+  const resRows = resources.map(r =>
+    `<a class="row-item" href="${r.url}" target="_blank" rel="noopener"
+        style="display:flex;align-items:center;gap:10px;padding:10px 12px;text-decoration:none;color:inherit">
+       <span style="font-size:18px">${r.icon}</span>
+       <span style="font-size:14px;color:var(--link)">${r.label}</span>
+       <span style="margin-left:auto;color:var(--text-soft);font-size:12px">↗</span>
+     </a>`
+  ).join('');
+  document.getElementById('section-lab').innerHTML = `
     <div class="headline">
       <div><div class="title">Emunah Lab</div><div class="subtitle"><em>emunah</em>: fidelidade, fé — HLQ: Z77948</div></div>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
-        \${appData.lab.url ? \`<a class="btn primary" target="_blank" href="\${esc(appData.lab.url)}">⬡ Abrir zXplore</a>\` : ''}
+        ${labUrl}
         <button class="btn" onclick="openLabModal()">Editar URL</button>
       </div>
     </div>
-
     <div class="panel" style="border-left:4px solid var(--accent);margin-bottom:16px">
       <div style="display:flex;align-items:flex-start;gap:12px">
         <span style="font-size:22px;flex-shrink:0">✝</span>
         <div style="flex:1">
-          <div class="verse-text" style="font-size:14px;line-height:1.7;color:var(--text-soft);font-style:italic">"\${esc(v.text)}"</div>
+          <div class="verse-text" style="font-size:14px;line-height:1.7;color:var(--text-soft);font-style:italic">"${esc(v.text)}"</div>
           <div style="margin-top:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-            <span class="verse-ref" style="font-size:12px;color:var(--accent);font-weight:700;letter-spacing:.08em">\${esc(v.ref)}</span>
+            <span class="verse-ref" style="font-size:12px;color:var(--accent);font-weight:700;letter-spacing:.08em">${esc(v.ref)}</span>
             <button class="btn xs ghost" onclick="nextVerse()" style="color:var(--text-soft);font-size:12px">próximo →</button>
           </div>
         </div>
       </div>
     </div>
-
     <div class="cols-2" style="margin-bottom:16px">
       <div class="panel">
-        <div class="panel-title">🏗 Módulos Batch — \${esc(appData.lab.title || 'EMUNAH BANK LAB')}</div>
-        <div class="stack" style="gap:8px;margin-top:8px">
-          \${modules.map(m => \`
-            <div class="row-item" style="display:flex;align-items:center;gap:10px;padding:10px 12px">
-              <span style="font-size:18px">\${m.icon}</span>
-              <div style="flex:1">
-                <div style="font-weight:700;font-size:14px">\${m.name}</div>
-                <div style="font-size:12px;color:var(--text-soft)">\${m.desc}</div>
-              </div>
-              <span class="badge">\${m.status}</span>
-            </div>
-          \`).join('')}
-        </div>
+        <div class="panel-title">🏗 Módulos Batch — ${esc(appData.lab.title || 'EMUNAH BANK LAB')}</div>
+        <div class="stack" style="gap:8px;margin-top:8px">${modRows}</div>
       </div>
       <div class="panel">
         <div class="panel-title">🔗 Recursos rápidos</div>
-        <div class="stack" style="gap:8px;margin-top:8px">
-          \${resources.map(r => \`
-            <a class="row-item" href="\${r.url}" target="_blank" rel="noopener"
-               style="display:flex;align-items:center;gap:10px;padding:10px 12px;text-decoration:none;color:inherit">
-              <span style="font-size:18px">\${r.icon}</span>
-              <span style="font-size:14px;color:var(--link)">\${r.label}</span>
-              <span style="margin-left:auto;color:var(--text-soft);font-size:12px">↗</span>
-            </a>
-          \`).join('')}
-        </div>
+        <div class="stack" style="gap:8px;margin-top:8px">${resRows}</div>
       </div>
     </div>
-  \`;
+  `;
 }
+
 function openLabModal() {
   openModal('Editar URL do lab', `<div class="row"><label class="lbl">URL</label><input id="lab-url" class="input" value="${esc(appData.lab.url||'')}" placeholder="https://..."></div>`, `<button class="btn primary" onclick="saveLab()">Salvar</button>`);
 }
