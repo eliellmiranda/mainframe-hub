@@ -27,13 +27,30 @@ html[data-auth] #login-screen { display:none !important; }
         <div class="login-body">
           <div class="brand">MFHUB</div>
           <div class="brand-sub">CAREER MAINFRAME SYSTEM // CRT TERMINAL</div>
+          <div id="login-verse" style="text-align:center;margin:10px 0 18px;padding:10px 16px;border-top:1px solid rgba(47,209,121,.18);border-bottom:1px solid rgba(47,209,121,.18)">
+            <span style="font-size:13px;font-style:italic;color:#9fb7a4;line-height:1.6"></span>
+          </div>
+          <script>
+            (function(){
+              var vv=[
+                {t:'Consagra ao Senhor tudo o que fazes, e os teus planos serão bem-sucedidos.',r:'Pv 16:3'},
+                {t:'Sê forte e corajoso! Não te apavores, pois o Senhor teu Deus estará contigo.',r:'Js 1:9'},
+                {t:'Tudo posso naquele que me fortalece.',r:'Fp 4:13'},
+                {t:'Seja a graça do Senhor sobre nós; confirma o trabalho das nossas mãos.',r:'Sl 90:17'},
+                {t:'O justo viverá pela sua fé — Emunah.',r:'Hc 2:4'},
+              ];
+              var v=vv[new Date().getDate()%vv.length];
+              var el=document.querySelector('#login-verse span');
+              if(el) el.textContent='"'+v.t+'" — '+v.r;
+            })();
+          </script>
 
           <div id="login-form">
             <div class="row"><label class="lbl">E-mail</label><input id="login-user" class="input" type="email" placeholder="voce@exemplo.com" autocomplete="email"></div>
             <div class="row"><label class="lbl">Senha</label><input id="login-pass" class="input" type="password" placeholder="PASSWORD"></div>
             <div class="row" style="margin-top:-4px"><label style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text-soft);cursor:pointer"><input id="login-remember" type="checkbox"> Lembrar senha neste dispositivo</label></div>
             <div id="login-error" class="err"></div>
-            <button class="btn primary full" onclick="doLogin()">Entrar</button>
+            <button class="btn primary full" id="btn-login" onclick="doLogin()">Entrar</button>
             <div class="tcenter muted" style="margin-top:14px">Não tem conta? <span class="toggle-link" onclick="toggleAuth('register')">Registrar</span></div>
             <div class="tcenter muted" style="margin-top:8px">Esqueceu a senha? <span class="toggle-link" onclick="toggleAuth('forgot')">Recuperar acesso</span></div>
           </div>
@@ -46,7 +63,7 @@ html[data-auth] #login-screen { display:none !important; }
             <div class="row"><label class="lbl">Confirmar senha</label><input id="register-pass2" class="input" type="password" placeholder="CONFIRM" autocomplete="new-password"></div>
             <div id="register-error" class="err"></div>
             <div id="register-help" class="auth-note">Cadastro com Supabase Auth: após criar a conta, o link de ativação será enviado para o seu e-mail. Se o e-mail não chegar, configure SMTP no Supabase.</div>
-            <button class="btn primary full" onclick="doRegister()">Criar conta</button>
+            <button class="btn primary full" id="btn-register" onclick="doRegister()">Criar conta</button>
             <div class="tcenter muted" style="margin-top:14px">Já tem conta? <span class="toggle-link" onclick="toggleAuth('login')">Login</span></div>
           </div>
 
@@ -54,7 +71,7 @@ html[data-auth] #login-screen { display:none !important; }
             <div class="row"><label class="lbl">E-mail</label><input id="forgot-user" class="input" type="email" placeholder="voce@exemplo.com" autocomplete="email"></div>
             <div id="forgot-error" class="err"></div>
             <div id="forgot-help" class="auth-note">Digite o e-mail da conta. O Supabase enviará um link real de redefinição para esse endereço. Se não chegar, faltou configurar SMTP no projeto.</div>
-            <button class="btn primary full" onclick="sendResetCode()">Enviar link de redefinição</button>
+            <button class="btn primary full" id="btn-forgot" onclick="sendResetCode()">Enviar link de redefinição</button>
             <div class="tcenter muted" style="margin-top:14px">Lembrou a senha? <span class="toggle-link" onclick="toggleAuth('login')">Voltar ao login</span></div>
           </div>
 
@@ -64,7 +81,7 @@ html[data-auth] #login-screen { display:none !important; }
             <div class="row"><label class="lbl">Confirmar nova senha</label><input id="recovery-pass2" class="input" type="password" placeholder="CONFIRM" autocomplete="new-password"></div>
             <div id="recovery-error" class="err"></div>
             <div id="recovery-help" class="auth-note">Você chegou pelo link enviado por e-mail. Defina a nova senha e salve para concluir a recuperação.</div>
-            <button class="btn primary full" onclick="resetPassword()">Salvar nova senha</button>
+            <button class="btn primary full" id="btn-recovery" onclick="resetPassword()">Salvar nova senha</button>
             <div class="tcenter muted" style="margin-top:14px">Voltar ao login? <span class="toggle-link" onclick="toggleAuth('login')">Login</span></div>
           </div>
 
@@ -118,6 +135,7 @@ html[data-auth] #login-screen { display:none !important; }
 
   <main class="main">
     <div class="topbar">
+      <button class="btn small mobile-menu-btn" id="mobile-menu-btn" onclick="toggleMobileMenu()" aria-label="Menu" style="display:none">☰</button>
       <div class="path" id="topbar-path">Dashboard</div>
       <div class="spacer"></div>
       <input id="global-search" class="input searchbar" placeholder="Buscar no site..." oninput="handleSearch(this.value)">
@@ -151,5 +169,6 @@ html[data-auth] #login-screen { display:none !important; }
 </div>
 
 
+<div id="mobile-overlay" class="mobile-overlay" onclick="closeMobileMenu()"></div>
 </body>
 </html>
