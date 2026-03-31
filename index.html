@@ -8,11 +8,9 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Share+Tech+Mono&family=VT323&family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 <style>
-html,body{margin:0;min-height:100%;}
-html:not([data-auth]) #app{display:none !important;}
-html[data-auth] #login-screen{display:none !important;}
-#login-screen{position:fixed;inset:0;display:flex !important;align-items:center;justify-content:center;padding:24px;z-index:9999;}
-.terminal-shell{margin:0 auto !important;}
+/* pre-auth flash prevention — keeps layout stable before JS sets data-auth */
+html:not([data-auth]) #app { display:none !important; }
+html[data-auth] #login-screen { display:none !important; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js"></script>
@@ -70,7 +68,7 @@ html[data-auth] #login-screen{display:none !important;}
             <div class="tcenter muted" style="margin-top:14px">Voltar ao login? <span class="toggle-link" onclick="toggleAuth('login')">Login</span></div>
           </div>
 
-          <div class="monitor-controls"><span class="control-dot"></span><span class="control-dot"></span><span class="control-dot"></span><span>CRT READY // LOCAL STORAGE ONLINE</span></div>
+          <div class="monitor-controls"><span class="control-dot"></span><span class="control-dot"></span><span class="control-dot"></span><span>CRT READY // SUPABASE AUTH ONLINE</span></div>
         </div>
       </div>
     </div>
