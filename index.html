@@ -75,7 +75,7 @@ html[data-auth] #login-screen { display:none !important; }
             <div class="row"><label class="lbl">Senha</label><input id="register-pass" class="input" type="password" placeholder="PASSWORD" autocomplete="new-password"></div>
             <div class="row"><label class="lbl">Confirmar senha</label><input id="register-pass2" class="input" type="password" placeholder="CONFIRM" autocomplete="new-password"></div>
             <div id="register-error" class="err"></div>
-            <div id="register-help" class="auth-note">Cadastro com Supabase Auth: após criar a conta, o link de ativação será enviado para o seu e-mail. Se o e-mail não chegar, configure SMTP no Supabase.</div>
+            <div id="register-help" class="auth-note">A senha precisa ter ao menos 8 caracteres, uma letra e um número. Após criar a conta, o link de ativação será enviado para o seu e-mail.</div>
             <button class="btn primary full" id="btn-register" onclick="doRegister()">Criar conta</button>
             <div class="tcenter muted" style="margin-top:14px">Já tem conta? <span class="toggle-link" onclick="toggleAuth('login')">Login</span></div>
           </div>
