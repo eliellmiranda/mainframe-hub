@@ -272,7 +272,17 @@ async function doRegister() {
   if (!invite) return setFieldText('register-error', 'Código de convite obrigatório.');
   if (!email) return setFieldText('register-error', 'E-mail obrigatório.');
   if (!user) return setFieldText('register-error', 'Usuário obrigatório.');
-  if (pass.length < 4) return setFieldText('register-error', 'A senha precisa ter ao menos 4 caracteres.');
+  const SENHAS_FRACAS = [
+    '123456','1234567','12345678','123456789','1234567890',
+    '12345','1234','111111','000000','password','senha','senha123',
+    'qwerty','abc123','admin','admin123','letmein','welcome',
+    'monkey','dragon','master','login','pass','test','guest',
+    'iloveyou','sunshine','princess','football','shadow',
+  ];
+  if (pass.length < 8) return setFieldText('register-error', 'A senha precisa ter ao menos 8 caracteres.');
+  if (SENHAS_FRACAS.includes(pass.toLowerCase())) return setFieldText('register-error', 'Senha muito comum. Escolha uma senha mais segura.');
+  if (!/[A-Za-z]/.test(pass)) return setFieldText('register-error', 'A senha precisa ter ao menos uma letra.');
+  if (!/[0-9]/.test(pass)) return setFieldText('register-error', 'A senha precisa ter ao menos um número.');
   if (pass !== pass2) return setFieldText('register-error', 'As senhas não conferem.');
 
   // Validar convite no servidor antes de criar a conta
