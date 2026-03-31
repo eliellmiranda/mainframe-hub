@@ -870,7 +870,7 @@ function renderCourses() {
   }
   const progress = courseProgress(course);
   wrap.innerHTML = `
-    <div class="back" onclick="currentDetail.courseId=null; renderCourses()">← Voltar</div>
+    <div class="back" onclick="backToCourseList()">← Voltar</div>
     <div class="headline">
       <div id="course-view-${course.id}">
         <div class="title">${esc(course.name)}</div>
@@ -1144,7 +1144,7 @@ function renderDocs() {
     return;
   }
   wrap.innerHTML = `
-    <div class="back" onclick="currentDetail.docId=null; renderDocs()">← Voltar</div>
+    <div class="back" onclick="backToDocList()">← Voltar</div>
     <div class="headline">
       <div id="doc-${doc.id}"><div class="title">${esc(doc.name)}</div><div class="subtitle">${esc(doc.desc||'Documentação')}</div></div>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
@@ -1197,7 +1197,7 @@ function renderCode() {
   const sub = (space.subspaces||[]).find(ss=>ss.id===currentDetail.codeSubspaceId) || null;
   if (!sub) {
     wrap.innerHTML = `
-      <div class="back" onclick="currentDetail.codeSpaceId=null; renderCode()">← Voltar</div>
+      <div class="back" onclick="backToCodeList()">← Voltar</div>
       <div class="headline"><div id="code-space-view-${space.id}"><div class="title">${esc(space.name)}</div><div class="subtitle">${esc(space.desc||'Espaço de código')}</div></div><button class="btn primary" onclick="openSubspaceModal('code','${space.id}')">Novo subespaço</button></div>
       <div class="grid">
         ${(space.subspaces||[]).map(ss=>`<div class="card clickable" id="code-subspace-${ss.id}" onclick="openCodeSubspace('${space.id}','${ss.id}')"><div class="card-actions"><button class="btn xs danger" onclick="event.stopPropagation();deleteSubspace('code','${space.id}','${ss.id}')">Excluir</button></div><div class="card-icon">🧩</div><div class="card-title">${esc(ss.name)}</div><div class="card-meta">${esc(ss.desc||'Sem descrição')}<br>Snippets: ${(ss.snippets||[]).length} · Arquivos: ${(ss.attachments||[]).length}</div></div>`).join('')}
@@ -1205,7 +1205,7 @@ function renderCode() {
     return;
   }
   wrap.innerHTML = `
-    <div class="back" onclick="currentDetail.codeSubspaceId=null; renderCode()">← Voltar</div>
+    <div class="back" onclick="backToCodeSpace()">← Voltar</div>
     <div class="headline"><div id="code-subspace-view-${sub.id}"><div class="title">${esc(sub.name)}</div><div class="subtitle">${esc(sub.desc||'Subespaço')}</div></div><div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" onclick="uploadAttachmentsModal('code-subspace','${space.id}','${sub.id}')">Arquivos</button><button class="btn primary" onclick="openSnippetModal('${space.id}','${sub.id}')">Novo snippet</button></div></div>
     <div class="cols-2">
       <div class="stack">
@@ -1272,6 +1272,21 @@ function togglePracticeMinimized(kind, spaceId, subId, itemId) {
   renderPractice(kind);
 }
 
+
+// ── Navigation helpers (needed because currentDetail is not global) ──
+function backToPracticeList(kind) {
+  if (kind === 'exercise') { currentDetail.exerciseSpaceId = null; currentDetail.exerciseSubspaceId = null; renderExercises(); }
+  else { currentDetail.interviewSpaceId = null; currentDetail.interviewSubspaceId = null; renderInterviews(); }
+}
+function backToPracticeSpace(kind) {
+  if (kind === 'exercise') { currentDetail.exerciseSubspaceId = null; renderExercises(); }
+  else { currentDetail.interviewSubspaceId = null; renderInterviews(); }
+}
+function backToCodeList() { currentDetail.codeSpaceId = null; currentDetail.codeSubspaceId = null; renderCode(); }
+function backToCodeSpace() { currentDetail.codeSubspaceId = null; renderCode(); }
+function backToCourseList() { currentDetail.courseId = null; renderCourses(); }
+function backToDocList() { currentDetail.docId = null; renderDocs(); }
+
 function renderPractice(kind) {
   const sectionId = kind === 'exercise' ? 'section-exercises' : 'section-interviews';
   const title = kind === 'exercise' ? 'Exercícios' : 'Entrevistas';
@@ -1292,7 +1307,7 @@ function renderPractice(kind) {
   const sub = (space.subspaces||[]).find(ss=>ss.id===currentDetail[subIdKey]) || null;
   if (!sub) {
     wrap.innerHTML = `
-      <div class="back" onclick="currentDetail['${spaceIdKey}']=null; renderPractice('${kind}')">← Voltar</div>
+      <div class="back" onclick="backToPracticeList('${kind}')">← Voltar</div>
       <div class="headline"><div id="${kind}-space-view-${space.id}"><div class="title">${esc(space.name)}</div><div class="subtitle">${esc(space.desc||'Espaço')}</div></div><button class="btn primary" onclick="openSubspaceModal('${kind}','${space.id}')">Novo subespaço</button></div>
       <div class="grid">
         ${(space.subspaces||[]).map(ss=>`<div class="card clickable" id="${kind}-subspace-${ss.id}" onclick="openPracticeSubspace('${kind}','${space.id}','${ss.id}')"><div class="card-actions"><button class="btn xs danger" onclick="event.stopPropagation();deleteSubspace('${kind}','${space.id}','${ss.id}')">Excluir</button></div><div class="card-icon">🧩</div><div class="card-title">${esc(ss.name)}</div><div class="card-meta">${esc(ss.desc||'Sem descrição')}<br>Questões: ${(ss.items||[]).length} · Arquivos: ${(ss.attachments||[]).length}</div></div>`).join('')}
@@ -1303,7 +1318,7 @@ function renderPractice(kind) {
   const filteredItems = getFilteredPracticeItems(kind, allItems);
   const answeredCount = allItems.filter(isPracticeAnswered).length;
   wrap.innerHTML = `
-    <div class="back" onclick="currentDetail['${subIdKey}']=null; renderPractice('${kind}')">← Voltar</div>
+    <div class="back" onclick="backToPracticeSpace('${kind}')">← Voltar</div>
     <div class="headline"><div id="${kind}-subspace-view-${sub.id}"><div class="title">${esc(sub.name)}</div><div class="subtitle">${esc(sub.desc||'Subespaço')}</div></div><div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" onclick="uploadAttachmentsModal('${kind}-subspace','${space.id}','${sub.id}')">Arquivos</button><button class="btn primary" onclick="openPracticeItemModal('${kind}','${space.id}','${sub.id}')">Nova questão</button></div></div>
     <div class="practice-toolbar">
       ${kind==='exercise' ? `<button class="btn xs" onclick="togglePracticeIndex('exercise')">${currentDetail.exerciseIndexOpen ? 'Ocultar índice' : 'Mostrar índice'}</button>` : ''}
@@ -2031,41 +2046,113 @@ function importContent() {
   reader.onload = e => {
     const text = String(e.target.result || '');
     try {
-      let rows = [];
+      // ── Detecta backup completo (exportAllData) ──────────────────
       if (file.name.toLowerCase().endsWith('.json')) {
-        const arr = JSON.parse(text);
-        if (!Array.isArray(arr)) throw new Error('JSON inválido');
-        rows = arr;
-      } else if (file.name.toLowerCase().endsWith('.csv')) {
-        const parsed = simpleCsvParse(text);
-        const head = parsed.shift().map(h=>String(h).trim());
-        rows = parsed.map(r => Object.fromEntries(head.map((h,i)=>[h, r[i] ?? ''])));
+        const parsed = JSON.parse(text);
+        if (parsed && parsed.version === 'mfhub.v4' && parsed.data) {
+          const src = parsed.data;
+          let merged = 0;
+          // Merge inteligente: adiciona apenas itens que não existem (por título)
+          const mergeList = (srcList, destList, itemsKey) => {
+            (srcList || []).forEach(srcSpace => {
+              let destSpace = destList.find(s => s.name === srcSpace.name);
+              if (!destSpace) {
+                destSpace = { ...srcSpace, id: uid(), subspaces: [] };
+                destList.push(destSpace);
+              }
+              (srcSpace.subspaces || []).forEach(srcSub => {
+                let destSub = destSpace.subspaces.find(ss => ss.name === srcSub.name);
+                if (!destSub) {
+                  destSub = { ...srcSub, id: uid(), [itemsKey]: [] };
+                  destSpace.subspaces.push(destSub);
+                }
+                const existingTitles = new Set((destSub[itemsKey] || []).map(i => i.title));
+                (srcSub[itemsKey] || []).forEach(item => {
+                  if (!existingTitles.has(item.title)) {
+                    destSub[itemsKey].push({ ...item, id: uid() });
+                    merged++;
+                  }
+                });
+              });
+            });
+          };
+          mergeList(src.exerciseSpaces, appData.exerciseSpaces, 'items');
+          mergeList(src.interviewSpaces, appData.interviewSpaces, 'items');
+          mergeList(src.codeSpaces, appData.codeSpaces, 'snippets');
+          // Merge de outros arrays simples (cursos, docs, notas, etc.)
+          const mergeSimple = (key) => {
+            const existing = new Set((appData[key]||[]).map(x=>x.name||x.title||x.id));
+            (src[key]||[]).forEach(x => {
+              if (!existing.has(x.name||x.title||x.id)) {
+                appData[key].push({ ...x, id: uid() });
+                merged++;
+              }
+            });
+          };
+          ['courses','docs','generalNotes','linkedinPosts','certificates','tools'].forEach(mergeSimple);
+          saveUserData(); closeModal(); renderAll();
+          showToast(`Backup mesclado: ${merged} item(ns) novo(s) adicionado(s).`);
+          return;
+        }
+        // ── JSON de conteúdo (array) ──────────────────────────────
+        if (!Array.isArray(parsed)) throw new Error('JSON inválido');
+        let count = 0;
+        parsed.forEach(obj => {
+          if (type === 'code') {
+            const sub = ensureImportedSpace('code', obj.space||'Importado', obj.subspace||'Base');
+            const titles = new Set((sub.snippets||[]).map(s=>s.title));
+            if (!titles.has(obj.title||'Snippet')) {
+              sub.snippets.push({ id:uid(), title:obj.title||'Snippet', lang:obj.lang||'', description:obj.description||'', code:obj.code||'', createdAt:Date.now() });
+              count++;
+            }
+          } else {
+            const sub = ensureImportedSpace(type, obj.space||'Importado', obj.subspace||'Base');
+            const titles = new Set((sub.items||[]).map(i=>i.title));
+            if (!titles.has(obj.title||'Questão')) {
+              sub.items.push({ id:uid(), title:obj.title||'Questão', prompt:obj.prompt||'', userAnswer:'', modelAnswer:obj.answer||'Sem resposta modelo cadastrada ainda.', createdAt:Date.now(), showModel:false });
+              count++;
+            }
+          }
+        });
+        saveUserData(); closeModal(); renderAll();
+        showToast(count > 0 ? `Importação concluída: ${count} item(ns) novo(s).` : 'Nenhum item novo — todos já existiam.');
+        return;
+      }
+      // ── CSV ───────────────────────────────────────────────────────
+      let rows = [];
+      if (file.name.toLowerCase().endsWith('.csv')) {
+        const prs = simpleCsvParse(text);
+        const head = prs.shift().map(h=>String(h).trim());
+        rows = prs.map(r => Object.fromEntries(head.map((h,i)=>[h, r[i] ?? ''])));
       } else {
+        // ── TXT: blocos separados por linha em branco ─────────────
         rows = text.split(/\n\s*\n/).map(block => {
           const lines = block.trim().split(/\n/);
-          return {
-            space: lines[0] || 'Importado',
-            subspace: lines[1] || 'Base',
-            title: lines[2] || 'Item importado',
-            prompt: lines.slice(3).join('\n'),
-            answer: ''
-          };
+          return { space:lines[0]||'Importado', subspace:lines[1]||'Base', title:lines[2]||'Item importado', prompt:lines.slice(3).join('\n'), answer:'' };
         });
       }
-      let count=0;
+      let count = 0;
       rows.forEach(obj => {
         if (type === 'code') {
-          const sub = ensureImportedSpace('code', obj.space || 'Importado', obj.subspace || 'Base');
-          sub.snippets.push({ id:uid(), title:obj.title||'Snippet', lang:obj.lang||'', description:obj.description||'', code:obj.code||'', createdAt:Date.now() });
-          count++;
+          const sub = ensureImportedSpace('code', obj.space||'Importado', obj.subspace||'Base');
+          const titles = new Set((sub.snippets||[]).map(s=>s.title));
+          if (!titles.has(obj.title||'Snippet')) {
+            sub.snippets.push({ id:uid(), title:obj.title||'Snippet', lang:obj.lang||'', description:obj.description||'', code:obj.code||'', createdAt:Date.now() });
+            count++;
+          }
         } else {
-          const sub = ensureImportedSpace(type, obj.space || 'Importado', obj.subspace || 'Base');
-          sub.items.push({ id:uid(), title:obj.title||'Questão', prompt:obj.prompt||'', userAnswer:'', modelAnswer:obj.answer || 'Sem resposta modelo cadastrada ainda.', createdAt:Date.now(), showModel:false });
-          count++;
+          const sub = ensureImportedSpace(type, obj.space||'Importado', obj.subspace||'Base');
+          const titles = new Set((sub.items||[]).map(i=>i.title));
+          if (!titles.has(obj.title||'Questão')) {
+            sub.items.push({ id:uid(), title:obj.title||'Questão', prompt:obj.prompt||'', userAnswer:'', modelAnswer:obj.answer||'Sem resposta modelo cadastrada ainda.', createdAt:Date.now(), showModel:false });
+            count++;
+          }
         }
       });
-      saveUserData(); closeModal(); renderAll(); showToast(`Importação concluída: ${count} item(ns).`);
+      saveUserData(); closeModal(); renderAll();
+      showToast(count > 0 ? `Importação concluída: ${count} item(ns) novo(s).` : 'Nenhum item novo — todos já existiam.');
     } catch (err) {
+      console.error(err);
       alert('Não foi possível importar este arquivo. Verifique o layout.');
     }
   };
@@ -2142,6 +2229,12 @@ window.deleteSnippet                  = deleteSnippet;
 window.deleteSubmodule                = deleteSubmodule;
 window.deleteTool                     = deleteTool;
 window.deleteCourse                   = deleteCourse;
+window.backToPracticeList             = backToPracticeList;
+window.backToPracticeSpace            = backToPracticeSpace;
+window.backToCodeList                 = backToCodeList;
+window.backToCodeSpace                = backToCodeSpace;
+window.backToCourseList               = backToCourseList;
+window.backToDocList                  = backToDocList;
 window.deleteDoc                      = deleteDoc;
 window.deleteGenericSpace             = deleteGenericSpace;
 window.deleteSubspace                 = deleteSubspace;
