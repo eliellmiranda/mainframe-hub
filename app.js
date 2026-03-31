@@ -583,6 +583,8 @@ function stepGoalProgress(dayKey, goalId, delta) {
   renderGoals();
 }
 function deleteGoal(dayKey, goalId) {
+  const name = getGoalDay(dayKey).find(g => g.id === goalId)?.title || 'esta meta';
+  if (!confirm(`Deseja mesmo excluir "${name}"?`)) return;
   appData.dailyGoals[dayKey] = getGoalDay(dayKey).filter(g => g.id !== goalId);
   saveUserData();
   renderGoals();
@@ -1003,7 +1005,8 @@ function saveCourseEdit(courseId) {
 }
 function openCourse(id) { currentDetail.courseId=id; renderCourses(); }
 function deleteCourse(id) {
-  if (!confirm('Excluir este curso?')) return;
+  const name = appData.courses.find(c=>c.id===id)?.name || 'este curso';
+  if (!confirm(`Deseja mesmo excluir "${name}"?`)) return;
   appData.courses = appData.courses.filter(c=>c.id!==id);
   currentDetail.courseId = null; saveUserData(); renderAll(); showToast('Curso excluído.');
 }
@@ -1065,6 +1068,8 @@ function toggleCourseVideoWatched(courseId,moduleId,videoId) {
 }
 function deleteCourseVideo(courseId,moduleId,videoId) {
   const module = appData.courses.find(c=>c.id===courseId)?.modules?.find(m=>m.id===moduleId); if (!module) return;
+  const name = module.videos?.find(v=>v.id===videoId)?.title || 'este vídeo';
+  if (!confirm(`Deseja mesmo excluir "${name}"?`)) return;
   module.videos = (module.videos || []).filter(v=>v.id!==videoId);
   saveUserData(); renderCourses(); showToast('Vídeo removido.');
 }
@@ -1079,10 +1084,14 @@ function toggleSubmoduleDone(courseId,moduleId,subId) {
 function recalculateCourseProgress(courseId) { renderCourses(); renderDashboard(); showToast('Progresso recalculado.'); }
 function deleteModule(courseId,moduleId) {
   const course = appData.courses.find(c=>c.id===courseId); if (!course) return;
+  const name = course.modules?.find(m=>m.id===moduleId)?.name || 'este módulo';
+  if (!confirm(`Deseja mesmo excluir "${name}"?`)) return;
   course.modules = (course.modules||[]).filter(m=>m.id!==moduleId); saveUserData(); renderCourses(); showToast('Módulo excluído.');
 }
 function deleteSubmodule(courseId,moduleId,subId) {
   const module = appData.courses.find(c=>c.id===courseId)?.modules?.find(m=>m.id===moduleId); if (!module) return;
+  const name = module.submodules?.find(s=>s.id===subId)?.name || 'este submódulo';
+  if (!confirm(`Deseja mesmo excluir "${name}"?`)) return;
   module.submodules = (module.submodules||[]).filter(s=>s.id!==subId); saveUserData(); renderCourses(); showToast('Submódulo excluído.');
 }
 function getCourseTarget(courseId,moduleId,subId='') {
@@ -1101,6 +1110,8 @@ function saveCourseNote(courseId,moduleId,subId='') {
 }
 function deleteCourseNote(courseId,moduleId,noteId) {
   const holder = getCourseTarget(courseId,moduleId,''); if (!holder) return;
+  const name = holder.notes?.find(n=>n.id===noteId)?.title || 'esta anotação';
+  if (!confirm(`Deseja mesmo excluir "${name}"?`)) return;
   holder.notes = (holder.notes||[]).filter(n=>n.id!==noteId); saveUserData(); renderCourses(); showToast('Anotação removida.');
 }
 function openCourseLinkModal(courseId,moduleId,subId='') {
@@ -1114,6 +1125,8 @@ function saveCourseLink(courseId,moduleId,subId='') {
 }
 function deleteCourseLink(courseId,moduleId,linkId) {
   const holder = getCourseTarget(courseId,moduleId,''); if (!holder) return;
+  const name = holder.links?.find(l=>l.id===linkId)?.title || 'este link';
+  if (!confirm(`Deseja mesmo excluir "${name}"?`)) return;
   holder.links = (holder.links||[]).filter(l=>l.id!==linkId); saveUserData(); renderCourses(); showToast('Link removido.');
 }
 
@@ -1160,7 +1173,8 @@ function saveDoc() {
 }
 function openDoc(id) { currentDetail.docId=id; renderDocs(); }
 function deleteDoc(id) {
-  if(!confirm('Excluir este espaço?')) return;
+  const name = appData.docs.find(d=>d.id===id)?.name || 'este espaço';
+  if (!confirm(`Deseja mesmo excluir "${name}"?`)) return;
   appData.docs = appData.docs.filter(d=>d.id!==id); currentDetail.docId=null; saveUserData(); renderAll(); showToast('Espaço excluído.');
 }
 function saveDocContent(id) {
@@ -1221,6 +1235,8 @@ function saveSnippet(spaceId, subId, snippetId='') {
 }
 function deleteSnippet(spaceId, subId, snId) {
   const sub = appData.codeSpaces.find(s=>s.id===spaceId)?.subspaces?.find(ss=>ss.id===subId); if(!sub)return;
+  const name = sub.snippets?.find(s=>s.id===snId)?.title || 'este snippet';
+  if (!confirm(`Deseja mesmo excluir "${name}"?`)) return;
   sub.snippets = (sub.snippets||[]).filter(s=>s.id!==snId); saveUserData(); renderCode(); showToast('Snippet removido.');
 }
 
@@ -1357,6 +1373,8 @@ function getPracticeSubspace(kind, spaceId, subId) {
 }
 function deletePracticeItem(kind, spaceId, subId, itemId) {
   const sub = getPracticeSubspace(kind, spaceId, subId); if(!sub)return;
+  const name = sub.items?.find(i=>i.id===itemId)?.title || 'esta questão';
+  if (!confirm(`Deseja mesmo excluir "${name}"?`)) return;
   sub.items = (sub.items||[]).filter(i=>i.id!==itemId); saveUserData(); renderPractice(kind); showToast('Questão removida.');
 }
 function updatePracticeUserAnswer(kind, spaceId, subId, itemId, value) {
@@ -1387,8 +1405,10 @@ function saveGenericSpace(kind) {
   saveUserData(); closeModal(); renderAll(); showToast('Espaço criado.');
 }
 function deleteGenericSpace(kind, id) {
-  if(!confirm('Excluir este espaço?')) return;
-  const list = getSpaceList(kind); const idx = list.findIndex(x=>x.id===id); if(idx<0)return; list.splice(idx,1);
+  const list = getSpaceList(kind);
+  const name = list.find(x=>x.id===id)?.name || 'este espaço';
+  if (!confirm(`Deseja mesmo excluir "${name}"?`)) return;
+  const idx = list.findIndex(x=>x.id===id); if(idx<0)return; list.splice(idx,1);
   if (kind==='code') { currentDetail.codeSpaceId=null; currentDetail.codeSubspaceId=null; }
   if (kind==='exercise') { currentDetail.exerciseSpaceId=null; currentDetail.exerciseSubspaceId=null; }
   if (kind==='interview') { currentDetail.interviewSpaceId=null; currentDetail.interviewSubspaceId=null; }
@@ -1408,6 +1428,8 @@ function saveSubspace(kind, spaceId) {
 }
 function deleteSubspace(kind, spaceId, subId) {
   const space = getSpaceList(kind).find(s=>s.id===spaceId); if(!space)return;
+  const name = space.subspaces?.find(ss=>ss.id===subId)?.name || 'este subespaço';
+  if (!confirm(`Deseja mesmo excluir "${name}"?`)) return;
   space.subspaces = (space.subspaces||[]).filter(ss=>ss.id!==subId); saveUserData();
   if (kind==='code') { currentDetail.codeSubspaceId=null; renderCode(); }
   else if (kind==='exercise') { currentDetail.exerciseSubspaceId=null; renderExercises(); }
@@ -1459,7 +1481,8 @@ function saveGeneralNote(noteId='') {
   saveUserData(); closeModal(); renderNotes(); updateStatus(); showToast(noteId ? 'Anotação atualizada.' : 'Anotação criada.');
 }
 function deleteGeneralNote(noteId) {
-  if (!confirm('Excluir esta anotação?')) return;
+  const name = appData.generalNotes.find(n => n.id === noteId)?.title || 'esta anotação';
+  if (!confirm(`Deseja mesmo excluir "${name}"?`)) return;
   appData.generalNotes = appData.generalNotes.filter(n => n.id !== noteId);
   saveUserData(); renderNotes(); updateStatus(); showToast('Anotação removida.');
 }
@@ -1522,7 +1545,8 @@ function toggleLinkedinStatus(postId) {
   saveUserData(); renderLinkedin(); showToast('Status da postagem atualizado.');
 }
 function deleteLinkedinPost(postId) {
-  if (!confirm('Excluir esta postagem?')) return;
+  const name = appData.linkedinPosts.find(p => p.id === postId)?.title || 'esta postagem';
+  if (!confirm(`Deseja mesmo excluir "${name}"?`)) return;
   appData.linkedinPosts = appData.linkedinPosts.filter(p => p.id !== postId);
   saveUserData(); renderLinkedin(); updateStatus(); showToast('Postagem removida.');
 }
@@ -1605,9 +1629,10 @@ async function saveCert(certId='') {
   saveUserData(); closeModal(); renderCerts(); updateStatus(); showToast(certId ? 'Item atualizado.' : 'Item cadastrado.');
 }
 function deleteCert(certId) {
-  if (!confirm('Excluir este item?')) return;
+  const name = appData.certificates.find(c => c.id === certId)?.name || 'este certificado';
+  if (!confirm(`Deseja mesmo excluir "${name}"?`)) return;
   appData.certificates = appData.certificates.filter(c => c.id !== certId);
-  saveUserData(); renderCerts(); updateStatus(); showToast('Item removido.');
+  saveUserData(); renderCerts(); updateStatus(); showToast('Certificado removido.');
 }
 
 function renderTools() {
@@ -1667,7 +1692,8 @@ function saveTool(toolId='') {
   saveUserData(); closeModal(); renderTools(); renderDashboard(); updateStatus(); showToast(toolId ? 'Ferramenta atualizada.' : 'Ferramenta criada.');
 }
 function deleteTool(toolId) {
-  if (!confirm('Excluir esta ferramenta?')) return;
+  const name = appData.tools.find(t => t.id === toolId)?.name || 'esta ferramenta';
+  if (!confirm(`Deseja mesmo excluir "${name}"?`)) return;
   appData.tools = appData.tools.filter(t => t.id !== toolId);
   saveUserData(); renderTools(); renderDashboard(); updateStatus(); showToast('Ferramenta removida.');
 }
@@ -2115,6 +2141,10 @@ window.deletePracticeItem             = deletePracticeItem;
 window.deleteSnippet                  = deleteSnippet;
 window.deleteSubmodule                = deleteSubmodule;
 window.deleteTool                     = deleteTool;
+window.deleteCourse                   = deleteCourse;
+window.deleteDoc                      = deleteDoc;
+window.deleteGenericSpace             = deleteGenericSpace;
+window.deleteSubspace                 = deleteSubspace;
 window.downloadAttachment             = downloadAttachment;
 window.duplicateGoalSuggestions       = duplicateGoalSuggestions;
 window.importContent                  = importContent;
