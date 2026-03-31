@@ -1,0 +1,19 @@
+space,subspace,title,prompt,answer
+COBOL Mainframe,Mock Pleno,Explique PERFORM,Como você explicaria PERFORM para alguém iniciante em COBOL?,"PERFORM executa um bloco de instruções, podendo repetir uma rotina uma vez ou várias vezes até uma condição ser atendida."
+COBOL Mainframe,Mock Pleno,Diferença entre ADD e COMPUTE,Quando faz mais sentido usar ADD e quando faz mais sentido usar COMPUTE?,ADD é mais direto para soma simples. COMPUTE é melhor quando a expressão tem mais operações ou precisa ficar explícita em uma linha.
+COBOL Mainframe,Mock Pleno,O que é batch,Defina batch em até 30 segundos.,"Batch é processamento em lote, normalmente agendado, usado para grandes volumes e rotinas sem interação imediata do usuário, como fechamento diário."
+COBOL Mainframe,Mock Pleno,O que é CICS,Defina CICS em até 30 segundos.,"CICS é ambiente transacional online no mainframe, usado para processamentos com resposta imediata e controle transacional."
+COBOL Mainframe,Mock Pleno,JOB EXEC DD,"Explique brevemente JOB, EXEC e DD em JCL.","JOB identifica o job, EXEC define o programa ou procedure executada e DD informa os datasets, spool e arquivos usados no step."
+COBOL Mainframe,Mock Pleno,DISP SHR,O que significa DISP=SHR em um DD?,"Indica que o dataset será acessado de forma compartilhada, normalmente para leitura ou uso sem exclusividade."
+COBOL Mainframe,Mock Pleno,SQLCODE +100,O que significa SQLCODE +100?,"Significa que a instrução SQL executou sem erro técnico, mas não encontrou linhas para retornar."
+COBOL Mainframe,Mock Pleno,SQLCODE negativo,Como você reage a um SQLCODE negativo?,"Trato como erro, analiso o código específico, faço log, avalio rollback e verifico impacto no fluxo."
+COBOL Mainframe,Mock Pleno,Teste em legado,Como você testa uma alteração pequena em sistema legado?,"Valido cenário principal, exceções, dados limite, impacto em arquivo ou DB2 e evidências para homologação."
+COBOL Mainframe,Mock Pleno,Leitura de programa legado,Qual seu primeiro passo ao abrir um COBOL desconhecido?,"Entender entrada, saída, variáveis principais, parágrafos centrais, chamadas, arquivos e regras de negócio envolvidas."
+COBOL Mainframe,Mock Pleno,Falha em job,Um job falhou. O que você olha primeiro?,"Step com erro, RC ou abend, mensagens no spool, datasets de entrada e alteração recente."
+COBOL Mainframe,Mock Pleno,Mudança segura,Como reduzir risco em uma manutenção simples?,"Alterar o mínimo necessário, entender dependências, testar cenários críticos e acompanhar a implantação."
+COBOL Mainframe,Mock Pleno,Fluxo online x lote,Quando uma regra deve ir para batch e quando deve ir para online?,"Vai para batch quando é volume, agenda ou processamento pesado. Vai para online quando precisa resposta imediata ao usuário ou sistema."
+COBOL Mainframe,Mock Pleno,Host variable,O que é uma host variable em COBOL com DB2?,"É uma variável COBOL usada pela instrução SQL para receber ou enviar valores, marcada com dois-pontos na instrução."
+COBOL Mainframe,Mock Pleno,Arquivo rejeitado,Por que manter arquivo de rejeitados?,"Para rastreabilidade, reprocessamento e análise dos registros que falharam em validação."
+COBOL Mainframe,Mock Pleno,Control-M,O que é Control-M no contexto da vaga?,"Ferramenta de agendamento e monitoramento de jobs, útil para dependências, calendário, rerun e acompanhamento operacional."
+COBOL Mainframe,Mock Pleno,Changeman,O que é Changeman em uma resposta curta?,Ferramenta de gestão de mudanças e promoção de pacotes entre ambientes no mainframe.
+COBOL Mainframe,Mock Pleno,TSO/E,Como descrever TSO/E de forma simples?,"É um ambiente de interação no mainframe usado para navegar, editar, executar e consultar datasets e objetos."
