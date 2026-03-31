@@ -213,9 +213,9 @@ async function doRegister() {
       data: { username:user, invite_code:invite }
     }
   });
-  if (error) return setFieldText('register-error', error.message || 'Não foi possível criar a conta.');
+  if (error) return setFieldText('register-error', (error.message || 'Não foi possível criar a conta.') + ' Verifique também se o provedor de e-mail do Supabase está configurado.');
   document.getElementById('login-user').value = email;
-  setFieldText('register-help', `Conta criada para <strong>${esc(email)}</strong>. Verifique sua caixa de entrada e clique no link de ativação enviado pelo Supabase.`, true);
+  setFieldText('register-help', `Conta criada para <strong>${esc(email)}</strong>. Verifique sua caixa de entrada e spam. Se o e-mail não chegar, configure SMTP no Supabase.`, true);
   if (data?.session?.user) {
     const identity = getAuthIdentity(data.session.user);
     writeLS(SESSION_KEY, { user:identity.storageUser, displayName:identity.displayName, email:identity.email, provider:'supabase' });
@@ -233,8 +233,8 @@ async function sendResetCode() {
   const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
     redirectTo: getAuthRedirectUrl()
   });
-  if (error) return setFieldText('forgot-error', error.message || 'Não foi possível enviar o link.');
-  setFieldText('forgot-help', `Enviamos um link de redefinição para <strong>${esc(email)}</strong>. Abra o e-mail e clique no link para definir a nova senha.`, true);
+  if (error) return setFieldText('forgot-error', (error.message || 'Não foi possível enviar o link.') + ' Verifique também a configuração de SMTP no Supabase.');
+  setFieldText('forgot-help', `Tentamos enviar um link de redefinição para <strong>${esc(email)}</strong>. Verifique caixa de entrada e spam. Se não chegar, configure SMTP no Supabase.`, true);
   showToast('Link de redefinição enviado.');
 }
 async function resetPassword() {
