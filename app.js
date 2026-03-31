@@ -1,21 +1,19 @@
 (function(){
   try {
     const session = JSON.parse(localStorage.getItem('mfhub.session.v4'));
-    const users = JSON.parse(localStorage.getItem('mfhub.users.v4')) || {};
-    const record = session && session.user ? users[session.user] : null;
-    const valid = typeof record === 'string' ? true : !!(record && record.activated !== false);
-    if (session && session.user && valid) document.documentElement.dataset.auth = '1';
+    if (session && session.user) document.documentElement.dataset.auth = '1';
   } catch (e) {}
 })();
 
 document.addEventListener('DOMContentLoaded', () => {
 const INVITE_CODE = '@elielmainframe';
-const USERS_KEY = 'mfhub.users.v4';
 const SESSION_KEY = 'mfhub.session.v4';
-const ACTIVATION_KEY = 'mfhub.activation.v1';
-const RESET_KEY = 'mfhub.reset.v1';
 const REMEMBER_KEY = 'mfhub.remember.v1';
 const SEED_VERSION = 20260330;
+const SUPABASE_URL = String(window.MFHUB_SUPABASE_URL || '').trim();
+const SUPABASE_ANON_KEY = String(window.MFHUB_SUPABASE_ANON_KEY || '').trim();
+const SUPABASE_ENABLED = !!(window.supabase && SUPABASE_URL && SUPABASE_ANON_KEY);
+const supabaseClient = SUPABASE_ENABLED ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 const SEEDS = {"exercises": [{"name": "COBOL — Básico", "desc": "Exercícios introdutórios de lógica, entrada de dados, laços e decisões.", "items": [{"title": "1. Olá, mundo com entrada", "prompt": "Crie um programa COBOL que:\n\nexiba uma mensagem de boas-vindas\nreceba o nome do usuário\nexiba Olá, <nome>", "answer": ""}, {"title": "2. Soma de dois números", "prompt": "Faça um programa que:\n\nleia dois números inteiros\nsome os valores\nmostre o resultado", "answer": ""}, {"title": "3. Maior de dois números", "prompt": "Leia dois números e informe qual deles é o maior.\nSe forem iguais, mostrar mensagem apropriada.", "answer": ""}, {"title": "4. Par ou ímpar", "prompt": "Receba um número inteiro e informe se ele é par ou ímpar.", "answer": ""}, {"title": "5. Cálculo de média", "prompt": "Leia 3 notas de um aluno, calcule a média e informe:\n\nAPROVADO se média >= 7\nRECUPERACAO se média entre 5 e 6,99\nREPROVADO se média < 5", "answer": ""}, {"title": "6. Tabuada", "prompt": "Leia um número e exiba sua tabuada de 1 a 10.", "answer": ""}, {"title": "7. Contador de 1 a 100", "prompt": "Mostre na tela os números de 1 até 100 usando PERFORM VARYING.", "answer": ""}, {"title": "8. Fatorial", "prompt": "Leia um número inteiro positivo e calcule o fatorial dele.\n\nNível intermediário", "answer": ""}]}, {"name": "COBOL — Intermediário", "desc": "Strings, datas, salário, leitura de arquivo, validações e OCCURS.", "items": [{"title": "9. Manipulação de string", "prompt": "Receba nome e sobrenome em campos separados e monte:\n\nnome completo\niniciais\nquantidade de caracteres", "answer": ""}, {"title": "10. Conversão de data", "prompt": "Receba uma data no formato AAAAMMDD e exiba no formato DD/MM/AAAA.", "answer": ""}, {"title": "11. Cálculo de salário líquido", "prompt": "Receba:\n\nsalário bruto\npercentual de desconto INSS\npercentual de desconto IR\n\nCalcule e mostre o salário líquido.", "answer": ""}, {"title": "12. Leitura de arquivo sequencial", "prompt": "Crie um programa que leia um arquivo com registros:\n\ncódigo do cliente\nnome\nsaldo\n\nExiba todos os registros lidos.", "answer": ""}, {"title": "13. Totalização de arquivo", "prompt": "Dado um arquivo de vendas com:\n\ncódigo do produto\nquantidade\nvalor unitário\n\nCalcule:\n\ntotal por registro\ntotal geral do arquivo", "answer": ""}, {"title": "14. Validação de CPF simples", "prompt": "Receba um CPF com 11 posições e valide:\n\nse contém apenas números\nse tem tamanho correto\n\nNão precisa calcular dígitos verificadores.", "answer": ""}, {"title": "15. Tabela em memória", "prompt": "Crie uma tabela com 10 nomes em OCCURS e permita:\n\ncarregar os nomes\npesquisar um nome informado\ndizer se encontrou ou não", "answer": ""}, {"title": "16. Classificação por faixa etária", "prompt": "Leia idade e classifique:\n\ncriança: 0 a 12\nadolescente: 13 a 17\nadulto: 18 a 59\nidoso: 60+\nNível avançado", "answer": ""}]}, {"name": "COBOL — Avançado", "desc": "Mestre x movimento, quebra de controle, merge, paginação, FILE STATUS e CALL.", "items": [{"title": "17. Processamento mestre x movimento", "prompt": "Considere:\n\narquivo mestre de clientes\narquivo movimento com inclusões, alterações e exclusões\n\nFaça um programa que atualize o mestre e gere:\n\nnovo mestre\nrelatório de inconsistências", "answer": ""}, {"title": "18. Quebra de controle", "prompt": "Leia um arquivo de vendas ordenado por filial e por produto e gere:\n\nsubtotal por produto\nsubtotal por filial\ntotal geral", "answer": ""}, {"title": "19. Merge de arquivos", "prompt": "Receba dois arquivos ordenados pelo código do cliente e gere um terceiro arquivo consolidado.", "answer": ""}, {"title": "20. Relatório paginado", "prompt": "Leia um arquivo e gere um relatório com:\n\ncabeçalho\ndetalhe\nrodapé\nnumeração de páginas\ncontagem de linhas por página", "answer": ""}, {"title": "21. Tratamento de erro de arquivo", "prompt": "Monte um programa com FILE STATUS para tratar:\n\narquivo não encontrado\nerro de leitura\nfim de arquivo", "answer": ""}, {"title": "22. Módulos e CALL", "prompt": "Crie:\n\num programa principal\num subprograma que calcule juros simples\n\nO principal envia capital, taxa e tempo; o subprograma devolve o valor dos juros.\n\nJCL\nNível básico", "answer": ""}]}, {"name": "JCL — Básico", "desc": "JOB, IEFBR14, alocação, exclusão, cópia, impressão e SORT simples.", "items": [{"title": "23. JOB simples", "prompt": "Escreva um JCL com:\n\nJOB\nEXEC PGM=IEFBR14\nDD\n\nObjetivo: apenas executar um job válido.", "answer": ""}, {"title": "24. Alocação de dataset", "prompt": "Crie um JCL usando IEFBR14 para criar um dataset sequencial com:\n\nDSORG=PS\nRECFM=FB\nLRECL=80\nespaço primário e secundário", "answer": ""}, {"title": "25. Exclusão de dataset", "prompt": "Monte um JCL para apagar um dataset existente.", "answer": ""}, {"title": "26. Copiar arquivo com IEBGENER", "prompt": "Use IEBGENER para copiar um dataset de entrada para outro dataset de saída.", "answer": ""}, {"title": "27. Imprimir dataset", "prompt": "Use IEBGENER ou utilitário equivalente para enviar um dataset para saída SYSOUT.", "answer": ""}, {"title": "28. Ordenação simples com SORT", "prompt": "Crie um JCL com SORT para ordenar um arquivo pelo campo de código em ordem crescente.\n\nNível intermediário", "answer": ""}]}, {"name": "JCL — Intermediário e Avançado", "desc": "SORT com filtros, temporários, COND, IF/THEN/ELSE, GDG, PROC e restart.", "items": [{"title": "29. SORT com filtro", "prompt": "Usando SORT, selecione apenas registros cujo tipo seja A e grave em um novo dataset.", "answer": ""}, {"title": "30. SORT com SUM FIELDS=NONE", "prompt": "Dado um arquivo com registros duplicados por chave, elimine duplicidades.", "answer": ""}, {"title": "31. Passagem de datasets temporários", "prompt": "Monte um job com 3 steps:\n\nStep 1 cria arquivo temporário\nStep 2 ordena\nStep 3 imprime\n\nUse dataset temporário &&TEMP.", "answer": ""}, {"title": "32. Uso de COND", "prompt": "Crie um job onde:\n\nstep 2 só executa se o step 1 terminar com RC = 0", "answer": ""}, {"title": "33. IDCAMS para catálogo", "prompt": "Faça um JCL com IDCAMS para:\n\nlistar um dataset\nverificar existência", "answer": ""}, {"title": "34. Geração de GDG", "prompt": "Crie uma base GDG e depois um JCL que grave uma nova geração.", "answer": ""}, {"title": "35. PROC simples", "prompt": "Crie um procedimento catalogado ou instream com:\n\nprograma\ndatasets de entrada e saída\nparâmetros simbólicos\nNível avançado", "answer": ""}, {"title": "36. Job com restart", "prompt": "Monte um job com vários steps e indique como fazer restart a partir do step 3.", "answer": ""}, {"title": "37. IF/THEN/ELSE no JCL", "prompt": "Crie um JCL que:\n\nexecute um step\nteste o return code\nexecute caminhos diferentes conforme o resultado", "answer": ""}, {"title": "38. Backup e restore lógico", "prompt": "Faça um job que:\n\ncopie dataset original para backup\nrode um programa\ncaso falhe, restaure o backup", "answer": ""}, {"title": "39. Geração de relatório com múltiplos steps", "prompt": "Monte um job com:\n\nleitura do arquivo bruto\nsort\nexecução de programa COBOL\nimpressão do relatório final", "answer": ""}, {"title": "40. Override em PROC", "prompt": "Crie uma PROC com 2 steps e, no job chamador, altere um DSN por override.\n\nDB2\nNível básico", "answer": ""}]}, {"name": "DB2 — Básico e Intermediário", "desc": "CREATE, INSERT, SELECT, JOIN, GROUP BY, CASE, LIKE e UPDATE.", "items": [{"title": "41. Criar tabela de clientes", "prompt": "Escreva o CREATE TABLE para uma tabela CLIENTES com:\n\nID_CLIENTE\nNOME\nCPF\nDATA_NASCIMENTO\nSALDO\n\nDefina chave primária.", "answer": ""}, {"title": "42. Inserir registros", "prompt": "Insira 5 clientes na tabela criada.", "answer": ""}, {"title": "43. Consultar todos os registros", "prompt": "Faça um SELECT * na tabela.", "answer": ""}, {"title": "44. Filtrar por saldo", "prompt": "Liste apenas clientes com saldo maior que 1000.", "answer": ""}, {"title": "45. Ordenação", "prompt": "Liste os clientes em ordem alfabética de nome.", "answer": ""}, {"title": "46. Atualização simples", "prompt": "Atualize o saldo de um cliente específico.", "answer": ""}, {"title": "47. Exclusão simples", "prompt": "Delete um cliente pelo ID.\n\nNível intermediário", "answer": ""}, {"title": "48. Funções agregadas", "prompt": "Crie consultas que retornem:\n\nquantidade de clientes\nsoma dos saldos\nmédia dos saldos\nmaior saldo\nmenor saldo", "answer": ""}, {"title": "49. GROUP BY", "prompt": "Considere uma tabela VENDAS com:\n\nID_VENDA\nID_CLIENTE\nVALOR\nDATA_VENDA\n\nListe o total vendido por cliente.", "answer": ""}, {"title": "50. JOIN básico", "prompt": "Considere tabelas CLIENTES e VENDAS.\nFaça um JOIN para mostrar:\n\nnome do cliente\ndata da venda\nvalor", "answer": ""}, {"title": "51. Subselect", "prompt": "Liste os clientes que possuem pelo menos uma venda.", "answer": ""}, {"title": "52. CASE", "prompt": "Faça uma consulta que classifique o cliente:\n\nPREMIUM se saldo > 10000\nINTERMEDIARIO se saldo entre 5000 e 10000\nBASICO caso contrário", "answer": ""}, {"title": "53. LIKE e BETWEEN", "prompt": "Monte consultas usando:\n\nLIKE para nomes iniciados por A\nBETWEEN para saldos entre 1000 e 5000", "answer": ""}, {"title": "54. UPDATE com condição", "prompt": "Aumente em 10% o saldo de todos os clientes com saldo inferior a 500.\n\nNível avançado", "answer": ""}]}, {"name": "DB2 — Avançado", "desc": "Cursores, SQLCODE, COMMIT, integridade, índices e VIEW.", "items": [{"title": "55. Cursores em COBOL/DB2", "prompt": "Descreva e implemente um programa COBOL com DB2 que:\n\ndeclare cursor\nabra cursor\nfaça fetch até fim\nexiba os dados", "answer": ""}, {"title": "56. Tratamento de SQLCODE", "prompt": "Crie um programa que trate:\n\nSQLCODE = 0\nSQLCODE = 100\nSQLCODE < 0", "answer": ""}, {"title": "57. INSERT com validação", "prompt": "Antes de inserir um cliente, verifique se o CPF já existe.\nSe existir, não inserir.", "answer": ""}, {"title": "58. UPDATE com COMMIT", "prompt": "Faça um programa COBOL/DB2 que atualize vários registros e execute COMMIT a cada 100 linhas.", "answer": ""}, {"title": "59. DELETE com integridade", "prompt": "Considere CLIENTES e VENDAS.\nTente excluir um cliente que tenha vendas associadas e trate a integridade referencial.", "answer": ""}, {"title": "60. JOIN com agregação", "prompt": "Liste:\n\nnome do cliente\nquantidade de vendas\nvalor total vendido\nmédia de valor por venda", "answer": ""}, {"title": "61. Índices", "prompt": "Escreva comandos para criar índice:\n\npor CPF\npor NOME\nDepois explique em qual tipo de consulta cada índice ajuda.", "answer": ""}, {"title": "62. VIEW", "prompt": "Crie uma VIEW chamada VW_CLIENTES_ATIVOS que mostre apenas clientes com saldo positivo.\n\nExercícios integrados", "answer": ""}]}, {"name": "Fluxos Integrados e Desafios", "desc": "Integração entre COBOL, JCL e DB2 com cenários batch mais completos.", "items": [{"title": "63. COBOL + JCL", "prompt": "Crie:\n\num programa COBOL que leia um arquivo de produtos\ncalcule valor total em estoque (quantidade * valor unitário)\ngere um relatório de saída\n\nDepois monte o JCL para executar esse programa.", "answer": ""}, {"title": "64. COBOL + DB2", "prompt": "Crie um programa COBOL/DB2 que:\n\nreceba um ID_CLIENTE\nconsulte nome e saldo na tabela CLIENTES\nexiba os dados\ntrate cliente não encontrado", "answer": ""}, {"title": "65. JCL + SORT + COBOL", "prompt": "Monte um fluxo em que:\n\no JCL ordena o arquivo de entrada\no COBOL faz quebra de controle por filial\ngera relatório final", "answer": ""}, {"title": "66. COBOL + DB2 + JCL", "prompt": "Monte uma solução completa:\n\ntabela VENDAS\nprograma COBOL que leia vendas do dia no DB2\ngere arquivo sequencial\njob JCL que execute o programa e imprima a saída", "answer": ""}, {"title": "67. Carga batch", "prompt": "Cenário:\n\nexiste um arquivo com novos clientes\no COBOL valida os dados\nregistros válidos são inseridos no DB2\ninválidos vão para arquivo de rejeição\no JCL executa todo o processo\n\nDesenvolva o fluxo completo.", "answer": ""}, {"title": "68. Reconciliação de saldos", "prompt": "Você possui:\n\narquivo externo com saldos\ntabela DB2 com saldos atuais\n\nCrie um processo que:\n\ncompare os valores\ngere relatório de divergências\natualize a tabela quando apropriado\n\nUse COBOL para processamento e JCL para execução.\n\nDesafios extras", "answer": ""}, {"title": "69. Simulação bancária", "prompt": "Crie um mini sistema batch com:\n\ncadastro de contas\nmovimentações\ncálculo de saldo final\nrelatório por agência\n\nPode usar arquivos ou DB2.", "answer": ""}, {"title": "70. Folha de pagamento", "prompt": "Desenvolva um processo que:\n\nleia arquivo de funcionários\ncalcule salário líquido\ngrave arquivo de pagamento\ngere relatório de totais\nexecute tudo via JCL", "answer": ""}, {"title": "71. Controle de estoque", "prompt": "Implemente:\n\ntabela de produtos\nmovimentações de entrada e saída\natualização de estoque\nlistagem de produtos abaixo do mínimo", "answer": ""}, {"title": "72. Fechamento mensal", "prompt": "Crie um job batch mensal que:\n\nselecione dados no DB2\nordene por filial e data\nprocesse via COBOL\ngere relatório final\nfaça backup da saída", "answer": ""}]}], "interviews": [{"name": "Entrevistas — Fundamentos Mainframe", "desc": "Perguntas de base para júnior: plataforma, z/OS, datasets e fluxo geral.", "items": [{"title": "Mainframe e z/OS", "prompt": "O que é um mainframe e em que tipo de empresa ele costuma ser mais usado?"}, {"title": "Mainframe x servidor comum", "prompt": "Qual a diferença entre mainframe e servidor comum?"}, {"title": "z/OS", "prompt": "O que é o z/OS?"}, {"title": "TSO/ISPF", "prompt": "O que é TSO/ISPF e para que serve?"}, {"title": "Dataset", "prompt": "O que é um dataset no mainframe?"}, {"title": "PDS/PDSE", "prompt": "Qual a diferença entre dataset sequencial e PDS/PDSE?"}, {"title": "Member", "prompt": "O que é uma member dentro de uma PDS?"}, {"title": "LOADLIB", "prompt": "O que é uma LOADLIB?"}, {"title": "Fonte x copybook x load module", "prompt": "Qual a diferença entre fonte COBOL, copybook e load module?"}, {"title": "Job", "prompt": "O que é um job?"}]}, {"name": "Entrevistas — COBOL, Arquivos e JCL", "desc": "Perguntas técnicas de júnior e júnior/intermediário sobre COBOL, arquivos e batch.", "items": [{"title": "Divisões do COBOL", "prompt": "Quais são as divisões principais de um programa COBOL?"}, {"title": "WORKING-STORAGE e FILE SECTION", "prompt": "Para que servem a WORKING-STORAGE SECTION e a FILE SECTION?"}, {"title": "PIC X x PIC 9", "prompt": "Qual a diferença entre PIC X e PIC 9?"}, {"title": "COMP-3", "prompt": "O que é COMP-3 e por que ele é usado?"}, {"title": "PERFORM", "prompt": "Qual a diferença entre PERFORM UNTIL e PERFORM VARYING?"}, {"title": "88 level", "prompt": "O que é um 88 level e por que ele é útil?"}, {"title": "READ / WRITE / REWRITE", "prompt": "Qual a diferença entre READ, WRITE e REWRITE?"}, {"title": "FILE STATUS", "prompt": "Para que serve o FILE STATUS?"}, {"title": "EOF", "prompt": "O que é EOF e como normalmente tratamos isso em COBOL?"}, {"title": "JCL básico", "prompt": "Quais são os principais blocos de um JCL?"}, {"title": "EXEC e DD", "prompt": "O que faz uma EXEC? O que faz uma DD?"}, {"title": "DISP", "prompt": "O que significa DISP=SHR, DISP=OLD e DISP=NEW,CATLG,DELETE?"}, {"title": "SYSOUT e MSGCLASS", "prompt": "Para que serve o SYSOUT? O que é MSGCLASS?"}, {"title": "PROC / COND / IF", "prompt": "O que é um PROC? O que é COND em JCL? O que é IF/THEN/ELSE em JCL e quando usar?"}]}, {"name": "Entrevistas — VSAM, DB2 e CICS", "desc": "Perguntas de acesso a dados, transações e programas online.", "items": [{"title": "VSAM", "prompt": "O que é VSAM? Qual a diferença entre KSDS e ESDS?"}, {"title": "Chave VSAM", "prompt": "O que é uma chave em um arquivo VSAM? Em que cenário usar KSDS?"}, {"title": "VSAM x DB2", "prompt": "Qual a diferença entre arquivo VSAM e tabela DB2?"}, {"title": "Cursor", "prompt": "O que é cursor? Quando usar cursor e quando evitar?"}, {"title": "COMMIT", "prompt": "O que é COMMIT? Por que COMMIT é importante em rotinas com DB2?"}, {"title": "SELECT INTO x cursor", "prompt": "Qual a diferença entre SELECT INTO e cursor?"}, {"title": "Índice e lock", "prompt": "O que é índice em DB2? Como um índice ajuda performance? O que é lock?"}, {"title": "Deadlock", "prompt": "O que é deadlock em alto nível?"}, {"title": "CICS", "prompt": "O que é CICS? Qual a diferença entre programa batch e programa online em CICS?"}, {"title": "COMMAREA", "prompt": "O que é COMMAREA? O que significa pseudo-conversational?"}, {"title": "Tempo de resposta", "prompt": "Qual a importância do tempo de resposta no CICS?"}, {"title": "Cenário bancário", "prompt": "Em que cenário um banco usaria CICS?"}]}, {"name": "Entrevistas — Pleno, Arquitetura e Troubleshooting", "desc": "Perguntas mais fortes sobre desenho de solução, performance e investigação de incidentes.", "items": [{"title": "Fluxo batch", "prompt": "Como você desenharia um fluxo batch de processamento de lançamentos bancários?"}, {"title": "Múltiplos programas", "prompt": "Como separar validação, postagem, auditoria e conciliação em programas diferentes?"}, {"title": "VSAM x DB2", "prompt": "Quando usar VSAM e quando usar DB2 em uma aplicação corporativa?"}, {"title": "Reprocessamento seguro", "prompt": "Como você pensaria em reprocessamento seguro de uma rotina batch?"}, {"title": "Restart", "prompt": "Como você desenharia um mecanismo de restart?"}, {"title": "Performance", "prompt": "Quais fatores impactam performance em COBOL batch?"}, {"title": "Gargalos", "prompt": "Como evitar gargalos em loops grandes e reduzir acessos desnecessários ao banco?"}, {"title": "Degradação", "prompt": "Como investigaria degradação de performance em batch?"}, {"title": "ABEND S0C7", "prompt": "Como você investigaria um ABEND S0C7?"}, {"title": "S013 / 806", "prompt": "Como você investigaria um S013? E um 806?"}, {"title": "Spool", "prompt": "O que você olha primeiro no spool quando um job falha?"}, {"title": "Erro de ambiente", "prompt": "Como distinguir erro de JCL, erro de programa e erro de ambiente?"}, {"title": "SQLCODE negativo", "prompt": "Como você investigaria um SQLCODE negativo em produção?"}, {"title": "EXPLAIN", "prompt": "Qual a importância do EXPLAIN em DB2, mesmo que você não seja DBA?"}, {"title": "COMMAREA e módulos", "prompt": "Como você estruturaria um programa online que chama outros módulos?"}]}, {"name": "Entrevistas — Situações Reais e Comportamentais", "desc": "Perguntas situacionais e comportamentais sem foco no laboratório.", "items": [{"title": "Legado sem documentação", "prompt": "Você recebeu um programa legado sem documentação. Como começaria a entendê-lo?"}, {"title": "Layout alterado", "prompt": "Um job começou a falhar depois de uma alteração simples de layout. Como investigaria?"}, {"title": "Registros fora do padrão", "prompt": "Um arquivo de entrada veio com registros fora do padrão. O que faria?"}, {"title": "Menos registros do que o esperado", "prompt": "Seu programa está gravando menos registros do que o esperado. Como descobriria a causa?"}, {"title": "Saldo incorreto", "prompt": "Um usuário diz que o saldo ficou errado depois do processamento noturno. Como você agiria?"}, {"title": "Pouca janela de testes", "prompt": "Você precisa alterar uma rotina crítica sem janela grande de testes. Como reduzir risco?"}, {"title": "Urgência x risco", "prompt": "O time pede urgência, mas você percebe risco alto em produção. Como se posiciona?"}, {"title": "Plantão", "prompt": "Você entra de plantão e encontra um job abendado. Quais são seus primeiros passos?"}, {"title": "Análise de causa raiz", "prompt": "Como faria análise de causa raiz de um incidente recorrente?"}, {"title": "Mainframe como carreira", "prompt": "Por que você quer trabalhar com mainframe?"}, {"title": "Sistemas antigos", "prompt": "Como você lida com sistemas antigos e pouca documentação?"}, {"title": "Erro em produção", "prompt": "Como você lida com erro em produção?"}, {"title": "Comunicação", "prompt": "Como você se comunica com analistas, testers e operação?"}, {"title": "Regra de negócio", "prompt": "O que você faz quando não entende uma regra de negócio?"}]}], "codeSpaces": [{"name": "Exemplos COBOL", "desc": "Snippets curtos para treino e consulta rápida.", "snippets": [{"title": "Olá, mundo com entrada", "lang": "COBOL", "description": "Lê um nome e exibe saudação.", "code": "IDENTIFICATION DIVISION.\nPROGRAM-ID. OLAUSER.\n\nDATA DIVISION.\nWORKING-STORAGE SECTION.\n01 WS-NOME         PIC X(30).\n\nPROCEDURE DIVISION.\n    DISPLAY 'Digite seu nome: '\n    ACCEPT WS-NOME\n    DISPLAY 'Olá, ' WS-NOME\n    GOBACK.\n"}, {"title": "Leitura sequencial com EOF", "lang": "COBOL", "description": "Esqueleto com FILE STATUS e flag de fim.", "code": "ENVIRONMENT DIVISION.\nINPUT-OUTPUT SECTION.\nFILE-CONTROL.\n    SELECT ARQ-CLIENTES ASSIGN TO 'CLIENTES'\n        ORGANIZATION IS LINE SEQUENTIAL\n        FILE STATUS IS WS-FS.\n\nDATA DIVISION.\nFILE SECTION.\nFD ARQ-CLIENTES.\n01 REG-CLIENTE.\n   05 CLI-CODIGO    PIC 9(05).\n   05 CLI-NOME      PIC X(30).\n   05 CLI-SALDO     PIC 9(07)V99.\n\nWORKING-STORAGE SECTION.\n01 WS-FS            PIC XX.\n01 WS-EOF           PIC X VALUE 'N'.\n   88 FIM-ARQUIVO   VALUE 'S'.\n\nPROCEDURE DIVISION.\n    OPEN INPUT ARQ-CLIENTES\n    PERFORM UNTIL FIM-ARQUIVO\n        READ ARQ-CLIENTES\n            AT END\n                MOVE 'S' TO WS-EOF\n            NOT AT END\n                DISPLAY CLI-CODIGO ' ' CLI-NOME ' ' CLI-SALDO\n        END-READ\n    END-PERFORM\n    CLOSE ARQ-CLIENTES\n    GOBACK.\n"}, {"title": "Subprograma com CALL", "lang": "COBOL", "description": "Exemplo simples de chamada de módulo.", "code": "*> Programa principal\nCALL 'CALCJURO' USING LK-CAPITAL LK-TAXA LK-TEMPO LK-JUROS.\n\n*> Subprograma CALCJURO\nIDENTIFICATION DIVISION.\nPROGRAM-ID. CALCJURO.\nDATA DIVISION.\nLINKAGE SECTION.\n01 LK-CAPITAL        PIC 9(07)V99.\n01 LK-TAXA           PIC 9(03)V99.\n01 LK-TEMPO          PIC 9(03).\n01 LK-JUROS          PIC 9(09)V99.\nPROCEDURE DIVISION USING LK-CAPITAL LK-TAXA LK-TEMPO LK-JUROS.\n    COMPUTE LK-JUROS = LK-CAPITAL * LK-TAXA * LK-TEMPO / 100\n    GOBACK.\n"}]}, {"name": "Exemplos JCL", "desc": "Utilitários de alocação, cópia e ordenação.", "snippets": [{"title": "Alocar dataset com IEFBR14", "lang": "JCL", "description": "Cria dataset sequencial FB LRECL 80.", "code": "//MFALLOC JOB (ACCT),'ALLOC',CLASS=A,MSGCLASS=X,NOTIFY=&SYSUID\n//STEP01  EXEC PGM=IEFBR14\n//ARQOUT  DD  DSN=SEU.HLQ.TESTE.DADOS,\n//             DISP=(NEW,CATLG,DELETE),\n//             SPACE=(CYL,(1,1)),\n//             DCB=(DSORG=PS,RECFM=FB,LRECL=80,BLKSIZE=0)\n"}, {"title": "Copiar dataset com IEBGENER", "lang": "JCL", "description": "Cópia simples de entrada para saída.", "code": "//MFCOPY  JOB (ACCT),'COPY',CLASS=A,MSGCLASS=X,NOTIFY=&SYSUID\n//STEP01  EXEC PGM=IEBGENER\n//SYSUT1  DD  DSN=SEU.HLQ.INPUT,DISP=SHR\n//SYSUT2  DD  DSN=SEU.HLQ.OUTPUT,DISP=SHR\n//SYSPRINT DD SYSOUT=*\n//SYSIN   DD DUMMY\n"}, {"title": "SORT por código", "lang": "JCL", "description": "Ordena pelo código em ordem crescente.", "code": "//MFSORT  JOB (ACCT),'SORT',CLASS=A,MSGCLASS=X,NOTIFY=&SYSUID\n//STEP01  EXEC PGM=SORT\n//SORTIN  DD DSN=SEU.HLQ.ENTRADA,DISP=SHR\n//SORTOUT DD DSN=SEU.HLQ.SAIDA,DISP=(NEW,CATLG,DELETE),\n//            SPACE=(TRK,(5,2)),DCB=(RECFM=FB,LRECL=80,BLKSIZE=0)\n//SYSOUT  DD SYSOUT=*\n//SYSIN   DD *\n  SORT FIELDS=(1,5,CH,A)\n/*\n"}]}, {"name": "Exemplos DB2 / SQL", "desc": "DDL e consultas para treino de COBOL/DB2.", "snippets": [{"title": "CREATE TABLE CLIENTES", "lang": "SQL", "description": "Tabela base usada em vários exercícios.", "code": "CREATE TABLE CLIENTES (\n    ID_CLIENTE      INTEGER      NOT NULL,\n    NOME            VARCHAR(80)  NOT NULL,\n    CPF             CHAR(11)     NOT NULL,\n    DATA_NASCIMENTO DATE,\n    SALDO           DECIMAL(15,2) DEFAULT 0,\n    CONSTRAINT PK_CLIENTES PRIMARY KEY (ID_CLIENTE)\n);\n"}, {"title": "JOIN com agregação", "lang": "SQL", "description": "Quantidade e total vendido por cliente.", "code": "SELECT\n    C.NOME,\n    COUNT(V.ID_VENDA)      AS QTDE_VENDAS,\n    SUM(V.VALOR)           AS TOTAL_VENDIDO,\n    AVG(V.VALOR)           AS MEDIA_VENDA\nFROM CLIENTES C\nJOIN VENDAS V\n  ON V.ID_CLIENTE = C.ID_CLIENTE\nGROUP BY C.NOME\nORDER BY TOTAL_VENDIDO DESC;\n"}, {"title": "VIEW de clientes ativos", "lang": "SQL", "description": "View simples para saldos positivos.", "code": "CREATE VIEW VW_CLIENTES_ATIVOS AS\nSELECT\n    ID_CLIENTE,\n    NOME,\n    CPF,\n    SALDO\nFROM CLIENTES\nWHERE SALDO > 0;\n"}]}, {"name": "Exemplos REXX e Automação", "desc": "Automação leve para ambiente mainframe.", "snippets": [{"title": "Listar membros de uma PDS", "lang": "REXX", "description": "Usa LISTDS MEMBERS.", "code": "/* REXX */\nARG pds .\nIF pds = '' THEN DO\n  SAY 'Uso: LISTPDS nome-da-pds'\n  EXIT 8\nEND\nx = OUTTRAP('output.', '*')\n\"LISTDS '\"pds\"' MEMBERS\"\nx = OUTTRAP('OFF')\nfound = 0\nDO i = 1 TO output.0\n  IF WORD(output.i,1) = '--MEMBERS--' THEN found = 1\n  ELSE IF found = 1 THEN SAY STRIP(output.i)\nEND\nEXIT 0\n"}, {"title": "Submeter membro JCL", "lang": "REXX", "description": "Exemplo simples de submit de member.", "code": "/* REXX */\nARG pds member .\nIF pds = '' | member = '' THEN DO\n  SAY 'Uso: SUBJCL nome-pds membro'\n  EXIT 8\nEND\naddress tso \"SUBMIT '\"pds\"(\"(\"member\")\")'\"\nIF RC <> 0 THEN DO\n  SAY 'Falha no SUBMIT. RC=' RC\n  EXIT 8\nEND\nSAY member 'submetido com sucesso.'\nEXIT 0\n"}]}]};
 
 let currentUser = null;
@@ -31,7 +29,6 @@ function esc(v) { return String(v ?? '').replace(/[&<>"']/g, s => ({'&':'&amp;',
 function nl2br(v) { return esc(v).replace(/\n/g,'<br>'); }
 function fmtDate(v) { return v ? new Date(v).toLocaleString('pt-BR') : ''; }
 function showToast(msg) { const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show'); clearTimeout(showToast.t); showToast.t=setTimeout(()=>el.classList.remove('show'),2200); }
-function hashPassword(value) { let h=0; for (let i=0;i<value.length;i++) h=(Math.imul(31,h)+value.charCodeAt(i))|0; return h.toString(36); }
 function userDataKey(user) { return `mfhub.data.${user}.v4`; }
 function getThemeKey(user) { return `mfhub.theme.${user||'guest'}.v4`; }
 function getTodayGoalKey() {
@@ -122,166 +119,201 @@ function loadRememberedLogin() {
   if (rememberEl) rememberEl.checked = !!(remembered.identifier || remembered.password);
 }
 
-function getUsersMap() { return readLS(USERS_KEY, {}) || {}; }
-function getActivationMap() { return readLS(ACTIVATION_KEY, {}) || {}; }
-function getResetMap() { return readLS(RESET_KEY, {}) || {}; }
-function normalizeUserRecord(record) {
-  if (!record) return null;
-  if (typeof record === 'string') return { passHash:record, email:'', activated:true, legacy:true };
-  return { activated:true, email:'', ...record };
-}
-function findUserEntry(identifier) {
-  const users = getUsersMap();
-  const raw = String(identifier || '').trim().toLowerCase();
-  if (!raw) return null;
-  if (users[identifier]) return { username:identifier, record:normalizeUserRecord(users[identifier]) };
-  for (const [username, rec] of Object.entries(users)) {
-    const record = normalizeUserRecord(rec);
-    if (username.toLowerCase() === raw || String(record.email || '').toLowerCase() === raw) return { username, record };
-  }
-  return null;
-}
 function deriveUsernameFromEmail(email) {
-  const base = String(email || '').split('@')[0].toLowerCase().replace(/[^a-z0-9._-]+/g, '').slice(0, 24) || 'user';
-  const users = getUsersMap();
-  if (!users[base]) return base;
-  let i = 2;
-  while (users[`${base}${i}`]) i++;
-  return `${base}${i}`;
+  return String(email || '')
+    .split('@')[0]
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '')
+    .slice(0, 24) || 'user';
 }
-function makeCode() { return String(Math.floor(100000 + Math.random() * 900000)); }
-function toggleAuth(mode) {
+function getAuthRedirectUrl() {
+  const url = new URL(window.location.href);
+  url.hash = '';
+  return url.toString();
+}
+function isRecoveryFlow() {
+  return window.location.hash.includes('type=recovery') || new URLSearchParams(window.location.search).get('recovery') === '1';
+}
+function cleanupAuthUrl() {
+  const url = new URL(window.location.href);
+  url.hash = '';
+  url.searchParams.delete('recovery');
+  history.replaceState({}, document.title, url.toString());
+}
+function getAuthIdentity(user) {
+  const username = String(user?.user_metadata?.username || '').trim() || deriveUsernameFromEmail(user?.email || '');
+  return {
+    storageUser: username,
+    displayName: username,
+    email: String(user?.email || '').toLowerCase(),
+    id: user?.id || ''
+  };
+}
+function setFieldText(id, text, asHtml=false) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (asHtml) el.innerHTML = text;
+  else el.textContent = text;
+}
+function clearAuthMessages() {
+  ['login-error','register-error','forgot-error','recovery-error'].forEach(id => setFieldText(id, ''));
+}
+function toggleAuth(mode='login') {
   document.getElementById('login-form').classList.toggle('hidden', mode !== 'login');
   document.getElementById('register-form').classList.toggle('hidden', mode !== 'register');
   document.getElementById('forgot-form').classList.toggle('hidden', mode !== 'forgot');
-  document.getElementById('auth-mode-label').textContent = mode === 'login' ? 'LOGIN' : mode === 'register' ? 'REGISTRO' : 'RESET';
+  document.getElementById('recovery-form')?.classList.toggle('hidden', mode !== 'recovery');
+  document.getElementById('auth-mode-label').textContent = ({ login:'LOGIN', register:'REGISTRO', forgot:'RESET', recovery:'NOVA SENHA' })[mode] || 'LOGIN';
+  clearAuthMessages();
 }
-function doLogin() {
-  const identifier = document.getElementById('login-user').value.trim();
+function requireSupabase(messageElId) {
+  if (SUPABASE_ENABLED) return true;
+  setFieldText(messageElId, 'Supabase não configurado. Crie o arquivo supabase-config.js com a URL e a Publishable key do projeto.');
+  return false;
+}
+function showLoginScreen(mode='login') {
+  document.documentElement.removeAttribute('data-auth');
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+  toggleAuth(mode);
+}
+async function doLogin() {
+  const email = document.getElementById('login-user').value.trim().toLowerCase();
   const pass = document.getElementById('login-pass').value;
   const remember = !!document.getElementById('login-remember')?.checked;
-  const err = document.getElementById('login-error');
-  err.textContent = '';
-  if (!identifier || !pass) return err.textContent = 'Usuário/e-mail e senha são obrigatórios.';
-  const found = findUserEntry(identifier);
-  if (!found) return err.textContent = 'Credenciais inválidas.';
-  if (!found.record.activated) return err.textContent = 'Conta ainda não ativada.';
-  if (found.record.passHash !== hashPassword(pass)) return err.textContent = 'Credenciais inválidas.';
-  if (remember) saveRememberedLogin(identifier, pass); else clearRememberedLogin();
-  writeLS(SESSION_KEY, { user:found.username });
-  startApp(found.username);
+  setFieldText('login-error', '');
+  if (!requireSupabase('login-error')) return;
+  if (!email || !pass) return setFieldText('login-error', 'E-mail e senha são obrigatórios.');
+  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password: pass });
+  if (error) return setFieldText('login-error', error.message || 'Não foi possível entrar.');
+  if (remember) saveRememberedLogin(email, pass); else clearRememberedLogin();
+  const identity = getAuthIdentity(data.user);
+  writeLS(SESSION_KEY, { user:identity.storageUser, displayName:identity.displayName, email:identity.email, provider:'supabase' });
+  cleanupAuthUrl();
+  startApp(identity.storageUser, identity.displayName);
 }
-function sendActivationCode() {
+async function doRegister() {
   const invite = document.getElementById('register-invite').value.trim();
-  const email = document.getElementById('register-email').value.trim();
-  const userRaw = document.getElementById('register-user').value.trim();
-  const help = document.getElementById('register-help');
-  const err = document.getElementById('register-error');
-  err.textContent = '';
-  if (invite !== INVITE_CODE) return err.textContent = 'Informe um código de convite válido antes de gerar a ativação.';
-  if (!email) return err.textContent = 'Informe um e-mail para gerar o código.';
-  const username = userRaw || deriveUsernameFromEmail(email);
-  const users = getUsersMap();
-  if (users[username]) return err.textContent = 'Esse usuário já existe.';
-  const code = makeCode();
-  const map = getActivationMap();
-  map[username] = { code, email, createdAt:Date.now() };
-  writeLS(ACTIVATION_KEY, map);
-  document.getElementById('register-user').value = username;
-  help.innerHTML = `Modo local sem backend: código gerado para <strong>${esc(email)}</strong> é <strong>${code}</strong>. Em produção, conecte um backend/API para enviar o e-mail de verdade.`;
-  showToast('Código de ativação gerado.');
-}
-function doRegister() {
-  const invite = document.getElementById('register-invite').value.trim();
-  const email = document.getElementById('register-email').value.trim();
+  const email = document.getElementById('register-email').value.trim().toLowerCase();
   const user = (document.getElementById('register-user').value.trim() || deriveUsernameFromEmail(email)).trim();
   const pass = document.getElementById('register-pass').value;
   const pass2 = document.getElementById('register-pass2').value;
-  const activation = document.getElementById('register-activation').value.trim();
-  const err = document.getElementById('register-error');
-  err.textContent = '';
-  const users = getUsersMap();
-  const acts = getActivationMap();
-  if (invite !== INVITE_CODE) return err.textContent = 'Código de convite inválido.';
-  if (!email) return err.textContent = 'E-mail obrigatório.';
-  if (!user) return err.textContent = 'Usuário obrigatório.';
-  if (users[user]) return err.textContent = 'Usuário já existe.';
-  if (!acts[user] || acts[user].email !== email) return err.textContent = 'Gere o código de ativação primeiro.';
-  if (acts[user].code !== activation) return err.textContent = 'Código de ativação inválido.';
-  if (pass.length < 4) return err.textContent = 'A senha precisa ter ao menos 4 caracteres.';
-  if (pass !== pass2) return err.textContent = 'As senhas não conferem.';
-  users[user] = { passHash:hashPassword(pass), email, activated:true, createdAt:Date.now() };
-  delete acts[user];
-  writeLS(USERS_KEY, users);
-  writeLS(ACTIVATION_KEY, acts);
-  writeLS(SESSION_KEY, { user });
-  startApp(user);
-}
-function sendResetCode() {
-  const identifier = document.getElementById('forgot-user').value.trim();
-  const err = document.getElementById('forgot-error');
-  const help = document.getElementById('forgot-help');
-  err.textContent = '';
-  const found = findUserEntry(identifier);
-  if (!found) return err.textContent = 'Usuário/e-mail não encontrado.';
-  const code = makeCode();
-  const map = getResetMap();
-  map[found.username] = { code, createdAt:Date.now() };
-  writeLS(RESET_KEY, map);
-  help.innerHTML = `Modo local sem backend: código de recuperação para <strong>${esc(found.username)}</strong> é <strong>${code}</strong>. Em produção, isso deve ser enviado por e-mail.`;
-  showToast('Código de recuperação gerado.');
-}
-function resetPassword() {
-  const identifier = document.getElementById('forgot-user').value.trim();
-  const code = document.getElementById('forgot-code').value.trim();
-  const pass = document.getElementById('forgot-pass').value;
-  const pass2 = document.getElementById('forgot-pass2').value;
-  const err = document.getElementById('forgot-error');
-  err.textContent = '';
-  const found = findUserEntry(identifier);
-  if (!found) return err.textContent = 'Usuário/e-mail não encontrado.';
-  const map = getResetMap();
-  if (!map[found.username] || map[found.username].code !== code) return err.textContent = 'Código de recuperação inválido.';
-  if (pass.length < 4) return err.textContent = 'A senha precisa ter ao menos 4 caracteres.';
-  if (pass !== pass2) return err.textContent = 'As senhas não conferem.';
-  const users = getUsersMap();
-  const record = normalizeUserRecord(users[found.username]);
-  users[found.username] = { ...record, passHash:hashPassword(pass), activated:true, updatedAt:Date.now() };
-  delete map[found.username];
-  writeLS(USERS_KEY, users);
-  writeLS(RESET_KEY, map);
-  document.getElementById('login-user').value = found.username;
+  setFieldText('register-error', '');
+  if (!requireSupabase('register-error')) return;
+  if (invite !== INVITE_CODE) return setFieldText('register-error', 'Código de convite inválido.');
+  if (!email) return setFieldText('register-error', 'E-mail obrigatório.');
+  if (!user) return setFieldText('register-error', 'Usuário obrigatório.');
+  if (pass.length < 4) return setFieldText('register-error', 'A senha precisa ter ao menos 4 caracteres.');
+  if (pass !== pass2) return setFieldText('register-error', 'As senhas não conferem.');
+  const { data, error } = await supabaseClient.auth.signUp({
+    email,
+    password: pass,
+    options: {
+      emailRedirectTo: getAuthRedirectUrl(),
+      data: { username:user, invite_code:invite }
+    }
+  });
+  if (error) return setFieldText('register-error', error.message || 'Não foi possível criar a conta.');
+  document.getElementById('login-user').value = email;
+  setFieldText('register-help', `Conta criada para <strong>${esc(email)}</strong>. Verifique sua caixa de entrada e clique no link de ativação enviado pelo Supabase.`, true);
+  if (data?.session?.user) {
+    const identity = getAuthIdentity(data.session.user);
+    writeLS(SESSION_KEY, { user:identity.storageUser, displayName:identity.displayName, email:identity.email, provider:'supabase' });
+    startApp(identity.storageUser, identity.displayName);
+    return;
+  }
   toggleAuth('login');
+  showToast('Conta criada. Verifique seu e-mail.');
+}
+async function sendResetCode() {
+  const email = document.getElementById('forgot-user').value.trim().toLowerCase();
+  setFieldText('forgot-error', '');
+  if (!requireSupabase('forgot-error')) return;
+  if (!email) return setFieldText('forgot-error', 'Informe o e-mail da conta.');
+  const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+    redirectTo: getAuthRedirectUrl()
+  });
+  if (error) return setFieldText('forgot-error', error.message || 'Não foi possível enviar o link.');
+  setFieldText('forgot-help', `Enviamos um link de redefinição para <strong>${esc(email)}</strong>. Abra o e-mail e clique no link para definir a nova senha.`, true);
+  showToast('Link de redefinição enviado.');
+}
+async function resetPassword() {
+  const pass = document.getElementById('recovery-pass').value;
+  const pass2 = document.getElementById('recovery-pass2').value;
+  const email = document.getElementById('recovery-email').value.trim();
+  setFieldText('recovery-error', '');
+  if (!requireSupabase('recovery-error')) return;
+  if (pass.length < 4) return setFieldText('recovery-error', 'A senha precisa ter ao menos 4 caracteres.');
+  if (pass !== pass2) return setFieldText('recovery-error', 'As senhas não conferem.');
+  const { error } = await supabaseClient.auth.updateUser({ password: pass });
+  if (error) return setFieldText('recovery-error', error.message || 'Não foi possível redefinir a senha.');
+  cleanupAuthUrl();
+  try { await supabaseClient.auth.signOut(); } catch (e) {}
+  document.getElementById('login-user').value = email;
+  document.getElementById('login-pass').value = '';
+  document.getElementById('recovery-pass').value = '';
+  document.getElementById('recovery-pass2').value = '';
+  toggleAuth('login');
+  setFieldText('forgot-help', 'Senha redefinida com sucesso. Faça login com a nova senha.', true);
   showToast('Senha redefinida.');
 }
-function logout() {
+async function logout() {
   removeLS(SESSION_KEY);
   currentUser = null;
   appData = null;
   document.documentElement.removeAttribute('data-auth');
+  if (SUPABASE_ENABLED) {
+    try { await supabaseClient.auth.signOut(); } catch (e) {}
+  }
   location.reload();
 }
-function tryRestoreSession() {
-  const session = readLS(SESSION_KEY, null);
-  if (!session || !session.user) return;
-  const found = findUserEntry(session.user);
-  if (found && found.record.activated !== false) startApp(found.username);
+async function tryRestoreSession() {
+  if (!SUPABASE_ENABLED) return false;
+  const recovery = isRecoveryFlow();
+  const { data, error } = await supabaseClient.auth.getSession();
+  if (error) {
+    console.error(error);
+    return false;
+  }
+  if (recovery) {
+    document.getElementById('recovery-email').value = data?.session?.user?.email || '';
+    showLoginScreen('recovery');
+    return false;
+  }
+  if (!data?.session?.user) return false;
+  const identity = getAuthIdentity(data.session.user);
+  writeLS(SESSION_KEY, { user:identity.storageUser, displayName:identity.displayName, email:identity.email, provider:'supabase' });
+  startApp(identity.storageUser, identity.displayName);
+  return true;
 }
-
-function startApp(user) {
+function bindSupabaseAuthEvents() {
+  if (!SUPABASE_ENABLED) return;
+  supabaseClient.auth.onAuthStateChange((event, session) => {
+    if (event === 'PASSWORD_RECOVERY') {
+      document.getElementById('recovery-email').value = session?.user?.email || '';
+      showLoginScreen('recovery');
+      setFieldText('recovery-help', 'Link validado. Agora defina a sua nova senha.', true);
+    }
+  });
+}
+function startApp(user, displayName = user) {
   currentUser = user;
   loadUserData();
   applySavedTheme();
   ensureSeedData();
   ensureDailyGoalsSeeded();
   document.documentElement.dataset.auth = '1';
-  document.getElementById('sidebar-user').textContent = user.toUpperCase() + '@MFHUB';
+  document.getElementById('sidebar-user').textContent = String(displayName || user).toUpperCase() + '@MFHUB';
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   startClock();
   goSection(appData.meta.lastSection || 'dashboard');
 }
-
+function setMissingSupabaseHelp() {
+  if (SUPABASE_ENABLED) return;
+  setFieldText('register-help', 'Crie o arquivo <strong>supabase-config.js</strong> com a URL e a Publishable key do projeto para ativar cadastro por e-mail e redefinição real de senha.', true);
+  setFieldText('forgot-help', 'Sem o arquivo <strong>supabase-config.js</strong>, o envio real do link de redefinição por e-mail não funciona.', true);
+}
 function seedSpace(target, seed, mode) {
   const existing = new Set(target.map(x => x.name.toLowerCase()));
   if (existing.has(seed.name.toLowerCase())) return;
@@ -1831,11 +1863,15 @@ function renderAll() {
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && document.getElementById('login-screen').style.display !== 'none') {
     if (!document.getElementById('register-form').classList.contains('hidden')) doRegister();
-    else if (!document.getElementById('forgot-form').classList.contains('hidden')) resetPassword();
+    else if (!document.getElementById('recovery-form')?.classList.contains('hidden')) resetPassword();
+    else if (!document.getElementById('forgot-form').classList.contains('hidden')) sendResetCode();
     else doLogin();
   }
 });
 
+bindSupabaseAuthEvents();
+setMissingSupabaseHelp();
 loadRememberedLogin();
+showLoginScreen(isRecoveryFlow() ? 'recovery' : 'login');
 tryRestoreSession();
 });
