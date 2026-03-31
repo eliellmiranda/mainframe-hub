@@ -6,10 +6,45 @@
 })();
 
 document.addEventListener('DOMContentLoaded', () => {
-const INVITE_CODE = '@elielmainframe';
+// INVITE_CODE removido do front — validado via Edge Function (validate-invite)
 const SESSION_KEY = 'mfhub.session.v4';
 const REMEMBER_KEY = 'mfhub.remember.v1';
 const SEED_VERSION = 20260330;
+const STREAK_KEY = 'mfhub.streak.v1';
+function getStreakData() { return readLS(STREAK_KEY, { lastDate:'', count:0, longest:0 }); }
+function updateStreak() {
+  const today = new Date().toISOString().slice(0,10);
+  const s = getStreakData();
+  if (s.lastDate === today) return s; // already updated today
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0,10);
+  const newCount = s.lastDate === yesterday ? s.count + 1 : 1;
+  const newLongest = Math.max(newCount, s.longest || 0);
+  const updated = { lastDate:today, count:newCount, longest:newLongest };
+  writeLS(STREAK_KEY, updated);
+  return updated;
+}
+
+const VERSES = [
+  { text: 'Consagra ao Senhor tudo o que fazes, e os teus planos serão bem-sucedidos.', ref: 'Provérbios 16:3' },
+  { text: 'Seja a graça do Senhor nosso Deus sobre nós; confirma o trabalho das nossas mãos.', ref: 'Salmos 90:17' },
+  { text: 'Tudo posso naquele que me fortalece.', ref: 'Filipenses 4:13' },
+  { text: 'Porque eu sei os planos que tenho para vocês — planos de fazê-los prosperar e não de causar dano, planos de dar a vocês esperança e um futuro.', ref: 'Jeremias 29:11' },
+  { text: 'Confie no Senhor de todo o seu coração e não se apoie em seu próprio entendimento; reconheça o Senhor em todos os seus caminhos, e ele endireitará as suas veredas.', ref: 'Provérbios 3:5-6' },
+  { text: 'Não te mandei eu? Sê forte e corajoso! Não te apavores nem desanimes, pois o Senhor, teu Deus, estará contigo por onde quer que andares.', ref: 'Josué 1:9' },
+  { text: 'É como árvore plantada junto a ribeiros de águas, que dá o seu fruto no tempo certo, e cuja folha não murcha; tudo o que faz prospera.', ref: 'Salmos 1:3' },
+  { text: 'Emunah — fé fiel, confiança firme. O justo viverá pela sua fé.', ref: 'Habacuque 2:4' },
+  { text: 'Pois sou eu que te fortaleço e te ajudo; sou eu que te sustento com minha justa destra.', ref: 'Isaías 41:10' },
+  { text: 'Buscai primeiro o reino de Deus e a sua justiça, e todas essas coisas vos serão acrescentadas.', ref: 'Mateus 6:33' },
+];
+let currentVerseIdx = new Date().getDate() % VERSES.length;
+function getDailyVerse() { return VERSES[currentVerseIdx]; }
+function nextVerse() {
+  currentVerseIdx = (currentVerseIdx + 1) % VERSES.length;
+  // Re-render only the verse cards without full renderAll
+  document.querySelectorAll('.verse-text').forEach(el => { el.textContent = '"' + getDailyVerse().text + '"'; });
+  document.querySelectorAll('.verse-ref').forEach(el => { el.textContent = getDailyVerse().ref; });
+}
+
 const SUPABASE_URL = String(window.MFHUB_SUPABASE_URL || '').trim();
 const SUPABASE_ANON_KEY = String(window.MFHUB_SUPABASE_ANON_KEY || '').trim();
 const SUPABASE_ENABLED = !!(window.supabase && SUPABASE_URL && SUPABASE_ANON_KEY);
@@ -104,19 +139,23 @@ function applySavedTheme() {
   setTheme(theme || 'dark');
 }
 
-function saveRememberedLogin(identifier, password) {
-  writeLS(REMEMBER_KEY, { identifier, password, savedAt:Date.now() });
+function saveRememberedLogin(identifier) {
+  // Salva apenas o e-mail — a sessão real é gerenciada pelo Supabase SDK.
+  // Senha jamais deve ser armazenada em localStorage.
+  writeLS(REMEMBER_KEY, { identifier, savedAt: Date.now() });
 }
 function clearRememberedLogin() { removeLS(REMEMBER_KEY); }
 function loadRememberedLogin() {
   const remembered = readLS(REMEMBER_KEY, null);
   if (!remembered) return;
+  // Limpa registro legado que possa conter senha
+  if (remembered.password) {
+    writeLS(REMEMBER_KEY, { identifier: remembered.identifier, savedAt: remembered.savedAt });
+  }
   const userEl = document.getElementById('login-user');
-  const passEl = document.getElementById('login-pass');
   const rememberEl = document.getElementById('login-remember');
   if (userEl) userEl.value = remembered.identifier || '';
-  if (passEl) passEl.value = remembered.password || '';
-  if (rememberEl) rememberEl.checked = !!(remembered.identifier || remembered.password);
+  if (rememberEl) rememberEl.checked = !!remembered.identifier;
 }
 
 function deriveUsernameFromEmail(email) {
@@ -177,6 +216,14 @@ function showLoginScreen(mode='login') {
   document.getElementById('app').style.display = 'none';
   toggleAuth(mode);
 }
+function setAuthLoading(btnId, loading, label) {
+  const btn = document.getElementById(btnId);
+  if (!btn) return;
+  btn.disabled = loading;
+  btn.textContent = loading ? label : btn.dataset.originalLabel || btn.textContent;
+  if (!loading && btn.dataset.originalLabel) btn.textContent = btn.dataset.originalLabel;
+  if (loading && !btn.dataset.originalLabel) btn.dataset.originalLabel = btn.textContent;
+}
 async function doLogin() {
   const email = document.getElementById('login-user').value.trim().toLowerCase();
   const pass = document.getElementById('login-pass').value;
@@ -184,14 +231,36 @@ async function doLogin() {
   setFieldText('login-error', '');
   if (!requireSupabase('login-error')) return;
   if (!email || !pass) return setFieldText('login-error', 'E-mail e senha são obrigatórios.');
+  setAuthLoading('btn-login', true, 'Entrando...');
   const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password: pass });
+  setAuthLoading('btn-login', false);
   if (error) return setFieldText('login-error', error.message || 'Não foi possível entrar.');
-  if (remember) saveRememberedLogin(email, pass); else clearRememberedLogin();
+  if (remember) saveRememberedLogin(email); else clearRememberedLogin();
   const identity = getAuthIdentity(data.user);
   writeLS(SESSION_KEY, { user:identity.storageUser, displayName:identity.displayName, email:identity.email, provider:'supabase' });
   cleanupAuthUrl();
   startApp(identity.storageUser, identity.displayName);
 }
+async function validateInviteCode(code) {
+  // Valida no servidor — o código real nunca trafega para o front.
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/functions/v1/validate-invite`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+        body: JSON.stringify({ code }),
+      }
+    );
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    return json.valid === true;
+  } catch (e) {
+    console.error('validate-invite error:', e);
+    return false;
+  }
+}
+
 async function doRegister() {
   const invite = document.getElementById('register-invite').value.trim();
   const email = document.getElementById('register-email').value.trim().toLowerCase();
@@ -200,22 +269,34 @@ async function doRegister() {
   const pass2 = document.getElementById('register-pass2').value;
   setFieldText('register-error', '');
   if (!requireSupabase('register-error')) return;
-  if (invite !== INVITE_CODE) return setFieldText('register-error', 'Código de convite inválido.');
+  if (!invite) return setFieldText('register-error', 'Código de convite obrigatório.');
   if (!email) return setFieldText('register-error', 'E-mail obrigatório.');
   if (!user) return setFieldText('register-error', 'Usuário obrigatório.');
   if (pass.length < 4) return setFieldText('register-error', 'A senha precisa ter ao menos 4 caracteres.');
   if (pass !== pass2) return setFieldText('register-error', 'As senhas não conferem.');
+
+  // Validar convite no servidor antes de criar a conta
+  setAuthLoading('btn-register', true, 'Verificando convite...');
+  setFieldText('register-help', 'Verificando código de convite...', false);
+  const inviteOk = await validateInviteCode(invite);
+  if (!inviteOk) {
+    setAuthLoading('btn-register', false);
+    setFieldText('register-help', '', false);
+    return setFieldText('register-error', 'Código de convite inválido.');
+  }
+  setAuthLoading('btn-register', true, 'Criando conta...');
   const { data, error } = await supabaseClient.auth.signUp({
     email,
     password: pass,
     options: {
       emailRedirectTo: getAuthRedirectUrl(),
-      data: { username:user, invite_code:invite }
+      data: { username: user }
     }
   });
+  setAuthLoading('btn-register', false);
   if (error) return setFieldText('register-error', (error.message || 'Não foi possível criar a conta.') + ' Verifique também se o provedor de e-mail do Supabase está configurado.');
   document.getElementById('login-user').value = email;
-  setFieldText('register-help', `Conta criada para <strong>${esc(email)}</strong>. Verifique sua caixa de entrada e spam. Se o e-mail não chegar, configure SMTP no Supabase.`, true);
+  setFieldText('register-help', `Conta criada para <strong>${esc(email)}</strong>. Verifique sua caixa de entrada e spam.`, true);
   if (data?.session?.user) {
     const identity = getAuthIdentity(data.session.user);
     writeLS(SESSION_KEY, { user:identity.storageUser, displayName:identity.displayName, email:identity.email, provider:'supabase' });
@@ -230,9 +311,11 @@ async function sendResetCode() {
   setFieldText('forgot-error', '');
   if (!requireSupabase('forgot-error')) return;
   if (!email) return setFieldText('forgot-error', 'Informe o e-mail da conta.');
+  setAuthLoading('btn-forgot', true, 'Enviando...');
   const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
     redirectTo: getAuthRedirectUrl()
   });
+  setAuthLoading('btn-forgot', false);
   if (error) return setFieldText('forgot-error', (error.message || 'Não foi possível enviar o link.') + ' Verifique também a configuração de SMTP no Supabase.');
   setFieldText('forgot-help', `Tentamos enviar um link de redefinição para <strong>${esc(email)}</strong>. Verifique caixa de entrada e spam. Se não chegar, configure SMTP no Supabase.`, true);
   showToast('Link de redefinição enviado.');
@@ -245,7 +328,9 @@ async function resetPassword() {
   if (!requireSupabase('recovery-error')) return;
   if (pass.length < 4) return setFieldText('recovery-error', 'A senha precisa ter ao menos 4 caracteres.');
   if (pass !== pass2) return setFieldText('recovery-error', 'As senhas não conferem.');
+  setAuthLoading('btn-recovery', true, 'Salvando...');
   const { error } = await supabaseClient.auth.updateUser({ password: pass });
+  setAuthLoading('btn-recovery', false);
   if (error) return setFieldText('recovery-error', error.message || 'Não foi possível redefinir a senha.');
   cleanupAuthUrl();
   try { await supabaseClient.auth.signOut(); } catch (e) {}
@@ -303,11 +388,17 @@ function startApp(user, displayName = user) {
   ensureSeedData();
   ensureDailyGoalsSeeded();
   document.documentElement.dataset.auth = '1';
+  updateStreak();
   document.getElementById('sidebar-user').textContent = String(displayName || user).toUpperCase() + '@MFHUB';
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   startClock();
-  goSection(appData.meta.lastSection || 'dashboard');
+  // Restore section from URL hash (browser back/forward support), fallback to saved last section
+  const hashSection = location.hash.slice(1);
+  const initialSection = (hashSection && document.getElementById('section-' + hashSection))
+    ? hashSection
+    : (appData.meta.lastSection || 'dashboard');
+  goSection(initialSection, !hashSection);  // don't push if hash was already in URL
 }
 function setMissingSupabaseHelp() {
   if (SUPABASE_ENABLED) return;
@@ -604,17 +695,38 @@ function startClock() {
   tick(); setInterval(tick, 1000);
 }
 
-function goSection(section) {
+function toggleMobileMenu() {
+  document.querySelector('.sidebar').classList.toggle('open');
+  document.getElementById('mobile-overlay').classList.toggle('open');
+}
+function closeMobileMenu() {
+  document.querySelector('.sidebar').classList.remove('open');
+  document.getElementById('mobile-overlay').classList.remove('open');
+}
+
+function goSection(section, pushHistory = true) {
   currentSection = section;
   appData.meta.lastSection = section;
   saveUserData();
-  document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+  closeMobileMenu();
+  document.querySelectorAll('.section').forEach(el => { el.classList.remove('active'); el.classList.remove('fade-in'); });
   document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.section === section));
-  document.getElementById('section-' + section).classList.add('active');
+  const activeSection = document.getElementById('section-' + section);
+  activeSection.classList.add('active');
+  requestAnimationFrame(() => requestAnimationFrame(() => activeSection.classList.add('fade-in')));
   document.getElementById('topbar-path').textContent = section.toUpperCase();
   document.getElementById('status-section').textContent = section.toUpperCase();
+  if (pushHistory) history.pushState({ section }, '', '#' + section);
   renderAll();
 }
+
+// Handle browser back / forward buttons
+window.addEventListener('popstate', e => {
+  const section = e.state?.section || (location.hash.slice(1)) || 'dashboard';
+  if (document.documentElement.dataset.auth && document.getElementById('section-' + section)) {
+    goSection(section, false);
+  }
+});
 
 function courseProgress(course) {
   const mods = course.modules || [];
@@ -650,6 +762,7 @@ function renderDashboard() {
         <button class="btn" onclick="toggleTheme()">🌓 Tema</button>
         <button class="btn" onclick="goSection('goals')">🎯 Metas</button>
         <button class="btn primary" onclick="openImportCenter()">Importar conteúdo</button>
+        <button class="btn" onclick="exportAllData()">⬇ Exportar backup</button>
       </div>
     </div>
     <div class="kpis">
@@ -659,6 +772,19 @@ function renderDashboard() {
       <div class="kpi"><div class="kpi-label">Ferramentas</div><div class="kpi-value">${appData.tools.length}</div><div class="kpi-sub">links + instruções</div></div>
       <div class="kpi"><div class="kpi-label">Certificados</div><div class="kpi-value">${appData.certificates.length}</div><div class="kpi-sub">com imagem opcional</div></div>
       <div class="kpi"><div class="kpi-label">Progresso médio</div><div class="kpi-value">${courseAvg}%</div><div class="kpi-sub">dos cursos</div></div>
+      <div class="kpi" style="border-color:var(--warn)"><div class="kpi-label">Sequência</div><div class="kpi-value" style="color:var(--warn)">${getStreakData().count}🔥</div><div class="kpi-sub">dias seguidos · recorde ${getStreakData().longest}</div></div>
+    </div>
+    <div class="panel" style="margin-bottom:16px;border-left:4px solid var(--accent);background:linear-gradient(135deg,var(--surface),var(--surface-2))">
+      <div style="display:flex;align-items:flex-start;gap:14px">
+        <span style="font-size:28px;line-height:1;flex-shrink:0">✝</span>
+        <div style="flex:1;min-width:0">
+          <div class="verse-text" style="font-size:15px;line-height:1.7;color:var(--text);font-style:italic">"${getDailyVerse().text}"</div>
+          <div style="margin-top:8px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <span class="verse-ref" style="font-size:13px;color:var(--accent);font-weight:700;letter-spacing:.08em">${getDailyVerse().ref}</span>
+            <button class="btn xs ghost" onclick="nextVerse()" style="color:var(--text-soft);font-size:12px">próximo →</button>
+          </div>
+        </div>
+      </div>
     </div>
     <div class="goal-grid" style="margin-bottom:16px">
       <div class="panel">
@@ -1535,13 +1661,79 @@ function deleteTool(toolId) {
 }
 
 function renderLab() {
-  document.getElementById('section-lab').innerHTML = `
-    <div class="headline"><div><div class="title">Emunah Lab</div><div class="subtitle">Área isolada do restante do material</div></div><button class="btn" onclick="openLabModal()">Editar URL</button></div>
-    <div class="panel">
-      <div class="row-title">${esc(appData.lab.title || 'EMUNAH BANK LAB')}</div>
-      <div class="row-text">Seu laboratório continua separado dos exercícios, entrevistas e exemplos genéricos.</div>
-      <div class="row-text">URL atual: ${appData.lab.url ? `<a target="_blank" href="${esc(appData.lab.url)}">${esc(appData.lab.url)}</a>` : 'não cadastrada'}</div>
-    </div>`;
+  const v = getDailyVerse();
+  const modules = [
+    { icon:'👤', name:'CBCLI001', desc:'Cadastro de clientes', status:'batch' },
+    { icon:'🏦', name:'CBCNT001', desc:'Abertura de contas', status:'batch' },
+    { icon:'💳', name:'CBTXV001', desc:'Validação de transações', status:'batch' },
+    { icon:'📒', name:'CBPST001', desc:'Postagem de lançamentos', status:'batch' },
+    { icon:'⚖️',  name:'CBSLD001', desc:'Consolidação de saldos', status:'batch' },
+    { icon:'📄', name:'CBEXT001', desc:'Geração de extrato', status:'batch' },
+    { icon:'🔄', name:'CBREC001', desc:'Reconciliação', status:'batch' },
+    { icon:'🌙', name:'CBFCH001', desc:'Fechamento diário', status:'batch' },
+    { icon:'↩️', name:'CBRPS001', desc:'Reprocessamento', status:'batch' },
+  ];
+  const resources = [
+    { label:'IBM zXplore', url:'https://zxplore.ibm.com', icon:'🖥' },
+    { label:'VS Code + Z Open Editor', url:'https://marketplace.visualstudio.com/items?itemName=broadcomMFD.cobol-language-support', icon:'💻' },
+    { label:'Zowe CLI Docs', url:'https://docs.zowe.org/stable/user-guide/cli-usingcli', icon:'⚡' },
+    { label:'IBM COBOL Reference', url:'https://www.ibm.com/docs/en/cobol-zos', icon:'📚' },
+    { label:'IBM DB2 for z/OS', url:'https://www.ibm.com/docs/en/db2-for-zos', icon:'🗄' },
+    { label:'GitHub — mainframe-hub', url:'https://github.com/eliellmiranda/mainframe-hub', icon:'🐙' },
+  ];
+  document.getElementById('section-lab').innerHTML = \`
+    <div class="headline">
+      <div><div class="title">Emunah Lab</div><div class="subtitle"><em>emunah</em>: fidelidade, fé — HLQ: Z77948</div></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        \${appData.lab.url ? \`<a class="btn primary" target="_blank" href="\${esc(appData.lab.url)}">⬡ Abrir zXplore</a>\` : ''}
+        <button class="btn" onclick="openLabModal()">Editar URL</button>
+      </div>
+    </div>
+
+    <div class="panel" style="border-left:4px solid var(--accent);margin-bottom:16px">
+      <div style="display:flex;align-items:flex-start;gap:12px">
+        <span style="font-size:22px;flex-shrink:0">✝</span>
+        <div style="flex:1">
+          <div class="verse-text" style="font-size:14px;line-height:1.7;color:var(--text-soft);font-style:italic">"\${esc(v.text)}"</div>
+          <div style="margin-top:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <span class="verse-ref" style="font-size:12px;color:var(--accent);font-weight:700;letter-spacing:.08em">\${esc(v.ref)}</span>
+            <button class="btn xs ghost" onclick="nextVerse()" style="color:var(--text-soft);font-size:12px">próximo →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cols-2" style="margin-bottom:16px">
+      <div class="panel">
+        <div class="panel-title">🏗 Módulos Batch — \${esc(appData.lab.title || 'EMUNAH BANK LAB')}</div>
+        <div class="stack" style="gap:8px;margin-top:8px">
+          \${modules.map(m => \`
+            <div class="row-item" style="display:flex;align-items:center;gap:10px;padding:10px 12px">
+              <span style="font-size:18px">\${m.icon}</span>
+              <div style="flex:1">
+                <div style="font-weight:700;font-size:14px">\${m.name}</div>
+                <div style="font-size:12px;color:var(--text-soft)">\${m.desc}</div>
+              </div>
+              <span class="badge">\${m.status}</span>
+            </div>
+          \`).join('')}
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">🔗 Recursos rápidos</div>
+        <div class="stack" style="gap:8px;margin-top:8px">
+          \${resources.map(r => \`
+            <a class="row-item" href="\${r.url}" target="_blank" rel="noopener"
+               style="display:flex;align-items:center;gap:10px;padding:10px 12px;text-decoration:none;color:inherit">
+              <span style="font-size:18px">\${r.icon}</span>
+              <span style="font-size:14px;color:var(--link)">\${r.label}</span>
+              <span style="margin-left:auto;color:var(--text-soft);font-size:12px">↗</span>
+            </a>
+          \`).join('')}
+        </div>
+      </div>
+    </div>
+  \`;
 }
 function openLabModal() {
   openModal('Editar URL do lab', `<div class="row"><label class="lbl">URL</label><input id="lab-url" class="input" value="${esc(appData.lab.url||'')}" placeholder="https://..."></div>`, `<button class="btn primary" onclick="saveLab()">Salvar</button>`);
@@ -1872,8 +2064,34 @@ document.addEventListener('keydown', e => {
 bindSupabaseAuthEvents();
 setMissingSupabaseHelp();
 loadRememberedLogin();
-showLoginScreen(isRecoveryFlow() ? 'recovery' : 'login');
-tryRestoreSession();
+
+if (isRecoveryFlow()) {
+  showLoginScreen('recovery');
+} else {
+  // tryRestoreSession decide — evita piscar a tela de login ao recarregar
+  tryRestoreSession().then(restored => {
+    if (!restored) showLoginScreen('login');
+  });
+}
+
+
+function exportAllData() {
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    exportedBy: currentUser,
+    version: 'mfhub.v4',
+    data: appData,
+    streak: getStreakData(),
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `mfhub-backup-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Backup exportado com sucesso.');
+}
 
 // Expose functions called via onclick in HTML to global scope
 window.doLogin         = doLogin;
@@ -1887,4 +2105,8 @@ window.goSection       = goSection;
 window.openImportCenter= openImportCenter;
 window.handleSearch    = handleSearch;
 window.closeModal      = closeModal;
+window.exportAllData   = exportAllData;
+window.nextVerse       = nextVerse;
+window.toggleMobileMenu = toggleMobileMenu;
+window.closeMobileMenu = closeMobileMenu;
 });
