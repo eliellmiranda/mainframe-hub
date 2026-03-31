@@ -1,18 +1,6 @@
 (function(){
-  try {
-    // Supabase guarda a sessão na chave sb-<project-ref>-auth-token
-    // Checar isso evita o piscar da tela de login ao recarregar
-    const SUPA_KEY = 'sb-uadrygcorcpsvhxpimpd-auth-token';
-    const raw = localStorage.getItem(SUPA_KEY);
-    if (raw) {
-      const s = JSON.parse(raw);
-      // Só marca como autenticado se o token não estiver expirado
-      const expiresAt = s?.expires_at ?? 0;
-      if (s?.access_token && (expiresAt === 0 || expiresAt > Math.floor(Date.now() / 1000))) {
-        document.documentElement.dataset.auth = '1';
-      }
-    }
-  } catch (e) {}
+  // Nada aqui — login-screen começa display:none no HTML.
+  // tryRestoreSession decide o que mostrar assim que o DOM carregar.
 })();
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -224,8 +212,8 @@ function showLoginScreen(mode='login') {
   document.documentElement.removeAttribute('data-auth');
   const ls = document.getElementById('login-screen');
   const app = document.getElementById('app');
-  if (ls) ls.style.display = 'flex';
-  if (app) app.style.display = 'none';
+  if (ls)  { ls.style.display  = 'flex'; }
+  if (app) { app.style.display = 'none'; }
   toggleAuth(mode);
 }
 function setAuthLoading(btnId, loading, label) {
@@ -2088,9 +2076,7 @@ if (isRecoveryFlow()) {
   showLoginScreen('recovery');
 } else {
   // Enquanto resolve a sessão, mantém tela de login invisível para evitar o piscar
-  document.documentElement.classList.add('auth-resolving');
   tryRestoreSession().then(restored => {
-    document.documentElement.classList.remove('auth-resolving');
     if (!restored) showLoginScreen('login');
   });
 }
