@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Emunah Bank Lab — Plano de Implementação</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080d08;--bg1:#0d140d;--bg2:#111911;--bg3:#162216;
+  --border:#1c2e1c;--border2:#264026;
+  --text:#c8e6c8;--text2:#7a9e7a;--text3:#4a6e4a;
+  --green:#4ade80;--green2:#22c55e;
+  --amber:#fbbf24;--red:#f87171;--blue:#60a5fa;--purple:#a78bfa;--orange:#fb923c;--teal:#2dd4bf;
+  --mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif;
+  --r:6px;--rl:10px;
+}
+html{font-size:15px}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;line-height:1.6}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.hidden{display:none!important}
+#auth-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem}
+.auth-box{width:100%;max-width:420px}
+.auth-logo{font-family:var(--mono);font-size:.72rem;color:var(--green);letter-spacing:.15em;margin-bottom:2rem;line-height:1.5}
+.auth-logo span{color:var(--text3)}
+.auth-title{font-family:var(--mono);font-size:1.35rem;font-weight:600;color:var(--text);margin-bottom:.35rem}
+.auth-sub{font-size:.85rem;color:var(--text2);margin-bottom:1.8rem}
+.fg{margin-bottom:1rem}
+.fl{display:block;font-family:var(--mono);font-size:.68rem;letter-spacing:.1em;color:var(--text3);text-transform:uppercase;margin-bottom:.35rem}
+input[type=text],input[type=password],textarea{width:100%;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-family:var(--mono);font-size:.875rem;padding:.6rem .85rem;outline:none;transition:border-color .15s}
+input[type=text]:focus,input[type=password]:focus,textarea:focus{border-color:var(--green);box-shadow:0 0 0 2px rgba(74,222,128,.1)}
+textarea{resize:vertical;min-height:72px;font-size:.78rem;line-height:1.5}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.45rem;padding:.62rem 1.1rem;border-radius:var(--r);font-family:var(--mono);font-size:.78rem;font-weight:500;cursor:pointer;border:1px solid transparent;transition:all .15s;text-transform:uppercase;letter-spacing:.08em}
+.btn-p{background:var(--green);color:#080d08;border-color:var(--green);width:100%}
+.btn-p:hover{background:var(--green2)}
+.btn-g{background:transparent;color:var(--text2);border-color:var(--border2)}
+.btn-g:hover{background:var(--bg3);color:var(--text)}
+.btn-d{background:transparent;color:var(--red);border-color:rgba(248,113,113,.3);font-size:.72rem}
+.btn-d:hover{background:rgba(248,113,113,.08)}
+.auth-links{display:flex;gap:1rem;margin-top:1.1rem;flex-wrap:wrap}
+.auth-link{font-size:.8rem;color:var(--text3);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.auth-link:hover{color:var(--green)}
+.auth-err{background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);border-radius:var(--r);color:var(--red);font-size:.78rem;padding:.55rem .85rem;margin-bottom:.9rem;font-family:var(--mono)}
+.auth-ok{background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.3);border-radius:var(--r);color:var(--green);font-size:.78rem;padding:.55rem .85rem;margin-bottom:.9rem;font-family:var(--mono)}
+.cb-row{display:flex;align-items:center;gap:.55rem;margin-top:.4rem}
+.cb-row input[type=checkbox]{width:14px;height:14px;accent-color:var(--green)}
+.cb-row label{font-size:.78rem;color:var(--text2);cursor:pointer}
+#app{display:grid;grid-template-rows:50px 1fr;grid-template-columns:260px 1fr;min-height:100vh}
+#header{grid-column:1/-1;background:var(--bg1);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 1.4rem;gap:1.4rem}
+.h-logo{font-family:var(--mono);font-size:.72rem;color:var(--green);letter-spacing:.12em;font-weight:600;white-space:nowrap}
+.h-logo span{color:var(--text3)}
+.h-prog{flex:1;display:flex;align-items:center;gap:.8rem}
+.prog-outer{flex:1;height:4px;background:var(--bg3);border-radius:2px;max-width:280px}
+.prog-inner{height:100%;background:var(--green);border-radius:2px;transition:width .4s}
+.prog-lbl{font-family:var(--mono);font-size:.68rem;color:var(--text3);white-space:nowrap}
+.h-right{display:flex;align-items:center;gap:.75rem;margin-left:auto}
+.h-user{font-family:var(--mono);font-size:.7rem;color:var(--text3)}
+.h-btn{background:transparent;border:1px solid var(--border2);border-radius:var(--r);color:var(--text2);font-family:var(--mono);font-size:.68rem;padding:.3rem .65rem;cursor:pointer;transition:all .15s}
+.h-btn:hover{background:var(--bg3);color:var(--text)}
+#sidebar{background:var(--bg1);border-right:1px solid var(--border);overflow-y:auto;padding:1rem 0}
+.sbl{font-family:var(--mono);font-size:.6rem;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;padding:.9rem 1.1rem .35rem}
+.pni{display:flex;align-items:center;gap:.7rem;padding:.6rem 1.1rem;cursor:pointer;transition:background .12s;border-left:2px solid transparent}
+.pni:hover{background:var(--bg2)}
+.pni.active{background:var(--bg2);border-left-color:var(--green)}
+.pni.has-alert .pnb{background:rgba(251,191,36,.08);border-color:var(--amber);color:var(--amber)}
+.pnb{width:23px;height:23px;border-radius:50%;background:var(--bg3);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:.63rem;font-weight:600;color:var(--text3);flex-shrink:0}
+.pni.active .pnb,.pni:hover .pnb{background:rgba(74,222,128,.1);border-color:var(--green);color:var(--green)}
+.pni-info{flex:1;min-width:0}
+.pni-t{font-size:.8rem;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pni-s{font-size:.68rem;color:var(--text3)}
+.mini-prog{width:32px;height:3px;background:var(--bg3);border-radius:2px;flex-shrink:0}
+.mini-bar{height:100%;background:var(--green);border-radius:2px;transition:width .3s}
+.sidebar-actions{padding:0 .7rem;display:flex;flex-direction:column;gap:.35rem}
+#main{overflow-y:auto;padding:1.6rem 1.8rem;max-width:880px}
+.ph-hdr{margin-bottom:1.4rem}
+.ph-num-row{display:flex;align-items:center;gap:.9rem;margin-bottom:.35rem}
+.ph-big{font-family:var(--mono);font-size:1.8rem;font-weight:600;color:var(--green);line-height:1}
+.ph-title{font-family:var(--mono);font-size:1.15rem;font-weight:600;color:var(--text)}
+.ph-desc{font-size:.855rem;color:var(--text2);line-height:1.65;margin-top:.45rem}
+.ph-prog-row{display:flex;align-items:center;gap:.8rem;margin-top:.8rem}
+.ph-bar-outer{flex:1;max-width:220px;height:4px;background:var(--bg3);border-radius:2px}
+.ph-bar-inner{height:100%;background:var(--green);border-radius:2px;transition:width .4s}
+.ph-pct{font-family:var(--mono);font-size:.68rem;color:var(--text3)}
+.sc{background:var(--bg1);border:1px solid var(--border);border-radius:var(--rl);margin-bottom:.75rem}
+.sc.completed{border-color:rgba(74,222,128,.22)}
+.sc.s-exist{border-color:rgba(45,212,191,.22)}
+.sc.s-fix{border-color:rgba(251,191,36,.22)}
+.sh{display:flex;align-items:flex-start;gap:.8rem;padding:.9rem 1rem;cursor:pointer;user-select:none}
+.ck{width:19px;height:19px;border:1.5px solid var(--border2);border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;cursor:pointer;font-size:10px}
+.ck.done{background:var(--green);border-color:var(--green);color:#080d08}
+.ck.exist{background:rgba(45,212,191,.15);border-color:var(--teal);color:var(--teal)}
+.ck.warn{background:rgba(251,191,36,.1);border-color:var(--amber);color:var(--amber)}
+.sm{flex:1;min-width:0}
+.snt{display:flex;align-items:baseline;gap:.45rem;flex-wrap:wrap}
+.snum{font-family:var(--mono);font-size:.68rem;color:var(--green);font-weight:600}
+.st{font-size:.875rem;font-weight:500;color:var(--text)}
+.sbadge{font-family:var(--mono);font-size:.58rem;padding:1px 6px;border-radius:3px;font-weight:600}
+.sb-exist{background:rgba(45,212,191,.12);color:var(--teal);border:1px solid rgba(45,212,191,.3)}
+.sb-fix{background:rgba(251,191,36,.1);color:var(--amber);border:1px solid rgba(251,191,36,.3)}
+.sb-miss{background:rgba(248,113,113,.1);color:var(--red);border:1px solid rgba(248,113,113,.3)}
+.sb-new{background:rgba(167,139,250,.1);color:var(--purple);border:1px solid rgba(167,139,250,.3)}
+.ss{font-size:.76rem;color:var(--text3);margin-top:.12rem}
+.stags{display:flex;gap:.3rem;margin-top:.35rem;flex-wrap:wrap}
+.tag{font-family:var(--mono);font-size:.62rem;padding:1px 5px;border-radius:3px;font-weight:500}
+.tag-python{background:rgba(251,191,36,.1);color:var(--amber);border:1px solid rgba(251,191,36,.22)}
+.tag-db2{background:rgba(96,165,250,.1);color:var(--blue);border:1px solid rgba(96,165,250,.22)}
+.tag-cobol{background:rgba(167,139,250,.1);color:var(--purple);border:1px solid rgba(167,139,250,.22)}
+.tag-rexx{background:rgba(74,222,128,.1);color:var(--green);border:1px solid rgba(74,222,128,.22)}
+.tag-uss{background:rgba(248,113,113,.1);color:var(--red);border:1px solid rgba(248,113,113,.22)}
+.tag-jcl{background:rgba(251,146,60,.1);color:var(--orange);border:1px solid rgba(251,146,60,.22)}
+.tag-yaml{background:rgba(52,211,153,.1);color:#34d399;border:1px solid rgba(52,211,153,.22)}
+.tag-data{background:rgba(45,212,191,.1);color:var(--teal);border:1px solid rgba(45,212,191,.22)}
+.sex{font-size:.68rem;color:var(--text3);transition:transform .2s;margin-top:2px;flex-shrink:0}
+.sex.open{transform:rotate(180deg)}
+.sb2{padding:0 1rem 1rem;border-top:1px solid var(--border)}
+.sbi{padding-top:.9rem}
+.sdesc{font-size:.835rem;color:var(--text2);line-height:1.65;margin-bottom:.9rem}
+.cb-wrap{margin-bottom:.9rem}
+.cb-lbl{font-family:var(--mono);font-size:.62rem;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.3rem}
+pre{background:#050b05;border:1px solid var(--border);border-radius:var(--r);padding:.8rem .9rem;overflow-x:auto;font-family:var(--mono);font-size:.72rem;line-height:1.65;color:var(--text)}
+.dc{background:rgba(74,222,128,.05);border:1px solid rgba(74,222,128,.18);border-radius:var(--r);padding:.6rem .85rem;font-family:var(--mono);font-size:.72rem;color:var(--green);margin-bottom:.9rem}
+.dc::before{content:'pronto quando: ';color:var(--green2);font-weight:600}
+.wb{background:rgba(251,191,36,.05);border:1px solid rgba(251,191,36,.18);border-radius:var(--r);padding:.6rem .85rem;font-size:.78rem;color:var(--amber);margin-bottom:.9rem}
+.nb{background:rgba(96,165,250,.05);border:1px solid rgba(96,165,250,.18);border-radius:var(--r);padding:.6rem .85rem;font-size:.78rem;color:var(--blue);margin-bottom:.9rem}
+.eb{background:rgba(45,212,191,.05);border:1px solid rgba(45,212,191,.2);border-radius:var(--r);padding:.6rem .85rem;font-size:.78rem;color:var(--teal);margin-bottom:.9rem}
+.rb{background:rgba(248,113,113,.05);border:1px solid rgba(248,113,113,.18);border-radius:var(--r);padding:.6rem .85rem;font-size:.78rem;color:var(--red);margin-bottom:.9rem}
+.legend{display:flex;gap:.8rem;flex-wrap:wrap;margin-bottom:1.2rem;padding:.7rem .9rem;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r)}
+.leg-item{display:flex;align-items:center;gap:.4rem;font-size:.72rem;color:var(--text2)}
+.leg-dot{width:9px;height:9px;border-radius:2px;flex-shrink:0}
+.ann-sec{margin-top:.9rem;padding-top:.9rem;border-top:1px solid var(--border)}
+.ann-lbl{font-family:var(--mono);font-size:.62rem;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.35rem;display:flex;align-items:center;gap:.5rem}
+.ann-saved{color:var(--green);font-size:.62rem;opacity:0;transition:opacity .3s}
+.ann-saved.show{opacity:1}
+textarea.ann{width:100%;background:rgba(0,0,0,.25);border:1px solid var(--border);border-radius:var(--r);color:var(--text2);font-family:var(--mono);font-size:.76rem;padding:.55rem .75rem;min-height:65px;resize:vertical}
+textarea.ann:focus{border-color:var(--green);outline:none;color:var(--text)}
+#settings{position:fixed;top:50px;right:0;bottom:0;width:300px;background:var(--bg1);border-left:1px solid var(--border);z-index:100;padding:1.3rem;overflow-y:auto;transform:translateX(100%);transition:transform .25s}
+#settings.open{transform:translateX(0)}
+.cfg-title{font-family:var(--mono);font-size:.82rem;font-weight:600;color:var(--text);margin-bottom:1.3rem}
+.cfg-sec{margin-bottom:1.3rem}
+.cfg-sec-t{font-family:var(--mono);font-size:.62rem;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:.65rem;padding-bottom:.35rem;border-bottom:1px solid var(--border)}
+.stat-row{display:flex;justify-content:space-between;padding:.35rem 0;font-size:.78rem}
+.sk{color:var(--text3)}.sv{font-family:var(--mono);color:var(--green)}
+@media(max-width:720px){
+  #app{grid-template-columns:1fr;grid-template-rows:50px auto 1fr}
+  #sidebar{grid-row:2;height:auto;max-height:160px;display:flex;overflow-x:auto;padding:.4rem;gap:.35rem;border-right:none;border-bottom:1px solid var(--border)}
+  .pni{flex-direction:column;padding:.4rem .6rem;border-left:none;border-bottom:2px solid transparent;min-width:72px;text-align:center;border-radius:var(--r)}
+  .pni.active{border-bottom-color:var(--green)}
+  .mini-prog,.pni-s{display:none}
+  #main{padding:1.1rem}
+  #settings{width:100%;top:auto;bottom:0;height:70vh;border-left:none;border-top:1px solid var(--border);transform:translateY(100%)}
+  #settings.open{transform:translateY(0)}
+}
+</style>
+</head>
+<body>
+<div id="auth-screen">
+<div class="auth-box">
+  <div class="auth-logo">EMUNAH<span>.BANK</span><br>LAB<span> — PLANO DE IMPLEMENTAÇÃO</span></div>
+  <div id="f-login">
+    <div class="auth-title">Acessar</div>
+    <div class="auth-sub">Entre com suas credenciais para continuar.</div>
+    <div id="le" class="auth-err hidden"></div>
+    <div class="fg"><label class="fl">ID do Desenvolvedor</label><input type="text" id="lu" placeholder="DEV01" autocomplete="username"></div>
+    <div class="fg"><label class="fl">Senha</label><input type="password" id="lp" placeholder="••••••••" autocomplete="current-password"></div>
+    <div class="cb-row"><input type="checkbox" id="lr"><label for="lr">Manter acesso neste dispositivo</label></div>
+    <div style="margin-top:1.1rem"><button class="btn btn-p" onclick="doLogin()">Entrar</button></div>
+    <div class="auth-links"><span class="auth-link" onclick="sf('register')">Criar conta</span><span class="auth-link" onclick="sf('reset')">Redefinir senha</span></div>
+  </div>
+  <div id="f-register" class="hidden">
+    <div class="auth-title">Criar conta</div><div class="auth-sub">Defina seu ID e senha.</div>
+    <div id="re" class="auth-err hidden"></div><div id="rs" class="auth-ok hidden"></div>
+    <div class="fg"><label class="fl">ID do Desenvolvedor</label><input type="text" id="ru" placeholder="DEV01" autocomplete="username"></div>
+    <div class="fg"><label class="fl">Senha</label><input type="password" id="rp" placeholder="Mínimo 6 caracteres" autocomplete="new-password"></div>
+    <div class="fg"><label class="fl">Confirmar Senha</label><input type="password" id="rp2" placeholder="Repita a senha" autocomplete="new-password"></div>
+    <div class="fg"><label class="fl">Código de convite</label><input type="password" id="rinv" placeholder="Solicitado ao administrador" autocomplete="off"></div>
+    <div style="margin-top:.5rem"><button class="btn btn-p" onclick="doRegister()">Cadastrar</button></div>
+    <div class="auth-links"><span class="auth-link" onclick="sf('login')">Já tenho conta</span></div>
+  </div>
+  <div id="f-reset" class="hidden">
+    <div class="auth-title">Redefinir senha</div><div class="auth-sub">Informe ID e redefina a senha.</div>
+    <div id="rese" class="auth-err hidden"></div><div id="ress" class="auth-ok hidden"></div>
+    <div class="fg"><label class="fl">ID do Desenvolvedor</label><input type="text" id="resu" placeholder="DEV01"></div>
+    <div class="fg"><label class="fl">Senha atual</label><input type="password" id="reso"></div>
+    <div class="fg"><label class="fl">Nova senha</label><input type="password" id="resn"></div>
+    <div class="fg"><label class="fl">Confirmar nova senha</label><input type="password" id="resn2"></div>
+    <div style="margin-top:.5rem"><button class="btn btn-p" onclick="doReset()">Redefinir</button></div>
+    <div class="auth-links"><span class="auth-link" onclick="sf('login')">Voltar ao login</span></div>
+  </div>
+</div>
+</div>
+
+<div id="app" class="hidden">
+  <header id="header">
+    <div class="h-logo">EMUNAH<span>.LAB</span></div>
+    <div class="h-prog"><div class="prog-outer"><div class="prog-inner" id="gbar" style="width:0%"></div></div><span class="prog-lbl" id="glbl">0/0</span></div>
+    <div class="h-right"><span class="h-user" id="huser"></span><button class="h-btn" onclick="toggleSettings()">Config</button><button class="h-btn" onclick="doLogout()">Sair</button></div>
+  </header>
+  <nav id="sidebar">
+    <div class="sbl">Fases</div>
+    <div id="pnav"></div>
+    <div class="sbl" style="margin-top:.8rem">Ações</div>
+    <div class="sidebar-actions">
+      <button class="h-btn" style="width:100%;text-align:left;padding:.45rem .7rem" onclick="exportData()">↓ Exportar progresso</button>
+      <button class="h-btn" style="width:100%;text-align:left;padding:.45rem .7rem" onclick="importData()">↑ Importar progresso</button>
+    </div>
+  </nav>
+  <main id="main"><div id="pc"></div></main>
+</div>
+
+<div id="settings">
+  <div class="cfg-title">// CONFIGURAÇÕES</div>
+  <div class="cfg-sec"><div class="cfg-sec-t">Conta</div>
+    <div class="stat-row"><span class="sk">Usuário</span><span class="sv" id="cu">—</span></div>
+    <div class="stat-row"><span class="sk">Progresso</span><span class="sv" id="cprog">—</span></div>
+    <div class="stat-row"><span class="sk">Anotações</span><span class="sv" id="cann">—</span></div>
+  </div>
+  <div class="cfg-sec"><div class="cfg-sec-t">Alterar senha</div>
+    <div class="fg" style="margin-bottom:.65rem"><label class="fl">Senha atual</label><input type="password" id="cop"></div>
+    <div class="fg" style="margin-bottom:.65rem"><label class="fl">Nova senha</label><input type="password" id="cnp"></div>
+    <div class="fg" style="margin-bottom:.65rem"><label class="fl">Confirmar</label><input type="password" id="cnp2"></div>
+    <div id="cpm" class="hidden" style="font-size:.75rem;margin-bottom:.5rem"></div>
+    <button class="btn btn-g" style="width:100%;font-size:.7rem" onclick="changePass()">Alterar senha</button>
+  </div>
+  <div class="cfg-sec"><div class="cfg-sec-t">Dados</div>
+    <button class="btn btn-d" style="width:100%;margin-bottom:.4rem" onclick="clearProg()">Limpar progresso</button>
+    <button class="btn btn-d" style="width:100%" onclick="clearAnn()">Limpar anotações</button>
+  </div>
+  <div style="margin-top:.8rem"><button class="btn btn-g" style="width:100%" onclick="toggleSettings()">Fechar</button></div>
+</div>
+
+<script>
+// ── PLAN DATA ────────────────────────────────────────────────────────
+// badge: exist=já existe | fix=existe mas corrigir | miss=implementar | new=achado
+const PH=[
+{id:'fx',num:'!',title:'Correções Imediatas',sub:'Prioridade antes de tudo',alert:true,
+ desc:'Três problemas bloqueiam qualquer execução de ponta a ponta. Corrija antes de avançar nas fases do orquestrador.',
+ steps:[
+  {id:'fxs1',num:'C.1',title:'Corrigir contas.txt',sub:'Layout quebrado — todas as contas rejeitadas',tags:['DATA'],badge:'fix',
+   desc:'O arquivo contas.txt tem o layout deslocado. CNT-STATUS (pos 19) está com valor "C" que é inválido — esperado A/I/B. CNT-DATA-ABERTURA (pos 20-27) começa com "A". EBCLLOAD vai rejeitar todas as 20 contas.',
+   warn:'Com o arquivo atual: 20 clientes gravados, 0 contas. EBPOST01 rejeita 100% dos lançamentos com CONTA NAO ENCONTRADA.',
+   codes:[{l:'Layout CPCNT001 correto — 100 bytes por registro',c:`Pos  1- 4 : CNT-AGENCIA      9(04)  ex: 0001
+Pos  5-12 : CNT-NUM-CONTA   9(08)  ex: 00000001
+Pos 13-17 : CNT-ID-CLIENTE  9(05)  ex: 00001
+Pos 18    : CNT-TIPO        X(01)  C=Corrente P=Poupanca S=Salario
+Pos 19    : CNT-STATUS      X(01)  A=Ativo I=Inativo B=Bloqueado
+Pos 20-27 : CNT-DATA-ABERT  9(08)  AAAAMMDD ex: 20260312
+Pos 28-40 : CNT-SALDO  S9(11)V99  13 bytes DISPLAY
+Pos 41-51 : CNT-LIMITE S9(09)V99  11 bytes
+Pos 52-100: FILLER         X(49)`},
+{l:'Script Python — gerar contas.txt correto (data/seed/)',c:`# Salvar como scripts/gerar_contas.py e executar
+saldos = [
+    "0000000100050","0000000200000","0000000150750",
+    "0000000305000","0000000078000","0000000052500",
+    "0000000253000","0000000019000","0000000110000",
+    "0000000400000","0000000225000","0000000133000",
+    "0000000179000","0000000025000","0000000086000",
+    "0000000100000","0000000067000","0000000142000",
+    "0000000199000","0000000215000",
+]
+linhas = []
+for i in range(1, 21):
+    linha = (
+        "0001"             +  # CNT-AGENCIA
+        str(i).zfill(8)   +  # CNT-NUM-CONTA
+        str(i).zfill(5)   +  # CNT-ID-CLIENTE
+        "C"                +  # CNT-TIPO Corrente
+        "A"                +  # CNT-STATUS Ativo
+        "20260312"         +  # CNT-DATA-ABERTURA
+        saldos[i-1]        +  # CNT-SALDO 13 bytes
+        "00000000000"      +  # CNT-LIMITE 11 bytes
+        " " * 49              # FILLER
+    )
+    assert len(linha) == 100, f"Linha {i}: {len(linha)}"
+    linhas.append(linha)
+with open("data/seed/contas.txt","w",newline="\\r\\n") as f:
+    f.write("\\n".join(linhas))
+print(f"{len(linhas)} contas geradas, 100 bytes cada.")`}],
+   done:'EBCLLOAD grava 20 contas no CONTA.KSDS sem nenhum rejeito.'},
+  {id:'fxs2',num:'C.2',title:'Corrigir lancamentos_d0.txt',sub:'Contas dos lançamentos não existem no seed',tags:['DATA'],badge:'fix',
+   desc:'O arquivo usa contas como 12345678, 12345679 etc. O seed de contas tem apenas 00000001 a 00000020. EBPOST01 rejeita 100% dos lançamentos com CONTA NAO ENCONTRADA.',
+   codes:[{l:'Script Python — regerar lancamentos_d0.txt correto (data/entrada/)',c:`hoje = "20260314"
+movs = [
+    ("0001","00000001",hoje,"C","0000000012500","DEPOSITO INICIAL              ","APP       "),
+    ("0001","00000001",hoje,"D","0000000001500","TARIFA MENSAL                 ","BATCH     "),
+    ("0001","00000002",hoje,"C","0000000050000","SALARIO                       ","RH        "),
+    ("0001","00000002",hoje,"D","0000000007500","PAGAMENTO BOLETO              ","INTERNET  "),
+    ("0001","00000003",hoje,"C","0000000003000","TRANSFERENCIA RECEBIDA        ","PIX       "),
+    ("0001","00000003",hoje,"D","0000000001200","SAQUE ATM                     ","ATM       "),
+    ("0001","00000004",hoje,"C","0000000022500","TED RECEBIDA                  ","TED       "),
+    ("0001","00000004",hoje,"D","0000000005000","COMPRA DEBITO                 ","POS       "),
+    ("0001","00000005",hoje,"C","0000000100000","APORTE INVESTIMENTO           ","APP       "),
+    ("0001","00000005",hoje,"D","0000000010000","PAGAMENTO FATURA              ","INTERNET  "),
+]
+linhas=[]
+for i,(ag,ct,dt,tp,vl,hist,canal) in enumerate(movs,1):
+    linha=ag+ct+dt+tp+vl+hist+canal+"000001"+str(i).zfill(6)+"P"+" "*33
+    assert len(linha)==120
+    linhas.append(linha)
+with open("data/entrada/lancamentos_d0.txt","w",newline="\\r\\n") as f:
+    f.write("\\n".join(linhas))
+print(f"{len(linhas)} lancamentos, 120 bytes cada.")`}],
+   done:'EBVALI01 aprova 10 → EBPOST01 posta 10 → auditoria registra saldo antes/depois.'},
+  {id:'fxs3',num:'C.3',title:'Corrigir EBJSALD.jcl — DD SALDOUT ausente',sub:'Job falha no OPEN de SALDO-OUT',tags:['JCL'],badge:'fix',
+   desc:'EBSALD01 declara SELECT SALDO-OUT ASSIGN TO SALDOUT. O JCL não tem esse DD. O OPEN falha com FILE STATUS diferente de 00 antes de processar qualquer registro.',
+   codes:[{l:'Adicionar ao EBJSALD.jcl — após o DD SALDIN',c:`//SALDOUT  DD DSN=<HQL>.EMUNAH.ARQ.SALDO.OUT.SEQ,
+//             DISP=(NEW,CATLG,DELETE),
+//             UNIT=SYSDA,SPACE=(TRK,(5,5)),
+//             DCB=(RECFM=FB,LRECL=120,BLKSIZE=0)`}],
+   done:'EBJSALD executa RC=0 e SALDO.OUT.SEQ contém os registros processados.'},
+  {id:'fxs4',num:'C.4',title:'Corrigir EBJEXTR e EBJEOD',sub:'Ambos são placeholder IEFBR14',tags:['JCL'],badge:'fix',
+   desc:'EBJEXTR.jcl e EBJEOD.jcl existem mas executam apenas IEFBR14. EBEXTR01 já existe compilado mas o JCL não o referencia. A cadeia não se fecha.',
+   codes:[{l:'EBJEXTR.jcl — substituir IEFBR14 por EBEXTR01',c:`//EBJEXTR  JOB ,'EMUNAH EXTR',CLASS=A,MSGCLASS=X,MSGLEVEL=(1,1)
+//STEP1    EXEC PGM=EBEXTR01
+//STEPLIB  DD DSN=<HQL>.EMUNAH.DEV.LOADLIB,DISP=SHR
+//MOVTIN   DD DSN=<HQL>.EMUNAH.ARQ.LANCTO.ESDS,DISP=SHR
+//EXTROUT  DD DSN=<HQL>.EMUNAH.ARQ.EXTRATO.SEQ,
+//             DISP=(NEW,CATLG,DELETE),UNIT=SYSDA,
+//             SPACE=(TRK,(10,10)),
+//             DCB=(RECFM=FB,LRECL=132,BLKSIZE=0)
+//SYSOUT   DD SYSOUT=*
+//SYSPRINT DD SYSOUT=*`}],
+   done:'EBJEXTR executa EBEXTR01 e gera ARQ.EXTRATO.SEQ com as linhas formatadas.'},
+  {id:'fxs5',num:'C.5',title:'Alocar datasets novos identificados',sub:'Não estavam no mapa original',tags:['JCL'],badge:'new',
+   desc:'A análise dos JCLs revelou datasets referenciados que não estavam no mapa original do projeto. Precisam ser alocados antes dos jobs que os usam.',
+   codes:[{l:'Novos datasets — alocar via IDCAMS',c:`ARQ.CONCIL.SEQ      → saida de EBCONC01 (120 bytes)
+ARQ.LANCTO.VALID.SEQ → movimentos validos HML/PRD (120 bytes)
+ARQ.SALDO.SEQ        → entrada para EBSALD01 (80 bytes)
+ARQ.EXTRATO.SEQ      → saida de EBEXTR01 (132 bytes)
+ARQ.SALDO.OUT.SEQ    → saida de EBSALD01 (120 bytes)
+
+/* ARQ.BAK.CONTA.SEQ e EBBACK01 dependem de implementacao futura */`}],
+   done:'LISTCAT de cada dataset retorna sem erro.'}
+]},
+{id:'f0',num:0,title:'Fundação',sub:'Contratos antes do código',
+ desc:'A estrutura local já está bem organizada. O que falta é a camada USS (/lab/), o schema DB2 e os YAMLs de catálogo.',
+ steps:[
+  {id:'f0s1',num:'0.1',title:'Estrutura de pastas local',sub:'Já existe — verificar e consolidar',tags:['DATA'],badge:'exist',
+   desc:'A estrutura local C:\\Users\\eliel.filho\\emunah-bank-lab já existe com: cobol/batch (6 programas), jcl/ (16 JCLs organizados por ambiente), copybooks/layouts (7 copybooks), data/seed+entrada, rexx/ (2 scripts), parmlib/ (2 membros), docs/ (9 documentos + IBM PDFs).',
+   codes:[{l:'O que já existe — resumo do inventário',c:`COBOL/BATCH    : EBCLLOAD EBVALI01 EBPOST01
+                   EBSALD01 EBEXTR01 EBCONC01
+COBOL/HML      : EBSMKH01 (smoke test)
+JCL/BATCH      : EBJCLLD EBJVALD EBJPOST EBJSALD
+                   EBJCONC EBJEXTR* EBJEOD* EBSEED
+                   (* placeholder IEFBR14 — ver C.4)
+JCL/COMPILE    : EBCOMP EBLINK EBBUILD
+                   (hardcoded EBCLLOAD — editar p/ outros)
+JCL/HML        : EBJCONCH EBJSMKH
+JCL/PRD        : EBJPOSTP EBJEODP (ref. EBBACK01 n/impl)
+COPYBOOKS      : CPCLI001 CPCNT001 CPLCT001
+                   CPSLD001 CPAUD001 CPEXT001 CPREJ001
+REXX           : EBCHKLAB EBSUBJCL
+PARMLIB        : EBAUDITP EBBATCHP
+PENDENTE       : EBREPR01 (reprocessamento — nao impl.)
+                   EBBACK01 (backup PRD — nao impl.)`}],
+   done:'Pasta local existe com artefatos listados. Nenhuma implementação nova necessária aqui.'},
+  {id:'f0s2',num:'0.2',title:'Criar estrutura /lab/ no USS',sub:'Fundação do orquestrador no host',tags:['USS'],badge:'miss',
+   codes:[{l:'Execute no terminal USS do zXplore',c:`mkdir -p /lab/{orchestrator,catalog/{demandas,erros},hints,runbooks,logs,config,reports/runs}
+mkdir -p /lab/automation/{inject,baseline,submit,collect,validate}
+mkdir -p /lab/canal/agente/{domain/{models,layouts},services,app}
+mkdir -p /lab/data/{staging/{clientes,contas},baseline,expected,actual,entrada}`}],
+   done:'ls /lab mostra todos os diretórios sem erro.'},
+  {id:'f0s3',num:'0.3',title:'Verificar/alocar datasets no host',sub:'Usar EBCHKLAB e alocar os ausentes',tags:['JCL'],badge:'exist',
+   desc:'EBCHKLAB.rexx existe e verifica bibliotecas de código. Adicionar verificação dos ARQ.* à lista interna. Alocar os 5 datasets novos identificados em C.5.',
+   done:'EBCHKLAB retorna OK para todos os datasets de negócio e bibliotecas.'},
+  {id:'f0s4',num:'0.4',title:'Criar schema DB2',sub:'8 tabelas do orquestrador — executar via SPUFI',tags:['DB2'],badge:'miss',
+   codes:[{l:'DDL — executar nesta ordem',c:`CREATE TABLE LAB_DEV (ID_DEV INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY,
+  NM_DEV VARCHAR(30) NOT NULL, DT_INI DATE NOT NULL DEFAULT CURRENT DATE,
+  NIVEL CHAR(1) NOT NULL DEFAULT 'I', SCORE_TOTAL INTEGER NOT NULL DEFAULT 0,
+  RUNS_TOTAL INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (ID_DEV));
+
+CREATE TABLE LAB_FILA (ID_FILA INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY,
+  ID_DEV INTEGER NOT NULL, ID_DEM_YAML VARCHAR(10) NOT NULL,
+  ID_ERR_YAML VARCHAR(10), STATUS CHAR(1) NOT NULL DEFAULT 'A',
+  DT_ABER TIMESTAMP NOT NULL DEFAULT CURRENT TIMESTAMP,
+  DT_INIC TIMESTAMP, DT_FECH TIMESTAMP, PRIMARY KEY (ID_FILA),
+  FOREIGN KEY (ID_DEV) REFERENCES LAB_DEV(ID_DEV));
+
+CREATE TABLE LAB_RUN (ID_RUN INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY,
+  ID_FILA INTEGER NOT NULL, NM_JOB VARCHAR(8),
+  DT_INI TIMESTAMP NOT NULL DEFAULT CURRENT TIMESTAMP,
+  DT_FIM TIMESTAMP, RC_OBTIDO SMALLINT, RC_ESPERADO SMALLINT,
+  STATUS_AVAL CHAR(1) NOT NULL DEFAULT 'P', PRIMARY KEY (ID_RUN),
+  FOREIGN KEY (ID_FILA) REFERENCES LAB_FILA(ID_FILA));
+
+-- Mais 5 tabelas: LAB_RUN_ETAPA, LAB_RESULTADO,
+-- LAB_SCORE, LAB_HIST_DEM, LAB_CANAL
+-- (estrutura completa no plano original)
+
+INSERT INTO LAB_DEV (NM_DEV, NIVEL) VALUES ('DEV01', 'I');`}],
+   done:"SELECT COUNT(*) FROM LAB_DEV retorna 1 linha — DEV01."},
+  {id:'f0s5',num:'0.5',title:'app_config.yaml + YAMLs de catálogo',sub:'Configuração central e primeiras demandas',tags:['YAML'],badge:'miss',
+   warn:'Nunca commitar app_config.yaml com credenciais. Criar app_config.example.yaml (sem senha) para o repositório público.',
+   codes:[{l:'/lab/config/app_config.yaml',c:`host:
+  hlq:     "Z77948"
+  loadlib: "Z77948.EMUNAH.DEV.LOADLIB"
+  jcllib:  "Z77948.EMUNAH.DEV.JCL"
+db2:
+  database: "DSNV13P1"
+  hostname: "localhost"
+  port: 50000
+  uid: "labuser"
+  pwd: "SUBSTITUIR"
+lab:
+  uss_root:     "/lab"
+  catalog_path: "/lab/catalog"
+  reports_path: "/lab/reports/runs"
+baseline_datasets:
+  - ARQ.CLIENTE.KSDS
+  - ARQ.CONTA.KSDS
+  - ARQ.LANCTO.ESDS`}],
+   done:'python -c "import yaml; yaml.safe_load(open(\'/lab/config/app_config.yaml\'))" sem erro.'}
+]},
+{id:'f1',num:1,title:'Canal bancário',sub:'Modelos, layouts e staging',
+ desc:'Modelos Python, conversores de layout fixo e staging. Layouts ajustados para os DDNAMEs e posições reais dos programas COBOL existentes.',
+ steps:[
+  {id:'f1s1',num:'1.1',title:'Modelos de domínio',sub:'Cliente e Conta com validar()',tags:['Python'],badge:'miss',
+   codes:[{l:'/lab/canal/agente/domain/models/cliente.py',c:`from dataclasses import dataclass
+@dataclass
+class Cliente:
+    id_cliente:str; nome:str; cpf:str
+    dt_nasc:str; status:str; dt_cad:str
+    def validar(self):
+        e=[]
+        if len(self.id_cliente)!=5: e.append("id_cliente: 5 digitos")
+        if not self.nome.strip(): e.append("nome obrigatorio")
+        if len(self.cpf)!=11: e.append("cpf: 11 digitos")
+        if self.status not in('A','I','B'): e.append("status: A I B")
+        return e`}],
+   done:'validar() retorna lista vazia para registro correto.'},
+  {id:'f1s2',num:'1.2',title:'Conversores de layout fixo',sub:'Posições exatas dos copybooks',tags:['Python'],badge:'miss',
+   note:'CPCNT001: CNT-STATUS está na posição 19 (index 18), não 18. O conversor Python deve usar os índices corretos conforme o copybook.',
+   codes:[{l:'/lab/canal/agente/domain/layouts/cliente_layout.py',c:`TAMANHO = 80  # CPCLI001
+def para_txt(c) -> str:
+    linha = (
+        c.id_cliente.zfill(5)          +  # pos  1- 5
+        c.nome.upper().ljust(30)[:30]  +  # pos  6-35
+        c.cpf.zfill(11)                +  # pos 36-46
+        c.dt_nasc.zfill(8)             +  # pos 47-54
+        c.status[:1].upper()           +  # pos 55
+        c.dt_cad.zfill(8)              +  # pos 56-63
+        ' ' * 17                          # pos 64-80
+    )
+    assert len(linha) == TAMANHO
+    return linha`},
+{l:'/lab/canal/agente/domain/layouts/lancamento_layout.py',c:`TAMANHO = 120  # layout inline EBVALI01/EBPOST01
+# DDNAME ENTRADA → ARQ.ENTRADA.SEQ
+def para_txt(ag,ct,dt,tp,vl,hist,canal,lote,nseq) -> str:
+    linha = (
+        str(ag).zfill(4)          +  # pos  1- 4 EN-AGENCIA
+        str(ct).zfill(8)          +  # pos  5-12 EN-CONTA
+        str(dt).zfill(8)          +  # pos 13-20 EN-DATA
+        str(tp)[:1].upper()       +  # pos 21    EN-TIPO C/D
+        str(vl).zfill(13)[:13]    +  # pos 22-34 EN-VALOR
+        str(hist).ljust(30)[:30]  +  # pos 35-64 EN-HISTORICO
+        str(canal).ljust(10)[:10] +  # pos 65-74 EN-CANAL
+        str(lote).zfill(6)        +  # pos 75-80 LCT-LOTE
+        str(nseq).zfill(6)        +  # pos 81-86 LCT-NSEQ
+        "P"                       +  # pos 87    LCT-STATUS
+        ' ' * 33                     # pos 88-120
+    )
+    assert len(linha) == TAMANHO
+    return linha`}],
+   done:'assert não lança para nenhum registro de exemplo.'},
+  {id:'f1s3',num:'1.3',title:'Staging e menu terminal',sub:'JSON local antes de enviar ao host',tags:['Python'],badge:'miss',
+   codes:[{l:'/lab/canal/agente/services/staging.py',c:`import json
+from pathlib import Path
+from datetime import datetime
+
+STAGING = Path("/lab/data/staging")
+
+def salvar_cliente(d:dict, run_id:str) -> Path:
+    p = STAGING/"clientes"/f"clientes_{run_id}.json"
+    dados = json.loads(p.read_text()) if p.exists() else []
+    dados.append(d)
+    p.write_text(json.dumps(dados,ensure_ascii=False,indent=2))
+    return p
+
+def gerar_run_id() -> str:
+    return "RUN"+datetime.now().strftime("%Y%m%d%H%M%S")`}],
+   done:'salvar_cliente({...},"RUN001") cria JSON em /lab/data/staging/clientes/.'}
+]},
+{id:'f2',num:2,title:'Integração',sub:'Canal → mainframe via Zowe',
+ desc:'Publica staging no host, submete a cadeia batch e coleta spool. DDNAMEs e nomes de datasets ajustados para o que os programas COBOL reais usam.',
+ steps:[
+  {id:'f2s1',num:'2.1',title:'Publicador + lab.py start',sub:'staging → host → submete cadeia',tags:['Python'],badge:'miss',
+   note:'EBSUBJCL.rexx já existe. O lab.py usa Zowe CLI diretamente para controle mais fino. EBBUILD/EBCOMP/EBLINK estão hardcoded para EBCLLOAD — editar antes de compilar outros programas.',
+   warn:'EBSUBJCL default é HML.JCL. Para DEV, sempre passar o segundo argumento.',
+   codes:[{l:'/lab/orchestrator/lab.py — cadeia batch real',c:`#!/usr/bin/env python3
+import argparse,yaml,subprocess,time,json
+CFG=yaml.safe_load(open("/lab/config/app_config.yaml"))
+
+def submeter(membro,jcllib=None):
+    lib=jcllib or CFG["host"]["jcllib"]
+    r=subprocess.run(
+        ["zowe","jobs","submit","data-set",f"{lib}({membro})","--rfj"],
+        capture_output=True,text=True)
+    if r.returncode!=0: raise RuntimeError(r.stderr)
+    jobid=json.loads(r.stdout)["data"]["jobid"]
+    print(f"  [OK] {membro} -> {jobid}"); return jobid
+
+def monitorar(jobid,timeout=180):
+    t0=time.time()
+    while time.time()-t0<timeout:
+        r=subprocess.run(
+            ["zowe","jobs","view","job-status-by-jobid",jobid,"--rfj"],
+            capture_output=True,text=True)
+        if r.returncode==0:
+            d=json.loads(r.stdout)["data"]
+            if d.get("status") in("OUTPUT","ABEND"): return d
+        time.sleep(4)
+    raise TimeoutError(f"{jobid} timeout")
+
+def cmd_start(args):
+    # Cadeia batch DEV (na ordem real dos JCLs)
+    cadeia=["EBJCLLD","EBJVALD","EBJPOST",
+            "EBJSALD","EBJEXTR","EBJCONC","EBJEOD"]
+    for job in cadeia:
+        jid=submeter(job)
+        res=monitorar(jid)
+        rc=res.get("retcode","?")
+        print(f"  {job:10s} -> {res['status']} RC={rc}")
+        try:
+            rc_int=int(str(rc).replace("CC","").strip())
+            if rc_int>=8: print(f"  [STOP] Cadeia interrompida em {job}."); break
+        except: pass
+
+if __name__=="__main__":
+    p=argparse.ArgumentParser(prog="lab")
+    s=p.add_subparsers(dest="cmd")
+    st=s.add_parser("start"); st.add_argument("--run",required=True)
+    st.set_defaults(func=cmd_start)
+    a=p.parse_args()
+    if a.cmd: a.func(a)
+    else: p.print_help()`}],
+   done:'python3 lab.py start --run RUN001 executa a cadeia e exibe RC de cada job.'}
+]},
+{id:'f3',num:3,title:'Avaliação',sub:'RC, output diff, score, relatório',
+ desc:'Validadores modulares, evaluator e reporter que gera .md por run.',
+ steps:[
+  {id:'f3s1',num:'3.1',title:'Validadores + evaluator + scorer + reporter',sub:'Pipeline completo de avaliação',tags:['Python'],badge:'miss',
+   codes:[{l:'/lab/automation/validate/rc_check.py',c:`def validar_rc(rc_obtido, rc_esperado) -> dict:
+    try: rc=int(str(rc_obtido).replace("CC","").strip())
+    except: rc=99
+    return {"tipo":"rc_esperado","esperado":str(rc_esperado),
+            "obtido":str(rc),"passou":rc<=rc_esperado}`},
+{l:'/lab/orchestrator/reporter.py',c:`from pathlib import Path
+from datetime import datetime
+def gerar(run_id,dem_id,aval,score,rc):
+    res="APROVADO" if aval["passou"] else "REPROVADO"
+    linhas=[f"# Relatorio {run_id}","",
+            f"Data: {datetime.now():%Y-%m-%d %H:%M}",
+            f"Demanda: {dem_id}  RC: {rc}  {res}",
+            f"Score: {score['total']} pts","","## Validacoes",""]
+    for v in aval["validacoes"]:
+        linhas.append(f"- {'OK' if v['passou'] else 'FALHOU'} "
+                      f"{v['tipo']}: esp={v['esperado']} obt={v['obtido']}")
+    dst=Path(f"/lab/reports/runs/{run_id}.md")
+    dst.write_text("\\n".join(linhas))
+    return dst`}],
+   done:'/lab/reports/runs/RUN001.md existe com APROVADO/REPROVADO e score.'}
+]},
+{id:'f4',num:4,title:'Simulador de erros',sub:'Injeção baseada nos defeitos reais',
+ desc:'ERR001 replica exatamente o bug encontrado na massa: status inválido que causa rejeição em EBCLLOAD.',
+ steps:[
+  {id:'f4s1',num:'4.1',title:'Injetor ERR001 — status inválido',sub:'Baseado no defeito real de clientes.txt',tags:['Python'],badge:'miss',
+   desc:'A injeção altera 1 byte na posição 55 (CLI-STATUS, index 54) do primeiro registro. Exatamente o que estava errado no arquivo de contas original.',
+   codes:[{l:'/lab/automation/inject/inject_ERR001.py',c:`import shutil
+from pathlib import Path
+
+def injetar(run_id:str):
+    arq=Path(f"/lab/data/staging/clientes/clientes_{run_id}.txt")
+    shutil.copy(arq, arq.with_suffix(".txt.bak"))
+    linhas=arq.read_text().splitlines()
+    if linhas:
+        linhas[0]=linhas[0][:54]+"X"+linhas[0][55:]  # CLI-STATUS=X
+    arq.write_text("\\n".join(linhas))
+    print("  [INJECT ERR001] CLI-STATUS do cliente 1 -> 'X'")
+
+def reverter(run_id:str):
+    arq=Path(f"/lab/data/staging/clientes/clientes_{run_id}.txt")
+    bak=arq.with_suffix(".txt.bak")
+    bak.replace(arq)
+    print("  [CLEAR ERR001] Arquivo restaurado.")`},
+{l:'/lab/hints/ERR001/nivel1.txt',c:`Observe o DISPLAY do EBCLLOAD no spool do EBJCLLD.
+O numero de clientes rejeitados esta acima do esperado.
+Verifique se o arquivo de entrada chegou integro.`},
+{l:'/lab/hints/ERR001/nivel2.txt',c:`Leia ARQ.AUDIT.SEQ (DDNAME: AUDIT) apos a execucao.
+Procure por: CLIENTE REJEITADO - STATUS INVALIDO
+Compare o campo CLI-STATUS (posicao 55) com CPCLI001:
+  A=Ativo  I=Inativo  B=Bloqueado`},
+{l:'/lab/hints/ERR001/nivel3.txt',c:`CLI-STATUS do primeiro registro contem 'X' — invalido.
+Localize o registro, corrija para A, I ou B
+e reenvie o arquivo via EBJCLLD.`}],
+   done:'injetar + reverter + diff == original.'}
+]},
+{id:'f5',num:5,title:'Baseline',sub:'Estado limpo entre runs',
+ desc:'Snapshot e restore dos datasets via Zowe. Dois runs consecutivos partem do mesmo estado.',
+ steps:[
+  {id:'f5s1',num:'5.1',title:'Snapshot e restore',sub:'automation/baseline/',tags:['Python'],badge:'miss',
+   codes:[{l:'/lab/automation/baseline/snapshot.py',c:`import subprocess
+from pathlib import Path
+def snapshot(run_id:str, datasets:list, hlq:str):
+    pasta=Path("/lab/data/baseline")/run_id
+    pasta.mkdir(parents=True,exist_ok=True)
+    for ds in datasets:
+        dst=pasta/(ds.replace(".","_")+".bak")
+        r=subprocess.run(
+            ["zowe","zos-files","download","data-set",
+             f"{hlq}.EMUNAH.{ds}","--file",str(dst)],
+            capture_output=True,text=True)
+        print(f"  {'OK' if r.returncode==0 else 'SKIP'} snapshot: {ds}")`}],
+   done:'snapshot + restore → datasets idênticos. Dois runs consecutivos sem interferência.'}
+]},
+{id:'f6',num:6,title:'Feedback e perfil',sub:'Aprendizado e evolução',
+ desc:'Exibe causa e runbook após cada run. Mantém histórico por demanda no DB2.',
+ steps:[
+  {id:'f6s1',num:'6.1',title:'Feedback + perfil',sub:'Terminal + DB2',tags:['Python'],badge:'miss',
+   codes:[{l:'/lab/orchestrator/feedback.py',c:`from pathlib import Path
+def exibir(dem_id,aval,score):
+    res="APROVADO" if aval["passou"] else "REPROVADO"
+    print(f"\\n{'='*52}\\n  FEEDBACK {dem_id}\\n{'='*52}")
+    print(f"  {res}  {score['total']} pts")
+    if not aval["passou"]:
+        for v in aval["validacoes"]:
+            if not v["passou"]:
+                print(f"    FALHOU: {v['tipo']} "
+                      f"esp={v['esperado']} obt={v['obtido']}")
+    rb=Path(f"/lab/runbooks/{dem_id}.md")
+    if rb.exists():
+        for l in rb.read_text().splitlines()[:15]:
+            print(f"  {l}")`}],
+   done:'Terminal exibe resultado, score e primeiras linhas do runbook.'}
+]},
+{id:'f7',num:7,title:'Escala e extensão',sub:'Catálogo + LABMENU',
+ desc:'Scaffold de demandas, linter e menu REXX. EBCHKLAB e EBSUBJCL já existem e serão integrados ao LABMENU.',
+ steps:[
+  {id:'f7s1',num:'7.1',title:'Scaffold + linter',sub:'lab.py scaffold + lab.py lint',tags:['Python'],badge:'miss',
+   codes:[{l:'/lab/orchestrator/scaffold.py',c:`from pathlib import Path
+TMPL="""id: {id}
+titulo: Titulo aqui
+tecnologia: COBOL
+dificuldade: M
+ativa: false
+validadores:
+  - tipo: rc_esperado
+    valor: 0
+pistas:
+  - hints/{id}/nivel1.txt
+  - hints/{id}/nivel2.txt
+  - hints/{id}/nivel3.txt
+solucao: runbooks/{id}.md
+"""
+def scaffold_demand(dem_id:str):
+    r=Path("/lab")
+    (r/f"catalog/demandas/{dem_id}.yaml").write_text(TMPL.format(id=dem_id))
+    for n in(1,2,3):
+        p=r/f"hints/{dem_id}/nivel{n}.txt"
+        p.parent.mkdir(parents=True,exist_ok=True)
+        p.write_text(f"Pista nivel {n} para {dem_id}.\\n")
+    (r/f"runbooks/{dem_id}.md").write_text(f"# Runbook {dem_id}\\n\\n## Sintoma\\n## Causa\\n## Correcao\\n")
+    print(f"  [OK] {dem_id} criado.")`}],
+   done:'lab.py scaffold demand DEM011 cria YAML + hints + runbook.'},
+  {id:'f7s2',num:'7.2',title:'LABMENU — integra EBCHKLAB e EBSUBJCL',sub:'Menu REXX no TSO',tags:['REXX'],badge:'miss',
+   note:'EBSUBJCL default é HML.JCL. No LABMENU sempre passar a biblioteca explicitamente para não submeter em HML por engano.',
+   codes:[{l:'LAB.REXX(LABMENU)',c:`/* LABMENU - Menu Emunah Lab */
+DO FOREVER
+  "CLEAR"
+  SAY "================================================"
+  SAY "  EMUNAH BANK LAB - MENU OPERACIONAL"
+  SAY "================================================"
+  SAY "  1. Verificar datasets (EBCHKLAB)"
+  SAY "  2. Submeter JCL (EBSUBJCL)"
+  SAY "  3. Iniciar run (lab.py start)"
+  SAY "  4. Pedir pista"
+  SAY "  5. Injetar erro"
+  SAY "  6. Reverter erro"
+  SAY "  7. Ver relatorio"
+  SAY "  0. Sair"
+  SAY "================================================"
+  PULL OPCAO
+  SELECT
+    WHEN OPCAO='1' THEN
+      ADDRESS TSO "EX 'Z77948.EMUNAH.DEV.REXX(EBCHKLAB)'"
+    WHEN OPCAO='2' THEN DO
+      SAY "Membro JCL:"; PULL MBR
+      SAY "Biblioteca [Z77948.EMUNAH.DEV.JCL]:"; PULL LIB
+      IF LIB='' THEN LIB='Z77948.EMUNAH.DEV.JCL'
+      ADDRESS TSO "EX 'Z77948.EMUNAH.DEV.REXX(EBSUBJCL)'" "'"MBR LIB"'"
+    END
+    WHEN OPCAO='3' THEN DO
+      SAY "Run ID:"; PULL RID
+      ADDRESS OMVS "python3 /lab/orchestrator/lab.py start --run "RID
+    END
+    WHEN OPCAO='4' THEN DO
+      SAY "Demanda ID:"; PULL DID; SAY "Nivel (1/2/3):"; PULL NV
+      ADDRESS OMVS "python3 /lab/orchestrator/lab.py hint "DID" --nivel "NV
+    END
+    WHEN OPCAO='5' THEN DO
+      SAY "Erro ID:"; PULL EID; SAY "Run ID:"; PULL RID
+      ADDRESS OMVS "python3 /lab/orchestrator/lab.py inject "EID" --run "RID
+    END
+    WHEN OPCAO='6' THEN DO
+      SAY "Erro ID:"; PULL EID; SAY "Run ID:"; PULL RID
+      ADDRESS OMVS "python3 /lab/orchestrator/lab.py clear "EID" --run "RID
+    END
+    WHEN OPCAO='7' THEN DO
+      SAY "Run ID:"; PULL RID
+      ADDRESS OMVS "cat /lab/reports/runs/"RID".md"
+    END
+    WHEN OPCAO='0' THEN LEAVE
+    OTHERWISE SAY "Opcao invalida."
+  END
+END
+EXIT 0`}],
+   done:"LABMENU abre no TSO, opção 1 chama EBCHKLAB, opção 3 chama lab.py via USS."}
+]}
+];
+
+// ── AUTH ──────────────────────────────────────────────────────────────
+const K={USERS:'ebl_users',SESSION:'ebl_sess',REMEMBER:'ebl_rem',prog:u=>`ebl_p_${u}`,ann:u=>`ebl_a_${u}`};
+async function sha(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');}
+function gU(){return JSON.parse(localStorage.getItem(K.USERS)||'{}');}
+function sU(u){localStorage.setItem(K.USERS,JSON.stringify(u));}
+function sf(f){['login','register','reset'].forEach(x=>document.getElementById(`f-${x}`).classList.toggle('hidden',x!==f));clearMsgs();}
+function clearMsgs(){['le','re','rs','rese','ress'].forEach(id=>{const el=document.getElementById(id);if(el){el.classList.add('hidden');el.textContent='';};});}
+function showE(id,msg){const el=document.getElementById(id);el.textContent=msg;el.classList.remove('hidden');}
+function showOk(id,msg){const el=document.getElementById(id);el.textContent=msg;el.classList.remove('hidden');}
+async function doLogin(){const u=document.getElementById('lu').value.trim().toUpperCase(),p=document.getElementById('lp').value,r=document.getElementById('lr').checked;if(!u||!p)return showE('le','Preencha todos os campos.');const users=gU();if(!users[u])return showE('le','Usuário não encontrado.');if(users[u]!==await sha(p))return showE('le','Senha incorreta.');localStorage.setItem(K.SESSION,u);r?localStorage.setItem(K.REMEMBER,u):localStorage.removeItem(K.REMEMBER);startApp(u);}
+// Código de convite — altere este valor para o que quiser
+const INVITE_CODE = "emunah2025";
+
+async function doRegister(){const u=document.getElementById('ru').value.trim().toUpperCase(),p=document.getElementById('rp').value,p2=document.getElementById('rp2').value,inv=document.getElementById('rinv').value.trim();if(!u||!p||!p2||!inv)return showE('re','Preencha todos os campos.');if(inv!==INVITE_CODE)return showE('re','Código de convite inválido.');if(p.length<6)return showE('re','Senha: mín. 6 chars.');if(p!==p2)return showE('re','Senhas não coincidem.');const users=gU();if(users[u])return showE('re','ID já existe.');users[u]=await sha(p);sU(users);showOk('rs',`Conta ${u} criada!`);setTimeout(()=>{sf('login');document.getElementById('lu').value=u;},1400);}
+async function doReset(){const u=document.getElementById('resu').value.trim().toUpperCase(),o=document.getElementById('reso').value,n=document.getElementById('resn').value,n2=document.getElementById('resn2').value;if(!u||!o||!n||!n2)return showE('rese','Preencha todos.');const users=gU();if(!users[u])return showE('rese','Usuário não encontrado.');if(users[u]!==await sha(o))return showE('rese','Senha atual incorreta.');if(n.length<6)return showE('rese','Mín. 6 chars.');if(n!==n2)return showE('rese','Senhas não coincidem.');users[u]=await sha(n);sU(users);showOk('ress','Senha alterada!');setTimeout(()=>sf('login'),1400);}
+async function changePass(){const u=CU,o=document.getElementById('cop').value,n=document.getElementById('cnp').value,n2=document.getElementById('cnp2').value,msg=document.getElementById('cpm');msg.classList.remove('hidden');if(!o||!n||!n2){msg.style.color='var(--red)';msg.textContent='Preencha todos.';return;}if(n!==n2){msg.style.color='var(--red)';msg.textContent='Senhas não coincidem.';return;}const users=gU();if(users[u]!==await sha(o)){msg.style.color='var(--red)';msg.textContent='Senha atual incorreta.';return;}users[u]=await sha(n);sU(users);msg.style.color='var(--green)';msg.textContent='Senha alterada.';['cop','cnp','cnp2'].forEach(id=>document.getElementById(id).value='');}
+function doLogout(){localStorage.removeItem(K.SESSION);location.reload();}
+
+// ── APP STATE ─────────────────────────────────────────────────────────
+let CU='',PROG={},ANN={},CPHASE='fx';
+function loadUD(u){PROG=JSON.parse(localStorage.getItem(K.prog(u))||'{}');ANN=JSON.parse(localStorage.getItem(K.ann(u))||'{}');}
+function saveP(){localStorage.setItem(K.prog(CU),JSON.stringify(PROG));updateProg();}
+function saveA(sid,val){ANN[sid]=val;localStorage.setItem(K.ann(CU),JSON.stringify(ANN));}
+function startApp(u){CU=u;loadUD(u);document.getElementById('auth-screen').classList.add('hidden');document.getElementById('app').classList.remove('hidden');document.getElementById('huser').textContent=u;document.getElementById('cu').textContent=u;buildSidebar();showPhase('fx');updateProg();}
+
+function buildSidebar(){
+  const nav=document.getElementById('pnav');nav.innerHTML='';
+  PH.forEach(ph=>{
+    const pct=getPhPct(ph.id);
+    const el=document.createElement('div');
+    el.className='pni'+(ph.id===CPHASE?' active':'')+(ph.alert?' has-alert':'');
+    el.id=`n-${ph.id}`;
+    el.innerHTML=`<div class="pnb">${ph.num}</div><div class="pni-info"><div class="pni-t">${esc(ph.title)}</div><div class="pni-s">${esc(ph.sub)}</div></div><div class="mini-prog"><div class="mini-bar" id="mb-${ph.id}" style="width:${pct}%"></div></div>`;
+    el.onclick=()=>showPhase(ph.id);nav.appendChild(el);
+  });
+}
+
+function showPhase(pid){
+  CPHASE=pid;document.querySelectorAll('.pni').forEach(el=>el.classList.toggle('active',el.id===`n-${pid}`));
+  const ph=PH.find(p=>p.id===pid),pct=getPhPct(pid);
+  document.getElementById('pc').innerHTML=`
+    <div class="legend">
+      <div class="leg-item"><div class="leg-dot" style="background:var(--green)"></div>Concluído</div>
+      <div class="leg-item"><div class="leg-dot" style="background:var(--teal)"></div>Já existe no lab</div>
+      <div class="leg-item"><div class="leg-dot" style="background:var(--amber)"></div>Corrigir</div>
+      <div class="leg-item"><div class="leg-dot" style="background:var(--red)"></div>Implementar</div>
+      <div class="leg-item"><div class="leg-dot" style="background:var(--purple)"></div>Achado novo</div>
+    </div>
+    <div class="ph-hdr">
+      <div class="ph-num-row"><div class="ph-big">${ph.num}</div><div class="ph-title">${esc(ph.title)}</div></div>
+      <div class="ph-desc">${esc(ph.desc)}</div>
+      <div class="ph-prog-row"><div class="ph-bar-outer"><div class="ph-bar-inner" id="pb-${ph.id}" style="width:${pct}%"></div></div><span class="ph-pct" id="pp-${ph.id}">${pct}% concluído</span></div>
+    </div>
+    ${ph.steps.map(s=>renderStep(s)).join('')}`;
+  ph.steps.forEach(s=>{
+    document.getElementById(`sh-${s.id}`)?.addEventListener('click',()=>toggleStep(s.id));
+    const ck=document.getElementById(`ck-${s.id}`);if(ck)ck.addEventListener('click',e=>{e.stopPropagation();toggleDone(s.id);});
+    const an=document.getElementById(`an-${s.id}`);if(an){an.value=ANN[s.id]||'';an.addEventListener('input',()=>autoSave(s.id,an.value));}
+  });
+}
+
+function badgeHtml(b){const m={exist:['sb-exist','JÁ EXISTE'],fix:['sb-fix','CORRIGIR'],miss:['sb-miss','IMPLEMENTAR'],new:['sb-new','ACHADO NOVO']};const[c,l]=m[b]||m.miss;return`<span class="sbadge ${c}">${l}</span>`;}
+function ckState(done,badge){if(done)return['done','✓'];if(badge==='exist')return['exist','✓'];if(badge==='fix')return['warn','!'];return['',''];}
+
+function renderStep(s){
+  const done=!!PROG[s.id],badge=s.badge||'miss';
+  const [ckCls,ckTxt]=ckState(done,badge);
+  const scCls=done?'completed':badge==='exist'?'s-exist':badge==='fix'?'s-fix':'';
+  const tags=(s.tags||[]).map(t=>`<span class="tag tag-${t.toLowerCase()}">${t}</span>`).join('');
+  const codes=(s.codes||[]).map(c=>`<div class="cb-wrap"><div class="cb-lbl">${esc(c.l)}</div><pre>${esc(c.c)}</pre></div>`).join('');
+  const extra=badge==='exist'?`<div class="eb">✓ Já existe. Verifique, marque como concluído e avance.</div>`:badge==='fix'?`<div class="rb">⚠ Existe mas tem problema crítico. Corrija antes de executar a cadeia.</div>`:'';
+  return `<div class="sc ${scCls}" id="sc-${s.id}">
+    <div class="sh" id="sh-${s.id}">
+      <div class="ck ${ckCls}" id="ck-${s.id}" style="color:var(--bg)">${ckTxt}</div>
+      <div class="sm">
+        <div class="snt"><span class="snum">${s.num}</span><span class="st">${esc(s.title)}</span>${badgeHtml(badge)}</div>
+        <div class="ss">${esc(s.sub)}</div>
+        <div class="stags">${tags}</div>
+      </div>
+      <div class="sex" id="ax-${s.id}">▼</div>
+    </div>
+    <div class="sb2 hidden" id="bd-${s.id}">
+      <div class="sbi">
+        ${s.desc?`<div class="sdesc">${esc(s.desc)}</div>`:''}
+        ${extra}
+        ${s.warn?`<div class="wb">⚠ ${esc(s.warn)}</div>`:''}
+        ${s.note?`<div class="nb">ℹ ${esc(s.note)}</div>`:''}
+        ${codes}
+        ${s.done?`<div class="dc">${esc(s.done)}</div>`:''}
+        <div class="ann-sec">
+          <div class="ann-lbl">Anotações<span class="ann-saved" id="as-${s.id}">salvo ✓</span></div>
+          <textarea class="ann" id="an-${s.id}" placeholder="Notas, dúvidas, erros encontrados...">${esc(ANN[s.id]||'')}</textarea>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function toggleStep(id){const bd=document.getElementById(`bd-${id}`),ax=document.getElementById(`ax-${id}`);if(!bd)return;const h=bd.classList.contains('hidden');bd.classList.toggle('hidden',!h);ax&&ax.classList.toggle('open',h);}
+function toggleDone(id){
+  PROG[id]=!PROG[id];
+  const ck=document.getElementById(`ck-${id}`),sc=document.getElementById(`sc-${id}`);
+  const badge=PH.flatMap(p=>p.steps).find(s=>s.id===id)?.badge||'miss';
+  if(ck){const[cls,txt]=ckState(PROG[id],badge);ck.className=`ck ${cls}`;ck.textContent=txt;if(PROG[id])ck.style.color='var(--bg)';}
+  if(sc){sc.className='sc'+(PROG[id]?' completed':badge==='exist'?' s-exist':badge==='fix'?' s-fix':'');}
+  saveP();
+}
+let ATIM={};
+function autoSave(id,val){clearTimeout(ATIM[id]);ATIM[id]=setTimeout(()=>{saveA(id,val);const el=document.getElementById(`as-${id}`);if(el){el.classList.add('show');setTimeout(()=>el.classList.remove('show'),1800);}},800);}
+
+function allSteps(){return PH.flatMap(p=>p.steps.map(s=>s.id));}
+function getPhPct(pid){const ph=PH.find(p=>p.id===pid);if(!ph||!ph.steps.length)return 0;return Math.round(ph.steps.filter(s=>PROG[s.id]).length/ph.steps.length*100);}
+function updateProg(){
+  const all=allSteps(),done=all.filter(id=>PROG[id]).length,pct=all.length?Math.round(done/all.length*100):0;
+  const gb=document.getElementById('gbar'),gl=document.getElementById('glbl');
+  if(gb)gb.style.width=pct+'%';if(gl)gl.textContent=`${done}/${all.length} passos`;
+  PH.forEach(ph=>{
+    const p=getPhPct(ph.id);
+    ['mb','pb'].forEach(pre=>{const el=document.getElementById(`${pre}-${ph.id}`);if(el)el.style.width=p+'%';});
+    const pp=document.getElementById(`pp-${ph.id}`);if(pp)pp.textContent=p+'% concluído';
+  });
+  const d2=allSteps().filter(id=>PROG[id]).length,ac=Object.values(ANN).filter(v=>v&&v.trim()).length;
+  const cp=document.getElementById('cprog'),ca=document.getElementById('cann');
+  if(cp)cp.textContent=`${d2}/${allSteps().length} (${pct}%)`;if(ca)ca.textContent=`${ac} anotações`;
+}
+
+let SO=false;
+function toggleSettings(){SO=!SO;document.getElementById('settings').classList.toggle('open',SO);}
+function clearProg(){if(!confirm('Limpar todo o progresso? Irreversível.'))return;PROG={};saveP();showPhase(CPHASE);}
+function clearAnn(){if(!confirm('Limpar anotações? Irreversível.'))return;ANN={};localStorage.setItem(K.ann(CU),'{}');showPhase(CPHASE);updateProg();}
+function exportData(){const d={user:CU,exportedAt:new Date().toISOString(),progress:PROG,annotations:ANN};const b=new Blob([JSON.stringify(d,null,2)],{type:'application/json'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=`emunah-lab-${CU}-${Date.now()}.json`;a.click();URL.revokeObjectURL(u);}
+function importData(){const i=document.createElement('input');i.type='file';i.accept='.json';i.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const d=JSON.parse(ev.target.result);if(d.progress)PROG=d.progress;if(d.annotations)ANN=d.annotations;saveP();localStorage.setItem(K.ann(CU),JSON.stringify(ANN));showPhase(CPHASE);alert('Importado.');}catch{alert('Arquivo inválido.');}};r.readAsText(f);};i.click();}
+function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+(function init(){
+  const rem=localStorage.getItem(K.REMEMBER),sess=localStorage.getItem(K.SESSION),u=rem||sess;
+  if(u){const users=gU();if(users[u]){startApp(u);return;}}
+  if(!Object.keys(gU()).length)sf('register');else{sf('login');if(rem)document.getElementById('lu').value=rem;}
+  document.getElementById('lp')?.addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+  document.getElementById('lu')?.addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('lp').focus();});
+})();
+</script>
+</body>
+</html>
