@@ -1874,4 +1874,17 @@ setMissingSupabaseHelp();
 loadRememberedLogin();
 showLoginScreen(isRecoveryFlow() ? 'recovery' : 'login');
 tryRestoreSession();
+
+// Expose functions called via onclick in HTML to global scope
+window.doLogin         = doLogin;
+window.doRegister      = doRegister;
+window.sendResetCode   = sendResetCode;
+window.resetPassword   = resetPassword;
+window.toggleAuth      = toggleAuth;
+window.logout          = logout;
+window.toggleTheme     = toggleTheme;
+window.goSection       = goSection;
+window.openImportCenter= openImportCenter;
+window.handleSearch    = handleSearch;
+window.closeModal      = closeModal;
 });
