@@ -23,20 +23,7 @@ button,input,textarea,select { font:inherit; }
 ::-webkit-scrollbar { width:10px; height:10px; }
 ::-webkit-scrollbar-thumb { background:var(--border); border-radius:999px; }
 
-#login-screen {
-  position:fixed; inset:0; display:grid; place-items:center; padding:24px;
-  background:radial-gradient(circle at top, rgba(47,209,121,.12), transparent 38%), var(--bg);
-}
-.login-card {
-  width:min(96vw,560px); background:var(--surface); border:1px solid var(--border); border-radius:20px; box-shadow:var(--shadow);
-}
-.login-head {
-  padding:18px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;
-  font-family:"VT323","Share Tech Mono",monospace; letter-spacing:2px; color:var(--accent); font-size:26px;
-}
-.login-body { padding:30px; }
-.brand { font-size:72px; font-weight:700; line-height:1; text-align:center; margin-bottom:8px; color:var(--accent); font-family:"VT323","Share Tech Mono",monospace; letter-spacing:.08em; }
-.brand-sub { text-align:center; color:var(--text-soft); margin-bottom:26px; letter-spacing:.12em; font-size:14px; }
+/* login screen rules consolidated in the terminal block below */
 .row { margin-bottom:16px; }
 label.lbl { display:block; font-size:13px; font-weight:600; margin-bottom:8px; color:var(--text-soft); text-transform:uppercase; letter-spacing:.06em; }
 .input,.textarea,.select {
@@ -217,15 +204,26 @@ body { font-family:var(--mainframe-font); letter-spacing:.01em; }
 .side-logo { font-family:var(--display-font); font-size:42px; }
 .path { font-family:var(--display-font); font-size:24px; }
 .btn,.input,.textarea,.select { font-family:var(--mainframe-font); }
+/* ── LOGIN SCREEN ──────────────────────────────────────────────── */
 #login-screen {
+  position:fixed; inset:0; z-index:9999;
+  display:flex; align-items:center; justify-content:center;
+  padding:16px; overflow-y:auto;
   background:
     radial-gradient(circle at 20% 10%, rgba(47,209,121,.12), transparent 32%),
     radial-gradient(circle at 80% 10%, rgba(255,255,255,.05), transparent 20%),
     linear-gradient(180deg, #020403 0%, #040806 100%);
 }
-.terminal-shell { width:min(98vw, 920px); display:grid; gap:0; justify-items:center; }
+/* wrapper to allow scrolling on short viewports */
+#login-screen > .terminal-shell {
+  margin:auto;
+  width:min(98vw, 920px);
+  display:grid; gap:0; justify-items:center;
+}
+
 .monitor-frame {
-  width:min(96vw, 760px); padding:22px 22px 18px; border-radius:28px; background:linear-gradient(180deg,#2c302e 0%,#151816 100%);
+  width:100%; padding:22px 22px 18px; border-radius:28px;
+  background:linear-gradient(180deg,#2c302e 0%,#151816 100%);
   box-shadow:0 28px 80px rgba(0,0,0,.45), inset 0 2px 0 rgba(255,255,255,.12), inset 0 -14px 30px rgba(0,0,0,.45);
   border:1px solid rgba(255,255,255,.08); position:relative;
 }
@@ -246,14 +244,17 @@ body { font-family:var(--mainframe-font); letter-spacing:.01em; }
 .login-head {
   font-size:28px; letter-spacing:.14em; text-transform:uppercase; padding:16px 24px;
   background:linear-gradient(180deg, rgba(19,44,27,.9), rgba(10,20,12,.95));
+  display:flex; justify-content:space-between; align-items:center; color:var(--accent);
 }
 .login-body { padding:28px 30px 34px; position:relative; }
-.brand { font-size:86px; text-shadow:0 0 18px rgba(47,209,121,.45); }
-.brand-sub { letter-spacing:.22em; text-transform:uppercase; }
-.monitor-controls { display:flex; gap:10px; margin-top:14px; color:#9fb7a4; font-size:12px; }
-.control-dot { width:10px; height:10px; border-radius:50%; background:#5f6a63; box-shadow:0 0 0 1px rgba(255,255,255,.08); }
+.brand { font-size:86px; text-align:center; line-height:1; margin-bottom:8px; color:var(--accent); text-shadow:0 0 18px rgba(47,209,121,.45); }
+.brand-sub { text-align:center; color:var(--text-soft); margin-bottom:26px; letter-spacing:.22em; text-transform:uppercase; font-size:14px; }
+.monitor-controls { display:flex; gap:10px; margin-top:14px; color:#9fb7a4; font-size:12px; align-items:center; }
+.control-dot { width:10px; height:10px; border-radius:50%; background:#5f6a63; flex-shrink:0; box-shadow:0 0 0 1px rgba(255,255,255,.08); }
+
+/* keyboard */
 .terminal-keyboard {
-  width:min(94vw, 860px); background:linear-gradient(180deg,#292d2b 0%, #181b19 100%); margin-top:-6px;
+  width:100%; background:linear-gradient(180deg,#292d2b 0%, #181b19 100%); margin-top:-6px;
   border-radius:0 0 26px 26px; padding:22px 18px 26px; box-shadow:0 18px 45px rgba(0,0,0,.35);
 }
 .kb-grid { display:grid; gap:8px; }
@@ -266,15 +267,37 @@ body { font-family:var(--mainframe-font); letter-spacing:.01em; }
 }
 .kb-key.space { grid-column:span 6; }
 .kb-key.w2 { grid-column:span 2; }
+
 .auth-note { margin-top:12px; padding:12px 14px; border:1px solid var(--border); border-radius:12px; background:rgba(255,255,255,.03); font-size:13px; line-height:1.6; color:var(--text-soft); }
+
+/* ── RESPONSIVE: tablet ───────────────────────────────────────── */
+@media (max-width: 760px) {
+  .brand { font-size:62px; }
+  .login-body { padding:20px 18px 26px; }
+  /* simplify keyboard on tablet */
+  .kb-row,.kb-row.wide { grid-template-columns:repeat(7,1fr); }
+  .kb-key.space { grid-column:span 4; }
+  .kb-key.w2 { grid-column:span 1; }
+}
+
+/* ── RESPONSIVE: mobile ───────────────────────────────────────── */
+@media (max-width: 520px) {
+  #login-screen { padding:12px; align-items:flex-start; }
+  #login-screen > .terminal-shell { width:100%; }
+  .monitor-frame { border-radius:20px; padding:14px 14px 12px; }
+  .monitor-frame::after { display:none; }   /* skip heavy inner shadow */
+  .login-card { border-radius:16px; }
+  .login-card::before { display:none; }     /* skip scanline on mobile */
+  .login-head { font-size:21px; padding:12px 16px; }
+  .login-body { padding:16px 14px 20px; }
+  .brand { font-size:48px; }
+  .brand-sub { font-size:11px; letter-spacing:.12em; margin-bottom:18px; }
+  .terminal-keyboard { display:none; }      /* hide keyboard on small screens */
+}
 .video-embed-wrap { margin-top:12px; border:1px solid var(--border); border-radius:16px; overflow:hidden; background:var(--input); }
 .video-embed-wrap iframe { width:100%; aspect-ratio:16/9; border:0; display:block; }
 .submodule-card { border:1px solid var(--border); border-radius:16px; padding:14px; background:var(--surface-2); }
 .submodule-card + .submodule-card { margin-top:10px; }
 .thumb-cert { width:100%; max-width:240px; border-radius:16px; border:1px solid var(--border); display:block; margin-top:12px; }
 .tool-links { display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
-@media (max-width: 760px) {
-  .brand { font-size:62px; }
-  .kb-row,.kb-row.wide { grid-template-columns:repeat(7,1fr); }
-  .kb-key.space { grid-column:span 4; }
-}
+/* login-screen mobile rules are in the consolidated block above */
