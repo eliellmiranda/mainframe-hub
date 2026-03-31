@@ -24,6 +24,10 @@
 /* pre-auth flash prevention — keeps layout stable before JS sets data-auth */
 html:not([data-auth]) #app { display:none !important; }
 html[data-auth] #login-screen { display:none !important; }
+
+/* Enquanto tryRestoreSession está rodando, mantém login-screen invisível
+   para evitar o piscar. A classe .auth-resolving é removida pelo JS. */
+html.auth-resolving #login-screen { visibility:hidden !important; opacity:0 !important; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js"></script>
