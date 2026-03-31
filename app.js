@@ -92,7 +92,7 @@ function baseData() {
     generalNotes: [],
     tools: [],
     dailyGoals: {},
-    lab: { url:'', planUrl:'emunah-lab-plan.html', title:'EMUNAH BANK LAB' },
+    lab: { url:'', planUrl:'emunah-bank-lab.html', title:'EMUNAH BANK LAB' },
     meta: { seedVersion:0, lastSection:'dashboard', goalSeedVersion:0, selectedGoalDay:getTodayGoalKey() }
   };
 }
@@ -107,7 +107,7 @@ function ensureDefaults() {
   appData.generalNotes ||= [];
   appData.tools ||= [];
   appData.dailyGoals ||= {};
-  appData.lab ||= { url:'', planUrl:'emunah-lab-plan.html', title:'EMUNAH BANK LAB' };
+  appData.lab ||= { url:'', planUrl:'emunah-bank-lab.html', title:'EMUNAH BANK LAB' };
   appData.meta ||= { seedVersion:0, lastSection:'dashboard', goalSeedVersion:0, selectedGoalDay:getTodayGoalKey() };
   appData.meta.selectedGoalDay ||= getTodayGoalKey();
   appData.courses.forEach(course => {
@@ -1686,18 +1686,7 @@ function deleteTool(toolId) {
 
 function renderLab() {
   const v = getDailyVerse();
-  const planUrl = appData.lab.planUrl || 'emunah-lab-plan.html';
-  const modules = [
-    { icon:'👤', name:'CBCLI001', desc:'Cadastro de clientes', status:'batch' },
-    { icon:'🏦', name:'CBCNT001', desc:'Abertura de contas', status:'batch' },
-    { icon:'💳', name:'CBTXV001', desc:'Validação de transações', status:'batch' },
-    { icon:'📒', name:'CBPST001', desc:'Postagem de lançamentos', status:'batch' },
-    { icon:'⚖️',  name:'CBSLD001', desc:'Consolidação de saldos', status:'batch' },
-    { icon:'📄', name:'CBEXT001', desc:'Geração de extrato', status:'batch' },
-    { icon:'🔄', name:'CBREC001', desc:'Reconciliação', status:'batch' },
-    { icon:'🌙', name:'CBFCH001', desc:'Fechamento diário', status:'batch' },
-    { icon:'↩️', name:'CBRPS001', desc:'Reprocessamento', status:'batch' },
-  ];
+  const planUrl = appData.lab.planUrl || 'emunah-bank-lab.html';
   const resources = [
     { label:'IBM zXplore', url:'https://zxplore.ibm.com', icon:'🖥' },
     { label:'VS Code + Z Open Editor', url:'https://marketplace.visualstudio.com/items?itemName=broadcomMFD.cobol-language-support', icon:'💻' },
@@ -1707,18 +1696,8 @@ function renderLab() {
     { label:'GitHub — mainframe-hub', url:'https://github.com/eliellmiranda/mainframe-hub', icon:'🐙' },
   ];
   const labUrl = appData.lab.url
-    ? `<a class="btn primary" target="_blank" href="${esc(appData.lab.url)}">⬡ Abrir zXplore</a>`
+    ? `<a class="btn primary" target="_blank" href="${esc(appData.lab.url)}">⬡ ABRIR ZXPLORE</a>`
     : '';
-  const modRows = modules.map(m =>
-    `<div class="row-item" style="display:flex;align-items:center;gap:10px;padding:10px 12px">
-       <span style="font-size:18px">${m.icon}</span>
-       <div style="flex:1">
-         <div style="font-weight:700;font-size:14px">${m.name}</div>
-         <div style="font-size:12px;color:var(--text-soft)">${m.desc}</div>
-       </div>
-       <span class="badge">${m.status}</span>
-     </div>`
-  ).join('');
   const resRows = resources.map(r =>
     `<a class="row-item" href="${r.url}" target="_blank" rel="noopener"
         style="display:flex;align-items:center;gap:10px;padding:10px 12px;text-decoration:none;color:inherit">
@@ -1731,13 +1710,12 @@ function renderLab() {
   document.getElementById('section-lab').innerHTML = `
     <div class="headline">
       <div>
-        <div class="title">EMUNAH LAB</div>
+        <div class="title">EMUNAH BANK LAB</div>
         <div class="subtitle"><em>emunah</em>: fidelidade, fé — HLQ: Z77948</div>
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         ${labUrl}
-        <a class="btn" target="_blank" href="${esc(planUrl)}">📋 PLANO DE IMPL.</a>
-        <button class="btn" onclick="toggleLabPlan()">⬜ INCORPORAR PLANO</button>
+        <a class="btn" target="_blank" href="${esc(planUrl)}">↗ ABRIR PLANO</a>
         <button class="btn" onclick="openLabModal()">✎ EDITAR URL</button>
       </div>
     </div>
@@ -1755,43 +1733,26 @@ function renderLab() {
       </div>
     </div>
 
-    <div id="lab-plan-embed" style="display:none;margin-bottom:16px">
-      <div class="panel" style="padding:0;overflow:hidden;border-radius:18px">
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border)">
-          <span style="font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase">EMUNAH BANK LAB — PLANO DE IMPLEMENTAÇÃO</span>
-          <div style="display:flex;gap:8px">
-            <a class="btn xs" target="_blank" href="${esc(planUrl)}">↗ ABRIR</a>
-            <button class="btn xs" onclick="toggleLabPlan()">✕ FECHAR</button>
-          </div>
-        </div>
-        <iframe src="${esc(planUrl)}"
-          style="width:100%;height:75vh;border:none;display:block;background:var(--bg);"
-          title="Emunah Bank Lab — Plano de Implementação">
-        </iframe>
+    <div class="panel" style="padding:0;overflow:hidden;border-radius:18px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border)">
+        <span style="font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-soft)">
+          📋 EMUNAH BANK LAB — PLANO DE IMPLEMENTAÇÃO
+        </span>
+        <a class="btn xs" target="_blank" href="${esc(planUrl)}" style="flex-shrink:0">↗ NOVA ABA</a>
       </div>
+      <iframe src="${esc(planUrl)}"
+        style="width:100%;height:78vh;border:none;display:block;background:#080d08;"
+        title="Emunah Bank Lab — Plano de Implementação">
+      </iframe>
     </div>
 
-    <div class="cols-2" style="margin-bottom:16px">
-      <div class="panel">
-        <div class="panel-title">🏗 MÓDULOS BATCH — ${esc(appData.lab.title || 'EMUNAH BANK LAB')}</div>
-        <div class="stack" style="gap:8px;margin-top:8px">${modRows}</div>
-      </div>
-      <div class="panel">
-        <div class="panel-title">🔗 RECURSOS RÁPIDOS</div>
-        <div class="stack" style="gap:8px;margin-top:8px">${resRows}</div>
-      </div>
+    <div class="panel">
+      <div class="panel-title">🔗 RECURSOS RÁPIDOS</div>
+      <div class="stack" style="gap:8px;margin-top:8px">${resRows}</div>
     </div>
   `;
 }
 
-function toggleLabPlan() {
-  const el = document.getElementById('lab-plan-embed');
-  if (!el) return;
-  const isHidden = el.style.display === 'none';
-  el.style.display = isHidden ? 'block' : 'none';
-  // Scroll to the embed when opening
-  if (isHidden) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
 
 function openLabModal() {
   openModal('Editar URL do lab', `<div class="row"><label class="lbl">URL</label><input id="lab-url" class="input" value="${esc(appData.lab.url||'')}" placeholder="https://..."></div>`, `<button class="btn primary" onclick="saveLab()">Salvar</button>`);
