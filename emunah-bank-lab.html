@@ -24,6 +24,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:1
 ::-webkit-scrollbar-track{background:var(--bg)}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
 .hidden{display:none!important}
+
+/* ── AUTH ── */
 #auth-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem}
 .auth-box{width:100%;max-width:420px}
 .auth-logo{font-family:var(--mono);font-size:calc(.72rem + 2pt);color:var(--green);letter-spacing:.15em;margin-bottom:2rem;line-height:1.5}
@@ -32,9 +34,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:1
 .auth-sub{font-size:calc(.85rem + 2pt);color:var(--text2);margin-bottom:1.8rem}
 .fg{margin-bottom:1rem}
 .fl{display:block;font-family:var(--mono);font-size:calc(.68rem + 2pt);letter-spacing:.1em;color:var(--text3);text-transform:uppercase;margin-bottom:.35rem}
-input[type=text],input[type=password],textarea{width:100%;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-family:var(--mono);font-size:calc(.875rem + 2pt);padding:.6rem .85rem;outline:none;transition:border-color .15s}
-input[type=text]:focus,input[type=password]:focus,textarea:focus{border-color:var(--green);box-shadow:0 0 0 2px rgba(74,222,128,.1)}
+input[type=text],input[type=password],textarea,select{width:100%;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-family:var(--mono);font-size:calc(.875rem + 2pt);padding:.6rem .85rem;outline:none;transition:border-color .15s}
+input[type=text]:focus,input[type=password]:focus,textarea:focus,select:focus{border-color:var(--green);box-shadow:0 0 0 2px rgba(74,222,128,.1)}
 textarea{resize:vertical;min-height:72px;font-size:calc(.78rem + 2pt);line-height:1.5}
+select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%234a6e4a' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .8rem center}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:.45rem;padding:.62rem 1.1rem;border-radius:var(--r);font-family:var(--mono);font-size:calc(.78rem + 2pt);font-weight:500;cursor:pointer;border:1px solid transparent;transition:all .15s;text-transform:uppercase;letter-spacing:.08em}
 .btn-p{background:var(--green);color:#080d08;border-color:var(--green);width:100%}
 .btn-p:hover{background:var(--green2)}
@@ -42,6 +45,8 @@ textarea{resize:vertical;min-height:72px;font-size:calc(.78rem + 2pt);line-heigh
 .btn-g:hover{background:var(--bg3);color:var(--text)}
 .btn-d{background:transparent;color:var(--red);border-color:rgba(248,113,113,.3);font-size:calc(.72rem + 2pt)}
 .btn-d:hover{background:rgba(248,113,113,.08)}
+.btn-s{background:transparent;color:var(--text2);border:1px solid var(--border2);font-size:calc(.72rem + 2pt);padding:.35rem .7rem}
+.btn-s:hover{background:var(--bg3);color:var(--text)}
 .auth-links{display:flex;gap:1rem;margin-top:1.1rem;flex-wrap:wrap}
 .auth-link{font-size:calc(.8rem + 2pt);color:var(--text3);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
 .auth-link:hover{color:var(--green)}
@@ -50,6 +55,8 @@ textarea{resize:vertical;min-height:72px;font-size:calc(.78rem + 2pt);line-heigh
 .cb-row{display:flex;align-items:center;gap:.55rem;margin-top:.4rem}
 .cb-row input[type=checkbox]{width:14px;height:14px;accent-color:var(--green)}
 .cb-row label{font-size:calc(.78rem + 2pt);color:var(--text2);cursor:pointer}
+
+/* ── APP GRID ── */
 #app{display:grid;grid-template-rows:50px 1fr;grid-template-columns:260px 1fr;min-height:100vh}
 #header{grid-column:1/-1;background:var(--bg1);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 1.4rem;gap:1.4rem}
 .h-logo{font-family:var(--mono);font-size:calc(.72rem + 2pt);color:var(--green);letter-spacing:.12em;font-weight:600;white-space:nowrap}
@@ -62,20 +69,28 @@ textarea{resize:vertical;min-height:72px;font-size:calc(.78rem + 2pt);line-heigh
 .h-user{font-family:var(--mono);font-size:calc(.7rem + 2pt);color:var(--text3)}
 .h-btn{background:transparent;border:1px solid var(--border2);border-radius:var(--r);color:var(--text2);font-family:var(--mono);font-size:calc(.68rem + 2pt);padding:.3rem .65rem;cursor:pointer;transition:all .15s}
 .h-btn:hover{background:var(--bg3);color:var(--text)}
+.h-shortcut{font-size:calc(.58rem + 2pt);color:var(--text3);font-family:var(--mono)}
+
+/* ── SIDEBAR ── */
 #sidebar{background:var(--bg1);border-right:1px solid var(--border);overflow-y:auto;padding:1rem 0}
 .sbl{font-family:var(--mono);font-size:calc(.6rem + 2pt);color:var(--text3);letter-spacing:.12em;text-transform:uppercase;padding:.9rem 1.1rem .35rem}
 .pni{display:flex;align-items:center;gap:.7rem;padding:.6rem 1.1rem;cursor:pointer;transition:background .12s;border-left:2px solid transparent}
 .pni:hover{background:var(--bg2)}
 .pni.active{background:var(--bg2);border-left-color:var(--green)}
 .pni.has-alert .pnb{background:rgba(251,191,36,.08);border-color:var(--amber);color:var(--amber)}
+.pni.tool-item .pnb{background:rgba(96,165,250,.08);border-color:var(--blue);color:var(--blue)}
+.pni.tool-item.active .pnb{background:rgba(96,165,250,.15);border-color:var(--blue);color:var(--blue)}
 .pnb{width:23px;height:23px;border-radius:50%;background:var(--bg3);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:calc(.63rem + 2pt);font-weight:600;color:var(--text3);flex-shrink:0}
 .pni.active .pnb,.pni:hover .pnb{background:rgba(74,222,128,.1);border-color:var(--green);color:var(--green)}
+.pni.tool-item:hover .pnb,.pni.tool-item.active .pnb{background:rgba(96,165,250,.15);border-color:var(--blue);color:var(--blue)}
 .pni-info{flex:1;min-width:0}
 .pni-t{font-size:calc(.8rem + 2pt);font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pni-s{font-size:calc(.68rem + 2pt);color:var(--text3)}
 .mini-prog{width:32px;height:3px;background:var(--bg3);border-radius:2px;flex-shrink:0}
 .mini-bar{height:100%;background:var(--green);border-radius:2px;transition:width .3s}
 .sidebar-actions{padding:0 .7rem;display:flex;flex-direction:column;gap:.35rem}
+
+/* ── MAIN ── */
 #main{overflow-y:auto;padding:1.6rem 2rem;width:100%;max-width:none}
 .ph-hdr{margin-bottom:1.4rem}
 .ph-num-row{display:flex;align-items:center;gap:.9rem;margin-bottom:.35rem}
@@ -86,6 +101,8 @@ textarea{resize:vertical;min-height:72px;font-size:calc(.78rem + 2pt);line-heigh
 .ph-bar-outer{flex:1;max-width:220px;height:4px;background:var(--bg3);border-radius:2px}
 .ph-bar-inner{height:100%;background:var(--green);border-radius:2px;transition:width .4s}
 .ph-pct{font-family:var(--mono);font-size:calc(.68rem + 2pt);color:var(--text3)}
+
+/* ── STEP CARDS ── */
 .sc{background:var(--bg1);border:1px solid var(--border);border-radius:var(--rl);margin-bottom:.75rem}
 .sc.completed{border-color:rgba(74,222,128,.22)}
 .sc.s-exist{border-color:rgba(45,212,191,.22)}
@@ -150,6 +167,85 @@ textarea.ann:focus{border-color:var(--green);outline:none;color:var(--text)}
 .ann-preview a{color:var(--blue);text-decoration:underline;text-underline-offset:3px}
 .ann-preview a:hover{color:#93c5fd}
 .ann-empty{color:var(--text3);font-style:italic}
+
+/* ── DIARY ── */
+.diary-composer{background:var(--bg1);border:1px solid var(--border);border-radius:var(--rl);padding:1.1rem;margin-bottom:1.2rem}
+.diary-composer-top{display:flex;align-items:center;gap:.8rem;margin-bottom:.8rem;flex-wrap:wrap}
+.diary-ts{font-family:var(--mono);font-size:calc(.72rem + 2pt);color:var(--text3)}
+.diary-mode-toggle{display:flex;gap:0;border:1px solid var(--border2);border-radius:var(--r);overflow:hidden}
+.diary-mode-btn{font-family:var(--mono);font-size:calc(.68rem + 2pt);padding:.32rem .75rem;cursor:pointer;background:transparent;color:var(--text3);border:none;transition:all .15s;font-weight:600;letter-spacing:.06em}
+.diary-mode-btn.active-hom{background:rgba(96,165,250,.15);color:var(--blue)}
+.diary-mode-btn.active-ofc{background:rgba(251,146,60,.15);color:var(--orange)}
+.diary-mode-btn:hover{background:var(--bg3)}
+.diary-textarea{width:100%;background:rgba(0,0,0,.25);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--mono);font-size:calc(.8rem + 2pt);padding:.65rem .8rem;min-height:80px;resize:vertical;line-height:1.6;outline:none;transition:border-color .15s}
+.diary-textarea:focus{border-color:var(--green)}
+.diary-textarea::placeholder{color:var(--text3)}
+.diary-bottom{display:flex;align-items:center;gap:.6rem;margin-top:.7rem;flex-wrap:wrap}
+.diary-file-btn{display:inline-flex;align-items:center;gap:.35rem;font-family:var(--mono);font-size:calc(.68rem + 2pt);color:var(--text3);background:transparent;border:1px dashed var(--border2);border-radius:var(--r);padding:.35rem .7rem;cursor:pointer;transition:all .15s}
+.diary-file-btn:hover{border-color:var(--green);color:var(--green)}
+.diary-files-list{display:flex;gap:.4rem;flex-wrap:wrap;flex:1}
+.diary-file-chip{display:inline-flex;align-items:center;gap:.3rem;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:.2rem .5rem;font-family:var(--mono);font-size:calc(.62rem + 2pt);color:var(--text2);max-width:180px}
+.diary-file-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.diary-file-rm{cursor:pointer;color:var(--red);font-weight:bold;flex-shrink:0}
+.diary-file-rm:hover{color:#fca5a5}
+.diary-save-btn{margin-left:auto}
+
+.diary-entry{background:var(--bg1);border:1px solid var(--border);border-radius:var(--rl);margin-bottom:.55rem;overflow:hidden}
+.diary-entry-hdr{display:flex;align-items:center;gap:.7rem;padding:.7rem 1rem;cursor:pointer;user-select:none}
+.diary-entry-ts{font-family:var(--mono);font-size:calc(.7rem + 2pt);color:var(--text3);white-space:nowrap}
+.diary-entry-mode{font-family:var(--mono);font-size:calc(.6rem + 2pt);padding:1px 6px;border-radius:3px;font-weight:600}
+.diary-entry-mode.hom{background:rgba(96,165,250,.12);color:var(--blue);border:1px solid rgba(96,165,250,.3)}
+.diary-entry-mode.ofc{background:rgba(251,146,60,.12);color:var(--orange);border:1px solid rgba(251,146,60,.3)}
+.diary-entry-preview{flex:1;font-size:calc(.78rem + 2pt);color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.diary-entry-files-count{font-family:var(--mono);font-size:calc(.62rem + 2pt);color:var(--text3)}
+.diary-entry-del{color:var(--text3);cursor:pointer;font-size:calc(.72rem + 2pt);padding:2px 4px;border-radius:3px;transition:all .15s}
+.diary-entry-del:hover{color:var(--red);background:rgba(248,113,113,.08)}
+.diary-entry-body{padding:.1rem 1rem .9rem;border-top:1px solid var(--border)}
+.diary-entry-text{font-size:calc(.82rem + 2pt);color:var(--text);line-height:1.7;white-space:pre-wrap;word-break:break-word;margin-top:.6rem}
+.diary-entry-attachments{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.6rem}
+.diary-attachment{display:inline-flex;align-items:center;gap:.35rem;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:.3rem .6rem;font-family:var(--mono);font-size:calc(.65rem + 2pt);color:var(--teal);cursor:pointer;transition:all .15s}
+.diary-attachment:hover{border-color:var(--teal);background:rgba(45,212,191,.08)}
+.diary-filter{display:flex;gap:.4rem;margin-bottom:1rem;flex-wrap:wrap}
+.diary-filter-btn{font-family:var(--mono);font-size:calc(.66rem + 2pt);padding:.3rem .65rem;border-radius:var(--r);cursor:pointer;background:transparent;border:1px solid var(--border2);color:var(--text3);transition:all .15s}
+.diary-filter-btn:hover{background:var(--bg3)}
+.diary-filter-btn.active{background:var(--bg3);border-color:var(--green);color:var(--green)}
+.diary-empty{text-align:center;padding:2rem;color:var(--text3);font-style:italic;font-size:calc(.82rem + 2pt)}
+.diary-search{margin-bottom:.8rem}
+.diary-search input{font-size:calc(.78rem + 2pt);padding:.5rem .75rem}
+
+/* ── COMMANDS ── */
+.cmd-composer{background:var(--bg1);border:1px solid var(--border);border-radius:var(--rl);padding:1.1rem;margin-bottom:1.2rem}
+.cmd-composer-row{display:flex;gap:.6rem;align-items:flex-start;flex-wrap:wrap}
+.cmd-type-toggle{display:flex;gap:0;border:1px solid var(--border2);border-radius:var(--r);overflow:hidden;flex-shrink:0}
+.cmd-type-btn{font-family:var(--mono);font-size:calc(.68rem + 2pt);padding:.4rem .7rem;cursor:pointer;background:transparent;color:var(--text3);border:none;transition:all .15s;font-weight:600}
+.cmd-type-btn.active-zowe{background:rgba(74,222,128,.15);color:var(--green)}
+.cmd-type-btn.active-ps{background:rgba(96,165,250,.15);color:var(--blue)}
+.cmd-type-btn:hover{background:var(--bg3)}
+.cmd-input-group{flex:1;min-width:200px;display:flex;flex-direction:column;gap:.5rem}
+.cmd-input-group input,.cmd-input-group textarea{font-size:calc(.76rem + 2pt)}
+.cmd-input-group textarea{min-height:52px;font-size:calc(.74rem + 2pt)}
+
+.cmd-card{background:var(--bg1);border:1px solid var(--border);border-radius:var(--rl);margin-bottom:.55rem;overflow:hidden}
+.cmd-card-hdr{display:flex;align-items:center;gap:.6rem;padding:.65rem 1rem;cursor:pointer;user-select:none}
+.cmd-card-type{font-family:var(--mono);font-size:calc(.6rem + 2pt);padding:1px 6px;border-radius:3px;font-weight:600;flex-shrink:0}
+.cmd-card-type.zowe{background:rgba(74,222,128,.12);color:var(--green);border:1px solid rgba(74,222,128,.3)}
+.cmd-card-type.ps{background:rgba(96,165,250,.12);color:var(--blue);border:1px solid rgba(96,165,250,.3)}
+.cmd-card-title{font-size:calc(.82rem + 2pt);font-weight:500;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cmd-card-actions{display:flex;gap:.35rem}
+.cmd-card-btn{color:var(--text3);cursor:pointer;font-size:calc(.7rem + 2pt);padding:2px 5px;border-radius:3px;transition:all .15s;background:transparent;border:none;font-family:var(--mono)}
+.cmd-card-btn:hover{color:var(--green);background:var(--bg3)}
+.cmd-card-btn.del:hover{color:var(--red);background:rgba(248,113,113,.08)}
+.cmd-card-body{padding:.1rem 1rem .9rem;border-top:1px solid var(--border)}
+.cmd-card-desc{font-size:calc(.76rem + 2pt);color:var(--text2);margin-top:.55rem;margin-bottom:.5rem;line-height:1.5}
+.cmd-card-pre{position:relative}
+.cmd-card-pre pre{margin:0;font-size:calc(.72rem + 2pt)}
+.cmd-copy-btn{position:absolute;top:.4rem;right:.5rem;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;color:var(--text3);font-family:var(--mono);font-size:calc(.6rem + 2pt);padding:.2rem .5rem;cursor:pointer;transition:all .15s}
+.cmd-copy-btn:hover{border-color:var(--green);color:var(--green)}
+.cmd-copy-btn.copied{border-color:var(--green);color:var(--green)}
+.cmd-filter{display:flex;gap:.4rem;margin-bottom:1rem;flex-wrap:wrap}
+.cmd-empty{text-align:center;padding:2rem;color:var(--text3);font-style:italic;font-size:calc(.82rem + 2pt)}
+
+/* ── SETTINGS ── */
 #settings{position:fixed;top:50px;right:0;bottom:0;width:300px;background:var(--bg1);border-left:1px solid var(--border);z-index:100;padding:1.3rem;overflow-y:auto;transform:translateX(100%);transition:transform .25s}
 #settings.open{transform:translateX(0)}
 .cfg-title{font-family:var(--mono);font-size:calc(.82rem + 2pt);font-weight:600;color:var(--text);margin-bottom:1.3rem}
@@ -157,6 +253,16 @@ textarea.ann:focus{border-color:var(--green);outline:none;color:var(--text)}
 .cfg-sec-t{font-family:var(--mono);font-size:calc(.62rem + 2pt);color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:.65rem;padding-bottom:.35rem;border-bottom:1px solid var(--border)}
 .stat-row{display:flex;justify-content:space-between;padding:.35rem 0;font-size:calc(.78rem + 2pt)}
 .sk{color:var(--text3)}.sv{font-family:var(--mono);color:var(--green)}
+
+/* ── DIARY MODAL (Ctrl+') ── */
+#diary-modal{position:fixed;inset:0;z-index:200;display:none;align-items:flex-start;justify-content:center;padding:3rem 1rem;background:rgba(0,0,0,.65);backdrop-filter:blur(4px)}
+#diary-modal.open{display:flex}
+.diary-modal-box{width:100%;max-width:640px;background:var(--bg1);border:1px solid var(--border2);border-radius:var(--rl);padding:1.3rem;box-shadow:0 12px 40px rgba(0,0,0,.5);animation:modalIn .2s ease-out}
+@keyframes modalIn{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
+.diary-modal-title{font-family:var(--mono);font-size:calc(.82rem + 2pt);color:var(--green);margin-bottom:.8rem;display:flex;align-items:center;justify-content:space-between}
+.diary-modal-close{cursor:pointer;color:var(--text3);font-size:calc(.9rem + 2pt);padding:2px 6px;border-radius:var(--r);transition:all .15s}
+.diary-modal-close:hover{color:var(--red);background:rgba(248,113,113,.08)}
+
 @media(max-width:720px){
   #app{grid-template-columns:1fr;grid-template-rows:50px auto 1fr}
   #sidebar{grid-row:2;height:auto;max-height:160px;display:flex;overflow-x:auto;padding:.4rem;gap:.35rem;border-right:none;border-bottom:1px solid var(--border)}
@@ -169,10 +275,15 @@ textarea.ann:focus{border-color:var(--green);outline:none;color:var(--text)}
   textarea.ann{min-height:120px}
   #settings{width:100%;top:auto;bottom:0;height:70vh;border-left:none;border-top:1px solid var(--border);transform:translateY(100%)}
   #settings.open{transform:translateY(0)}
+  .diary-composer-top{flex-direction:column;align-items:flex-start}
+  .cmd-composer-row{flex-direction:column}
+  .cmd-input-group{min-width:100%}
 }
 </style>
 </head>
 <body>
+
+<!-- ═══════════ AUTH SCREEN ═══════════ -->
 <div id="auth-screen">
 <div class="auth-box">
   <div class="auth-logo">EMUNAH<span>.BANK</span><br>LAB<span> — PLANO DE IMPLEMENTAÇÃO OPERACIONAL</span></div>
@@ -209,15 +320,23 @@ textarea.ann:focus{border-color:var(--green);outline:none;color:var(--text)}
 </div>
 </div>
 
+<!-- ═══════════ APP ═══════════ -->
 <div id="app" class="hidden">
   <header id="header">
     <div class="h-logo">EMUNAH<span>.BANK.LAB</span></div>
     <div class="h-prog"><div class="prog-outer"><div class="prog-inner" id="gbar" style="width:0%"></div></div><span class="prog-lbl" id="glbl">0/0</span></div>
-    <div class="h-right"><span class="h-user" id="huser"></span><button class="h-btn" onclick="toggleSettings()">Config</button><button class="h-btn" onclick="doLogout()">Sair</button></div>
+    <div class="h-right">
+      <span class="h-shortcut" title="Atalho para abrir o Diário rápido">Ctrl + '</span>
+      <span class="h-user" id="huser"></span>
+      <button class="h-btn" onclick="toggleSettings()">Config</button>
+      <button class="h-btn" onclick="doLogout()">Sair</button>
+    </div>
   </header>
   <nav id="sidebar">
     <div class="sbl">Fases</div>
     <div id="pnav"></div>
+    <div class="sbl" style="margin-top:.8rem">Ferramentas</div>
+    <div id="tnav"></div>
     <div class="sbl" style="margin-top:.8rem">Ações</div>
     <div class="sidebar-actions">
       <button class="h-btn" style="width:100%;text-align:left;padding:.45rem .7rem" onclick="exportData()">↓ Exportar progresso</button>
@@ -227,12 +346,15 @@ textarea.ann:focus{border-color:var(--green);outline:none;color:var(--text)}
   <main id="main"><div id="pc"></div></main>
 </div>
 
+<!-- ═══════════ SETTINGS ═══════════ -->
 <div id="settings">
   <div class="cfg-title">// CONFIGURAÇÕES</div>
   <div class="cfg-sec"><div class="cfg-sec-t">Conta</div>
     <div class="stat-row"><span class="sk">Usuário</span><span class="sv" id="cu">—</span></div>
     <div class="stat-row"><span class="sk">Progresso</span><span class="sv" id="cprog">—</span></div>
     <div class="stat-row"><span class="sk">Anotações</span><span class="sv" id="cann">—</span></div>
+    <div class="stat-row"><span class="sk">Diário</span><span class="sv" id="cdiary">—</span></div>
+    <div class="stat-row"><span class="sk">Comandos</span><span class="sv" id="ccmds">—</span></div>
   </div>
   <div class="cfg-sec"><div class="cfg-sec-t">Alterar senha</div>
     <div class="fg" style="margin-bottom:.65rem"><label class="fl">Senha atual</label><input type="password" id="cop"></div>
@@ -243,12 +365,28 @@ textarea.ann:focus{border-color:var(--green);outline:none;color:var(--text)}
   </div>
   <div class="cfg-sec"><div class="cfg-sec-t">Dados</div>
     <button class="btn btn-d" style="width:100%;margin-bottom:.4rem" onclick="clearProg()">Limpar progresso</button>
-    <button class="btn btn-d" style="width:100%" onclick="clearAnn()">Limpar anotações</button>
+    <button class="btn btn-d" style="width:100%;margin-bottom:.4rem" onclick="clearAnn()">Limpar anotações</button>
+    <button class="btn btn-d" style="width:100%;margin-bottom:.4rem" onclick="clearDiary()">Limpar diário</button>
+    <button class="btn btn-d" style="width:100%" onclick="clearCmds()">Limpar comandos</button>
   </div>
   <div style="margin-top:.8rem"><button class="btn btn-g" style="width:100%" onclick="toggleSettings()">Fechar</button></div>
 </div>
 
+<!-- ═══════════ DIARY QUICK MODAL (Ctrl+') ═══════════ -->
+<div id="diary-modal">
+  <div class="diary-modal-box">
+    <div class="diary-modal-title">
+      <span>// REGISTRO RÁPIDO — DIÁRIO</span>
+      <span class="diary-modal-close" onclick="closeDiaryModal()">&times;</span>
+    </div>
+    <div id="diary-modal-content"></div>
+  </div>
+</div>
+
 <script>
+// ═══════════════════════════════════════════════════════════════
+// PHASES DATA
+// ═══════════════════════════════════════════════════════════════
 const PH=[
 {id:'fx',num:'!',title:'Correções Imediatas',sub:'Prioridade antes de tudo',alert:true,
  desc:'Três problemas bloqueiam qualquer execução de ponta a ponta. Corrija antes de avançar nas fases do orquestrador.',
@@ -276,7 +414,7 @@ const PH=[
    done:'LISTCAT de cada dataset retorna sem erro.'}
 ]},
 {id:'f0',num:0,title:'Fundação',sub:'Contratos antes do código',
- desc:'Prepare o ambiente-base antes de qualquer execução: estrutura USS, datasets remotos, schema DB2 e configuração central. Só avance quando o host estiver coerente com o projeto local.',
+ desc:'Prepare o ambiente-base antes de qualquer execução: estrutura USS, datasets remotos, schema DB2 e configuração central.',
  steps:[
   {id:'f0s1',num:'0.1',title:'Estrutura de pastas local',sub:'Já existe — verificar e consolidar',tags:['DATA'],badge:'exist',
    codes:[{l:'Inventário atual',c:'COBOL/BATCH : EBCLLOAD EBVALI01 EBPOST01 EBSALD01 EBEXTR01 EBCONC01\nJCL/BATCH   : EBJCLLD EBJVALD EBJPOST EBJSALD EBJCONC EBJEXTR EBJEOD\nCOPYBOOKS   : CPCLI001 CPCNT001 CPLCT001 CPSLD001 CPAUD001 CPEXT001 CPREJ001\nREXX        : EBCHKLAB EBSUBJCL\nPENDENTE    : EBREPR01 EBBACK01'}],
@@ -308,25 +446,24 @@ const PH=[
    done:'salvar_cliente({...},"RUN001") cria JSON em /lab/data/staging/clientes/.'}
 ]},
 {id:'f2',num:2,title:'Integração',sub:'Canal → mainframe via Zowe',
- desc:'Sincroniza os arquivos locais com o host via Zowe CLI, publica staging no remoto, submete a cadeia batch e coleta evidências do spool. Esta fase é o elo entre o projeto local e a execução no mainframe.',
+ desc:'Sincroniza os arquivos locais com o host via Zowe CLI, publica staging no remoto, submete a cadeia batch e coleta evidências do spool.',
  steps:[
   {id:'f2s0',num:'2.0',title:'Subir arquivos locais para o host',sub:'USS + datasets remotos com Zowe CLI',tags:['USS','JCL','DATA'],badge:'miss',
-   desc:'Antes de submeter qualquer job, publique no host os artefatos que existem apenas na sua máquina. Use USS para o orquestrador Python e envie JCL, REXX e arquivos de carga para os destinos remotos corretos.',
+   desc:'Antes de submeter qualquer job, publique no host os artefatos que existem apenas na sua máquina.',
    note:'Sequência recomendada: 1) ativar o profile do Zowe; 2) criar /lab no USS; 3) subir a árvore local para o USS; 4) enviar JCL/REXX e arquivos de entrada para datasets; 5) conferir no remoto; 6) só então iniciar a cadeia batch.',
    warn:'Para arquivos-texto, suba em modo com conversão de encoding (ex.: IBM-1047). Use --binary apenas para conteúdo realmente binário.',
    codes:[
     {l:'Mapa rápido — origem local -> destino remoto',c:'./lab/**                          -> /lab/**\n./jcl/EBJ*.jcl                   -> <HQL>.EMUNAH.DEV.JCL(XXXXXXXX)\n./rexx/EBCHKLAB.rexx             -> <HQL>.EMUNAH.DEV.REXX(EBCHKLAB)\n./rexx/EBSUBJCL.rexx             -> <HQL>.EMUNAH.DEV.REXX(EBSUBJCL)\n./data/seed/clientes.txt         -> <HQL>.EMUNAH.ARQ.CLIENTE.SEQ\n./data/seed/contas.txt           -> <HQL>.EMUNAH.ARQ.CONTA.SEQ\n./data/entrada/lancamentos_d0.txt -> <HQL>.EMUNAH.ARQ.LANCTO.IN.SEQ'},
     {l:'1) Preparar variáveis e profile do Zowe CLI',c:'zowe profiles list\nexport ZOWE_OPT="--zosmf-profile SEU_PERFIL"\nexport HLQ="Z77948"\nexport USS_ROOT="/lab"'},
     {l:'2) Criar a estrutura base no USS remoto',c:'zowe zos-files create uss-directory "$USS_ROOT" $ZOWE_OPT\nzowe zos-files create uss-directory "$USS_ROOT/orchestrator" $ZOWE_OPT\nzowe zos-files create uss-directory "$USS_ROOT/config" $ZOWE_OPT\nzowe zos-files create uss-directory "$USS_ROOT/automation" $ZOWE_OPT\nzowe zos-files create uss-directory "$USS_ROOT/canal" $ZOWE_OPT\nzowe zos-files create uss-directory "$USS_ROOT/data" $ZOWE_OPT'},
-    {l:'3) Subir a árvore local /lab para o USS remoto',c:'zowe zos-files upload dir-to-uss "./lab" "$USS_ROOT" --recursive --encoding IBM-1047 $ZOWE_OPT\n\n# alternativa mais controlada com .zosattributes\n# zowe zos-files upload dir-to-uss "./lab" "$USS_ROOT" --recursive --attributes ./.zosattributes $ZOWE_OPT'},
-    {l:'4) Subir membros JCL e REXX para datasets remotos',c:'zowe zos-files upload file-to-data-set "./jcl/EBJCLLD.jcl" "$HLQ.EMUNAH.DEV.JCL(EBJCLLD)" --encoding IBM-1047 $ZOWE_OPT\nzowe zos-files upload file-to-data-set "./jcl/EBJVALD.jcl" "$HLQ.EMUNAH.DEV.JCL(EBJVALD)" --encoding IBM-1047 $ZOWE_OPT\nzowe zos-files upload file-to-data-set "./jcl/EBJPOST.jcl" "$HLQ.EMUNAH.DEV.JCL(EBJPOST)" --encoding IBM-1047 $ZOWE_OPT\nzowe zos-files upload file-to-data-set "./jcl/EBJSALD.jcl" "$HLQ.EMUNAH.DEV.JCL(EBJSALD)" --encoding IBM-1047 $ZOWE_OPT\nzowe zos-files upload file-to-data-set "./jcl/EBJEXTR.jcl" "$HLQ.EMUNAH.DEV.JCL(EBJEXTR)" --encoding IBM-1047 $ZOWE_OPT\nzowe zos-files upload file-to-data-set "./jcl/EBJCONC.jcl" "$HLQ.EMUNAH.DEV.JCL(EBJCONC)" --encoding IBM-1047 $ZOWE_OPT\nzowe zos-files upload file-to-data-set "./jcl/EBJEOD.jcl"  "$HLQ.EMUNAH.DEV.JCL(EBJEOD)"  --encoding IBM-1047 $ZOWE_OPT\n\nzowe zos-files upload file-to-data-set "./rexx/EBCHKLAB.rexx" "$HLQ.EMUNAH.DEV.REXX(EBCHKLAB)" --encoding IBM-1047 $ZOWE_OPT\nzowe zos-files upload file-to-data-set "./rexx/EBSUBJCL.rexx" "$HLQ.EMUNAH.DEV.REXX(EBSUBJCL)" --encoding IBM-1047 $ZOWE_OPT'},
-    {l:'5) Subir os arquivos de seed e entrada usados na execução',c:'zowe zos-files upload file-to-data-set "./data/seed/clientes.txt" "$HLQ.EMUNAH.ARQ.CLIENTE.SEQ" --encoding IBM-1047 $ZOWE_OPT\nzowe zos-files upload file-to-data-set "./data/seed/contas.txt"   "$HLQ.EMUNAH.ARQ.CONTA.SEQ"   --encoding IBM-1047 $ZOWE_OPT\nzowe zos-files upload file-to-data-set "./data/entrada/lancamentos_d0.txt" "$HLQ.EMUNAH.ARQ.LANCTO.IN.SEQ" --encoding IBM-1047 $ZOWE_OPT'},
+    {l:'3) Subir a árvore local /lab para o USS remoto',c:'zowe zos-files upload dir-to-uss "./lab" "$USS_ROOT" --recursive --encoding IBM-1047 $ZOWE_OPT'},
+    {l:'4) Subir membros JCL e REXX para datasets remotos',c:'zowe zos-files upload file-to-data-set "./jcl/EBJCLLD.jcl" "$HLQ.EMUNAH.DEV.JCL(EBJCLLD)" --encoding IBM-1047 $ZOWE_OPT\nzowe zos-files upload file-to-data-set "./jcl/EBJVALD.jcl" "$HLQ.EMUNAH.DEV.JCL(EBJVALD)" --encoding IBM-1047 $ZOWE_OPT\nzowe zos-files upload file-to-data-set "./jcl/EBJPOST.jcl" "$HLQ.EMUNAH.DEV.JCL(EBJPOST)" --encoding IBM-1047 $ZOWE_OPT\nzowe zos-files upload file-to-data-set "./jcl/EBJSALD.jcl" "$HLQ.EMUNAH.DEV.JCL(EBJSALD)" --encoding IBM-1047 $ZOWE_OPT\nzowe zos-files upload file-to-data-set "./jcl/EBJEXTR.jcl" "$HLQ.EMUNAH.DEV.JCL(EBJEXTR)" --encoding IBM-1047 $ZOWE_OPT\nzowe zos-files upload file-to-data-set "./jcl/EBJCONC.jcl" "$HLQ.EMUNAH.DEV.JCL(EBJCONC)" --encoding IBM-1047 $ZOWE_OPT\nzowe zos-files upload file-to-data-set "./jcl/EBJEOD.jcl"  "$HLQ.EMUNAH.DEV.JCL(EBJEOD)"  --encoding IBM-1047 $ZOWE_OPT\nzowe zos-files upload file-to-data-set "./rexx/EBCHKLAB.rexx" "$HLQ.EMUNAH.DEV.REXX(EBCHKLAB)" --encoding IBM-1047 $ZOWE_OPT\nzowe zos-files upload file-to-data-set "./rexx/EBSUBJCL.rexx" "$HLQ.EMUNAH.DEV.REXX(EBSUBJCL)" --encoding IBM-1047 $ZOWE_OPT'},
+    {l:'5) Subir os arquivos de seed e entrada',c:'zowe zos-files upload file-to-data-set "./data/seed/clientes.txt" "$HLQ.EMUNAH.ARQ.CLIENTE.SEQ" --encoding IBM-1047 $ZOWE_OPT\nzowe zos-files upload file-to-data-set "./data/seed/contas.txt"   "$HLQ.EMUNAH.ARQ.CONTA.SEQ"   --encoding IBM-1047 $ZOWE_OPT\nzowe zos-files upload file-to-data-set "./data/entrada/lancamentos_d0.txt" "$HLQ.EMUNAH.ARQ.LANCTO.IN.SEQ" --encoding IBM-1047 $ZOWE_OPT'},
     {l:'6) Validar no remoto antes de rodar',c:'zowe zos-files list uss-files "$USS_ROOT" $ZOWE_OPT\nzowe zos-files list all-members "$HLQ.EMUNAH.DEV.JCL" $ZOWE_OPT\nzowe zos-files list all-members "$HLQ.EMUNAH.DEV.REXX" $ZOWE_OPT\nzowe zos-files list data-set "$HLQ.EMUNAH.ARQ.*" $ZOWE_OPT'}
    ],
-   done:'Os artefatos locais foram publicados no host e a execução remota já enxerga JCL, REXX, USS e arquivos de entrada.'},
+   done:'Os artefatos locais foram publicados no host.'},
   {id:'f2s1',num:'2.1',title:'lab.py start — cadeia batch',sub:'Submete e monitora cada job',tags:['python'],badge:'miss',
-   desc:'Execute este passo somente depois de concluir a sincronização do item 2.0. Se os arquivos do USS, os membros JCL ou os arquivos de entrada não tiverem sido enviados, a cadeia vai falhar logo nas primeiras etapas.',
-   note:'Pré-requisitos mínimos: /lab disponível no USS, JCLLIB carregada, datasets de entrada atualizados e app_config.yaml coerente com o HLQ remoto.',
+   desc:'Execute este passo somente depois de concluir a sincronização do item 2.0.',
    codes:[{l:'/lab/orchestrator/lab.py',c:'#!/usr/bin/env python3\nimport argparse,yaml,subprocess,time,json\nCFG=yaml.safe_load(open("/lab/config/app_config.yaml"))\n\ndef submeter(membro):\n    lib=CFG["host"]["jcllib"]\n    r=subprocess.run(["zowe","jobs","submit","data-set",\n        f"{lib}({membro})","--rfj"],capture_output=True,text=True)\n    if r.returncode!=0: raise RuntimeError(r.stderr)\n    return json.loads(r.stdout)["data"]["jobid"]\n\ndef cmd_start(args):\n    for job in ["EBJCLLD","EBJVALD","EBJPOST","EBJSALD","EBJEXTR","EBJCONC","EBJEOD"]:\n        jid=submeter(job)\n        print(f"  {job} -> {jid}")'}],
    done:'python3 lab.py start --run RUN001 executa a cadeia.'}
 ]},
@@ -378,7 +515,26 @@ const PH=[
 ]}
 ];
 
-const K={USERS:'ebl_users',SESSION:'ebl_sess',REMEMBER:'ebl_rem',prog:u=>`ebl_p_${u}`,ann:u=>`ebl_a_${u}`};
+// ═══════════════════════════════════════════════════════════════
+// TOOLS DATA (sidebar tool items)
+// ═══════════════════════════════════════════════════════════════
+const TOOLS=[
+  {id:'t-diary',icon:'D',title:'Diário',sub:'Ctrl + \''},
+  {id:'t-cmds',icon:'C',title:'Comandos',sub:'Zowe CLI / PowerShell'}
+];
+
+// ═══════════════════════════════════════════════════════════════
+// STORAGE KEYS
+// ═══════════════════════════════════════════════════════════════
+const K={
+  USERS:'ebl_users',SESSION:'ebl_sess',REMEMBER:'ebl_rem',
+  prog:u=>`ebl_p_${u}`,ann:u=>`ebl_a_${u}`,
+  diary:u=>`ebl_diary_${u}`,cmds:u=>`ebl_cmds_${u}`
+};
+
+// ═══════════════════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════════════════
 async function sha(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');}
 function gU(){return JSON.parse(localStorage.getItem(K.USERS)||'{}');}
 function sU(u){localStorage.setItem(K.USERS,JSON.stringify(u));}
@@ -398,7 +554,7 @@ async function doLogin(){
   r?localStorage.setItem(K.REMEMBER,u):localStorage.removeItem(K.REMEMBER);
   startApp(u);
 }
-const INVITE_CODE='emunah2025';
+const INVITE_CODE='@elielmainframe';
 async function doRegister(){
   const u=document.getElementById('ru').value.trim().toUpperCase();
   const p=document.getElementById('rp').value,p2=document.getElementById('rp2').value;
@@ -438,10 +594,24 @@ async function changePass(){
 }
 function doLogout(){localStorage.removeItem(K.SESSION);location.reload();}
 
-let CU='',PROG={},ANN={},CPHASE='fx';
-function loadUD(u){PROG=JSON.parse(localStorage.getItem(K.prog(u))||'{}');ANN=JSON.parse(localStorage.getItem(K.ann(u))||'{}');}
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+let CU='',PROG={},ANN={},DIARY=[],CMDS=[],CPHASE='fx',CVIEW='phase';
+let diaryPendingFiles=[];
+let cmdPendingFiles=[];
+
+function loadUD(u){
+  PROG=JSON.parse(localStorage.getItem(K.prog(u))||'{}');
+  ANN=JSON.parse(localStorage.getItem(K.ann(u))||'{}');
+  DIARY=JSON.parse(localStorage.getItem(K.diary(u))||'[]');
+  CMDS=JSON.parse(localStorage.getItem(K.cmds(u))||'[]');
+}
 function saveP(){localStorage.setItem(K.prog(CU),JSON.stringify(PROG));updateProg();}
 function saveA(sid,val){ANN[sid]=val;localStorage.setItem(K.ann(CU),JSON.stringify(ANN));}
+function saveDiary(){localStorage.setItem(K.diary(CU),JSON.stringify(DIARY));}
+function saveCmds(){localStorage.setItem(K.cmds(CU),JSON.stringify(CMDS));}
+
 function startApp(u){
   CU=u;loadUD(u);
   document.getElementById('auth-screen').classList.add('hidden');
@@ -450,20 +620,317 @@ function startApp(u){
   document.getElementById('cu').textContent=u;
   buildSidebar();showPhase('fx');updateProg();
 }
+
+// ═══════════════════════════════════════════════════════════════
+// SIDEBAR
+// ═══════════════════════════════════════════════════════════════
 function buildSidebar(){
   const nav=document.getElementById('pnav');nav.innerHTML='';
   PH.forEach(ph=>{
     const pct=getPhPct(ph.id);
     const el=document.createElement('div');
-    el.className='pni'+(ph.id===CPHASE?' active':'')+(ph.alert?' has-alert':'');
+    el.className='pni'+(ph.id===CPHASE&&CVIEW==='phase'?' active':'')+(ph.alert?' has-alert':'');
     el.id=`n-${ph.id}`;
     el.innerHTML=`<div class="pnb">${ph.num}</div><div class="pni-info"><div class="pni-t">${esc(ph.title)}</div><div class="pni-s">${esc(ph.sub)}</div></div><div class="mini-prog"><div class="mini-bar" id="mb-${ph.id}" style="width:${pct}%"></div></div>`;
-    el.onclick=()=>showPhase(ph.id);nav.appendChild(el);
+    el.onclick=()=>{CVIEW='phase';showPhase(ph.id);highlightSidebar();};
+    nav.appendChild(el);
+  });
+  const tnav=document.getElementById('tnav');tnav.innerHTML='';
+  TOOLS.forEach(t=>{
+    const el=document.createElement('div');
+    el.className='pni tool-item'+(CVIEW==='tool'&&CPHASE===t.id?' active':'');
+    el.id=`n-${t.id}`;
+    el.innerHTML=`<div class="pnb">${t.icon}</div><div class="pni-info"><div class="pni-t">${esc(t.title)}</div><div class="pni-s">${esc(t.sub)}</div></div>`;
+    el.onclick=()=>{CVIEW='tool';CPHASE=t.id;renderTool(t.id);highlightSidebar();};
+    tnav.appendChild(el);
   });
 }
+function highlightSidebar(){
+  document.querySelectorAll('.pni').forEach(el=>el.classList.remove('active'));
+  const active=document.getElementById(`n-${CPHASE}`);
+  if(active)active.classList.add('active');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DIARY
+// ═══════════════════════════════════════════════════════════════
+let diaryFilter='ALL';
+let diarySearch='';
+
+function fmtDt(iso){const d=new Date(iso);return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'})+' '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});}
+
+function renderDiaryComposer(targetId){
+  const now=new Date();
+  const ts=fmtDt(now.toISOString());
+  return `
+    <div class="diary-composer">
+      <div class="diary-composer-top">
+        <span class="diary-ts" id="${targetId}-ts">${ts}</span>
+        <div class="diary-mode-toggle">
+          <button class="diary-mode-btn active-hom" id="${targetId}-btn-hom" onclick="setDiaryMode('${targetId}','HOM')">HOM</button>
+          <button class="diary-mode-btn" id="${targetId}-btn-ofc" onclick="setDiaryMode('${targetId}','OFC')">OFC</button>
+        </div>
+      </div>
+      <textarea class="diary-textarea" id="${targetId}-text" placeholder="O que você fez ou aprendeu agora..."></textarea>
+      <div class="diary-bottom">
+        <button class="diary-file-btn" onclick="triggerDiaryFile('${targetId}')">+ Arquivo</button>
+        <input type="file" id="${targetId}-file" class="hidden" multiple onchange="handleDiaryFiles('${targetId}',this)">
+        <div class="diary-files-list" id="${targetId}-files"></div>
+        <button class="btn btn-p diary-save-btn" style="width:auto;padding:.45rem 1.2rem" onclick="saveDiaryEntry('${targetId}')">Salvar</button>
+      </div>
+    </div>`;
+}
+
+let diaryModes={};
+function setDiaryMode(targetId,mode){
+  diaryModes[targetId]=mode;
+  const hom=document.getElementById(`${targetId}-btn-hom`);
+  const ofc=document.getElementById(`${targetId}-btn-ofc`);
+  hom.className='diary-mode-btn'+(mode==='HOM'?' active-hom':'');
+  ofc.className='diary-mode-btn'+(mode==='OFC'?' active-ofc':'');
+}
+
+function triggerDiaryFile(targetId){document.getElementById(`${targetId}-file`).click();}
+
+function handleDiaryFiles(targetId,input){
+  const files=Array.from(input.files);
+  if(!diaryPendingFiles[targetId])diaryPendingFiles[targetId]=[];
+  files.forEach(f=>{
+    const reader=new FileReader();
+    reader.onload=e=>{
+      diaryPendingFiles[targetId].push({name:f.name,size:f.size,data:e.target.result});
+      renderDiaryFileChips(targetId);
+    };
+    reader.readAsDataURL(f);
+  });
+  input.value='';
+}
+
+function renderDiaryFileChips(targetId){
+  const list=document.getElementById(`${targetId}-files`);
+  if(!list||!diaryPendingFiles[targetId])return;
+  list.innerHTML=diaryPendingFiles[targetId].map((f,i)=>`<div class="diary-file-chip"><span>${esc(f.name)}</span><span class="diary-file-rm" onclick="rmDiaryFile('${targetId}',${i})">&times;</span></div>`).join('');
+}
+
+function rmDiaryFile(targetId,idx){
+  diaryPendingFiles[targetId].splice(idx,1);
+  renderDiaryFileChips(targetId);
+}
+
+function saveDiaryEntry(targetId){
+  const text=document.getElementById(`${targetId}-text`).value.trim();
+  if(!text)return;
+  const mode=diaryModes[targetId]||'HOM';
+  const files=(diaryPendingFiles[targetId]||[]).map(f=>({name:f.name,size:f.size,data:f.data}));
+  DIARY.unshift({id:Date.now(),ts:new Date().toISOString(),mode,text,files});
+  saveDiary();
+  document.getElementById(`${targetId}-text`).value='';
+  diaryPendingFiles[targetId]=[];
+  renderDiaryFileChips(targetId);
+  if(CVIEW==='tool'&&CPHASE==='t-diary')renderTool('t-diary');
+  closeDiaryModal();
+  updateProg();
+}
+
+function deleteDiaryEntry(id){
+  if(!confirm('Excluir este registro do diário?'))return;
+  DIARY=DIARY.filter(e=>e.id!==id);
+  saveDiary();renderTool('t-diary');updateProg();
+}
+
+function downloadAttachment(data,name){
+  const a=document.createElement('a');a.href=data;a.download=name;a.click();
+}
+
+function renderDiaryPage(){
+  const filtered=DIARY.filter(e=>{
+    if(diaryFilter!=='ALL'&&e.mode!==diaryFilter)return false;
+    if(diarySearch&&!e.text.toLowerCase().includes(diarySearch.toLowerCase()))return false;
+    return true;
+  });
+  let html=`
+    <div class="ph-hdr">
+      <div class="ph-num-row"><div class="ph-big" style="font-size:calc(1.4rem + 2pt)">D</div><div class="ph-title">Diário de Trabalho</div></div>
+      <div class="ph-desc">Registros diários do laboratório. Atalho rápido: <code style="background:var(--bg3);padding:1px 6px;border-radius:3px;font-family:var(--mono);font-size:calc(.72rem + 2pt)">Ctrl + '</code> para registro rápido sem sair da fase atual.</div>
+    </div>
+    ${renderDiaryComposer('diary-main')}
+    <div class="diary-search"><input type="text" placeholder="Buscar nos registros..." value="${esc(diarySearch)}" oninput="diarySearch=this.value;renderDiaryPage()"></div>
+    <div class="diary-filter">
+      <button class="diary-filter-btn${diaryFilter==='ALL'?' active':''}" onclick="diaryFilter='ALL';renderDiaryPage()">Todos (${DIARY.length})</button>
+      <button class="diary-filter-btn${diaryFilter==='HOM'?' active':''}" onclick="diaryFilter='HOM';renderDiaryPage()">HOM (${DIARY.filter(e=>e.mode==='HOM').length})</button>
+      <button class="diary-filter-btn${diaryFilter==='OFC'?' active':''}" onclick="diaryFilter='OFC';renderDiaryPage()">OFC (${DIARY.filter(e=>e.mode==='OFC').length})</button>
+    </div>`;
+  if(!filtered.length){
+    html+=`<div class="diary-empty">Nenhum registro encontrado.</div>`;
+  } else {
+    filtered.forEach(e=>{
+      const preview=e.text.length>90?e.text.slice(0,90)+'...':e.text;
+      const filesHtml=e.files&&e.files.length?`<div class="diary-entry-attachments">${e.files.map(f=>`<span class="diary-attachment" onclick="downloadAttachment('${f.data}','${esc(f.name)}')">${esc(f.name)}</span>`).join('')}</div>`:'';
+      const fc=e.files&&e.files.length?`<span class="diary-entry-files-count">${e.files.length} arquivo${e.files.length>1?'s':''}</span>`:'';
+      html+=`<div class="diary-entry" id="de-${e.id}">
+        <div class="diary-entry-hdr" onclick="toggleDiaryEntry(${e.id})">
+          <span class="diary-entry-ts">${fmtDt(e.ts)}</span>
+          <span class="diary-entry-mode ${e.mode.toLowerCase()}">${e.mode}</span>
+          <span class="diary-entry-preview">${esc(preview)}</span>
+          ${fc}
+          <span class="diary-entry-del" onclick="event.stopPropagation();deleteDiaryEntry(${e.id})">&times;</span>
+        </div>
+        <div class="diary-entry-body hidden" id="deb-${e.id}">
+          <div class="diary-entry-text">${esc(e.text)}</div>
+          ${filesHtml}
+        </div>
+      </div>`;
+    });
+  }
+  document.getElementById('pc').innerHTML=html;
+  diaryPendingFiles['diary-main']=[];
+  diaryModes['diary-main']='HOM';
+}
+
+function toggleDiaryEntry(id){
+  const el=document.getElementById(`deb-${id}`);
+  if(el)el.classList.toggle('hidden');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// COMMANDS (Zowe CLI / PowerShell)
+// ═══════════════════════════════════════════════════════════════
+let cmdFilter='ALL';
+let cmdType='ZOWE';
+
+function renderCmdsPage(){
+  const filtered=CMDS.filter(c=>{
+    if(cmdFilter!=='ALL'&&c.type!==cmdFilter)return false;
+    return true;
+  });
+  let html=`
+    <div class="ph-hdr">
+      <div class="ph-num-row"><div class="ph-big" style="font-size:calc(1.4rem + 2pt);color:var(--blue)">C</div><div class="ph-title">Comandos — Zowe CLI / PowerShell</div></div>
+      <div class="ph-desc">Repositório de comandos úteis do dia a dia. Salve, organize e copie rapidamente.</div>
+    </div>
+    <div class="cmd-composer">
+      <div class="cmd-composer-row">
+        <div class="cmd-type-toggle">
+          <button class="cmd-type-btn${cmdType==='ZOWE'?' active-zowe':''}" onclick="cmdType='ZOWE';updateCmdToggle()">ZOWE</button>
+          <button class="cmd-type-btn${cmdType==='PS'?' active-ps':''}" onclick="cmdType='PS';updateCmdToggle()">PWSH</button>
+        </div>
+        <div class="cmd-input-group">
+          <input type="text" id="cmd-title" placeholder="Título do comando (ex: Listar membros JCL)">
+          <textarea id="cmd-code" placeholder="Cole o comando aqui..."></textarea>
+          <input type="text" id="cmd-desc" placeholder="Descrição breve (opcional)">
+        </div>
+        <button class="btn btn-p" style="width:auto;padding:.5rem 1.2rem;align-self:flex-end" onclick="saveCmdEntry()">Salvar</button>
+      </div>
+    </div>
+    <div class="cmd-filter">
+      <button class="diary-filter-btn${cmdFilter==='ALL'?' active':''}" onclick="cmdFilter='ALL';renderCmdsPage()">Todos (${CMDS.length})</button>
+      <button class="diary-filter-btn${cmdFilter==='ZOWE'?' active':''}" onclick="cmdFilter='ZOWE';renderCmdsPage()">Zowe (${CMDS.filter(c=>c.type==='ZOWE').length})</button>
+      <button class="diary-filter-btn${cmdFilter==='PS'?' active':''}" onclick="cmdFilter='PS';renderCmdsPage()">PowerShell (${CMDS.filter(c=>c.type==='PS').length})</button>
+    </div>`;
+  if(!filtered.length){
+    html+=`<div class="cmd-empty">Nenhum comando salvo.</div>`;
+  } else {
+    filtered.forEach(c=>{
+      html+=`<div class="cmd-card" id="cmd-${c.id}">
+        <div class="cmd-card-hdr" onclick="toggleCmdCard(${c.id})">
+          <span class="cmd-card-type ${c.type==='ZOWE'?'zowe':'ps'}">${c.type==='ZOWE'?'ZOWE':'PWSH'}</span>
+          <span class="cmd-card-title">${esc(c.title)}</span>
+          <div class="cmd-card-actions">
+            <button class="cmd-card-btn" onclick="event.stopPropagation();copyCmd(${c.id})" id="cpb-${c.id}" title="Copiar">copiar</button>
+            <button class="cmd-card-btn del" onclick="event.stopPropagation();deleteCmd(${c.id})" title="Excluir">&times;</button>
+          </div>
+        </div>
+        <div class="cmd-card-body hidden" id="cmdb-${c.id}">
+          ${c.desc?`<div class="cmd-card-desc">${esc(c.desc)}</div>`:''}
+          <div class="cmd-card-pre"><pre>${esc(c.code)}</pre></div>
+        </div>
+      </div>`;
+    });
+  }
+  document.getElementById('pc').innerHTML=html;
+}
+
+function updateCmdToggle(){
+  document.querySelectorAll('.cmd-type-btn').forEach(b=>{
+    b.className='cmd-type-btn'+(b.textContent==='ZOWE'&&cmdType==='ZOWE'?' active-zowe':'')+(b.textContent==='PWSH'&&cmdType==='PS'?' active-ps':'');
+  });
+}
+
+function saveCmdEntry(){
+  const title=document.getElementById('cmd-title').value.trim();
+  const code=document.getElementById('cmd-code').value.trim();
+  const desc=document.getElementById('cmd-desc').value.trim();
+  if(!title||!code)return;
+  CMDS.unshift({id:Date.now(),type:cmdType,title,code,desc,ts:new Date().toISOString()});
+  saveCmds();renderCmdsPage();updateProg();
+}
+
+function deleteCmd(id){
+  if(!confirm('Excluir este comando?'))return;
+  CMDS=CMDS.filter(c=>c.id!==id);
+  saveCmds();renderCmdsPage();updateProg();
+}
+
+function copyCmd(id){
+  const c=CMDS.find(x=>x.id===id);
+  if(!c)return;
+  navigator.clipboard.writeText(c.code).then(()=>{
+    const btn=document.getElementById(`cpb-${id}`);
+    if(btn){btn.textContent='copiado!';btn.classList.add('copied');setTimeout(()=>{btn.textContent='copiar';btn.classList.remove('copied');},1500);}
+  });
+}
+
+function toggleCmdCard(id){
+  const el=document.getElementById(`cmdb-${id}`);
+  if(el)el.classList.toggle('hidden');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TOOL ROUTER
+// ═══════════════════════════════════════════════════════════════
+function renderTool(tid){
+  if(tid==='t-diary')renderDiaryPage();
+  else if(tid==='t-cmds')renderCmdsPage();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DIARY QUICK MODAL (Ctrl + ')
+// ═══════════════════════════════════════════════════════════════
+function openDiaryModal(){
+  if(!CU)return;
+  const modal=document.getElementById('diary-modal');
+  const content=document.getElementById('diary-modal-content');
+  content.innerHTML=renderDiaryComposer('diary-quick');
+  diaryPendingFiles['diary-quick']=[];
+  diaryModes['diary-quick']='HOM';
+  modal.classList.add('open');
+  setTimeout(()=>{const ta=document.getElementById('diary-quick-text');if(ta)ta.focus();},100);
+}
+function closeDiaryModal(){
+  document.getElementById('diary-modal').classList.remove('open');
+}
+
+document.addEventListener('keydown',e=>{
+  if(e.ctrlKey&&(e.key==="'"||e.key==="Dead"||e.code==="Quote")){
+    e.preventDefault();
+    const modal=document.getElementById('diary-modal');
+    if(modal.classList.contains('open'))closeDiaryModal();
+    else openDiaryModal();
+  }
+  if(e.key==='Escape'){
+    const modal=document.getElementById('diary-modal');
+    if(modal.classList.contains('open'))closeDiaryModal();
+    const settings=document.getElementById('settings');
+    if(settings.classList.contains('open'))toggleSettings();
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// PHASE RENDERING (original)
+// ═══════════════════════════════════════════════════════════════
 function showPhase(pid){
-  CPHASE=pid;
-  document.querySelectorAll('.pni').forEach(el=>el.classList.toggle('active',el.id===`n-${pid}`));
+  CPHASE=pid;CVIEW='phase';
+  highlightSidebar();
   const ph=PH.find(p=>p.id===pid),pct=getPhPct(pid);
   document.getElementById('pc').innerHTML=`
     <div class="legend">
@@ -548,22 +1015,14 @@ function formatAnnotationHtml(text){
   let out='',last=0,m;
   while((m=rx.exec(src))!==null){
     out+=esc(src.slice(last,m.index)).replace(/\n/g,'<br>');
-    if(m[1]&&m[2]){
-      out+=`<a href="${esc(m[2])}" target="_blank" rel="noopener noreferrer">${esc(m[1])}</a>`;
-    }else{
-      const raw=m[3];
-      const href=raw.startsWith('www.')?`https://${raw}`:raw;
-      out+=`<a href="${esc(href)}" target="_blank" rel="noopener noreferrer">${esc(raw)}</a>`;
-    }
+    if(m[1]&&m[2])out+=`<a href="${esc(m[2])}" target="_blank" rel="noopener noreferrer">${esc(m[1])}</a>`;
+    else{const raw=m[3];const href=raw.startsWith('www.')?`https://${raw}`:raw;out+=`<a href="${esc(href)}" target="_blank" rel="noopener noreferrer">${esc(raw)}</a>`;}
     last=rx.lastIndex;
   }
   out+=esc(src.slice(last)).replace(/\n/g,'<br>');
   return out;
 }
-function refreshAnnPreview(id,val){
-  const box=document.getElementById(`ap-${id}`);
-  if(box)box.innerHTML=formatAnnotationHtml(val);
-}
+function refreshAnnPreview(id,val){const box=document.getElementById(`ap-${id}`);if(box)box.innerHTML=formatAnnotationHtml(val);}
 function applyAnnPreviewState(id){
   const box=document.getElementById(`ap-${id}`),btn=document.getElementById(`at-${id}`),an=document.getElementById(`an-${id}`);
   if(!box||!btn)return;
@@ -593,18 +1052,47 @@ function updateProg(){
     const p=getPhPct(ph.id);
     const mb=document.getElementById(`mb-${ph.id}`);if(mb)mb.style.width=p+'%';
   });
-  const d2=done,ac=Object.values(ANN).filter(v=>v&&v.trim()).length;
+  const ac=Object.values(ANN).filter(v=>v&&v.trim()).length;
   const cp=document.getElementById('cprog'),ca=document.getElementById('cann');
-  if(cp)cp.textContent=`${d2}/${all.length} (${pct}%)`;if(ca)ca.textContent=`${ac} anotações`;
+  const cd=document.getElementById('cdiary'),cc=document.getElementById('ccmds');
+  if(cp)cp.textContent=`${done}/${all.length} (${pct}%)`;
+  if(ca)ca.textContent=`${ac} anotações`;
+  if(cd)cd.textContent=`${DIARY.length} registros`;
+  if(cc)cc.textContent=`${CMDS.length} comandos`;
 }
 let SO=false;
 function toggleSettings(){SO=!SO;document.getElementById('settings').classList.toggle('open',SO);}
-function clearProg(){if(!confirm('Limpar todo o progresso? Irreversível.'))return;PROG={};saveP();showPhase(CPHASE);}
-function clearAnn(){if(!confirm('Limpar anotações? Irreversível.'))return;ANN={};localStorage.setItem(K.ann(CU),'{}');showPhase(CPHASE);updateProg();}
-function exportData(){const d={user:CU,exportedAt:new Date().toISOString(),progress:PROG,annotations:ANN};const b=new Blob([JSON.stringify(d,null,2)],{type:'application/json'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=`emunah-bank-lab-${CU}-${Date.now()}.json`;a.click();URL.revokeObjectURL(u);}
-function importData(){const i=document.createElement('input');i.type='file';i.accept='.json';i.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const d=JSON.parse(ev.target.result);if(d.progress)PROG=d.progress;if(d.annotations)ANN=d.annotations;saveP();localStorage.setItem(K.ann(CU),JSON.stringify(ANN));showPhase(CPHASE);alert('Importado.');}catch{alert('Arquivo inválido.');}};r.readAsText(f);};i.click();}
+function clearProg(){if(!confirm('Limpar todo o progresso? Irreversível.'))return;PROG={};saveP();if(CVIEW==='phase')showPhase(CPHASE);}
+function clearAnn(){if(!confirm('Limpar anotações? Irreversível.'))return;ANN={};localStorage.setItem(K.ann(CU),'{}');if(CVIEW==='phase')showPhase(CPHASE);updateProg();}
+function clearDiary(){if(!confirm('Limpar diário? Irreversível.'))return;DIARY=[];saveDiary();if(CVIEW==='tool'&&CPHASE==='t-diary')renderTool('t-diary');updateProg();}
+function clearCmds(){if(!confirm('Limpar comandos? Irreversível.'))return;CMDS=[];saveCmds();if(CVIEW==='tool'&&CPHASE==='t-cmds')renderTool('t-cmds');updateProg();}
+function exportData(){
+  const d={user:CU,exportedAt:new Date().toISOString(),progress:PROG,annotations:ANN,diary:DIARY,commands:CMDS};
+  const b=new Blob([JSON.stringify(d,null,2)],{type:'application/json'});
+  const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=`emunah-bank-lab-${CU}-${Date.now()}.json`;a.click();URL.revokeObjectURL(u);
+}
+function importData(){
+  const i=document.createElement('input');i.type='file';i.accept='.json';i.onchange=e=>{
+    const f=e.target.files[0];if(!f)return;
+    const r=new FileReader();r.onload=ev=>{
+      try{
+        const d=JSON.parse(ev.target.result);
+        if(d.progress)PROG=d.progress;
+        if(d.annotations)ANN=d.annotations;
+        if(d.diary)DIARY=d.diary;
+        if(d.commands)CMDS=d.commands;
+        saveP();localStorage.setItem(K.ann(CU),JSON.stringify(ANN));saveDiary();saveCmds();
+        if(CVIEW==='phase')showPhase(CPHASE);else renderTool(CPHASE);
+        alert('Importado.');
+      }catch{alert('Arquivo inválido.');}
+    };r.readAsText(f);
+  };i.click();
+}
 function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
 (function init(){
   const rem=localStorage.getItem(K.REMEMBER),sess=localStorage.getItem(K.SESSION),u=rem||sess;
   if(u){const users=gU();if(users[u]){startApp(u);return;}}
