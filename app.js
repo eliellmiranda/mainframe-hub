@@ -52,7 +52,7 @@ const SEEDS = {"exercises": [{"name": "COBOL — Básico", "desc": "Exercícios 
 let currentUser = null;
 let appData = null;
 let currentSection = 'dashboard';
-let currentDetail = { courseId:null, docId:null, codeSpaceId:null, codeSubspaceId:null, exerciseSpaceId:null, exerciseSubspaceId:null, interviewSpaceId:null, interviewSubspaceId:null, goalDay:null, exerciseFilter:'all', exerciseIndexOpen:true, searchResults:[] };
+let currentDetail = { courseId:null, docId:null, codeSpaceId:null, codeSubspaceId:null, exerciseSpaceId:null, exerciseSubspaceId:null, interviewSpaceId:null, interviewSubspaceId:null, goalDay:null, exerciseFilter:'all', interviewFilter:'all', codeFilter:'all', courseFilter:'all', exerciseIndexOpen:true, interviewIndexOpen:true, toolSpaceId:null, searchResults:[] };
 
 function readLS(k, fallback=null) { try { const raw = localStorage.getItem(k); return raw ? JSON.parse(raw) : fallback; } catch { return fallback; } }
 function writeLS(k, v) { localStorage.setItem(k, JSON.stringify(v)); }
@@ -79,6 +79,7 @@ function baseData() {
     certificates: [],
     generalNotes: [],
     tools: [],
+    toolSpaces: [],
     dailyGoals: {},
     lab: { url:'', planUrl:'emunah-bank-lab.html', title:'EMUNAH BANK LAB' },
     meta: { seedVersion:0, lastSection:'dashboard', goalSeedVersion:0, selectedGoalDay:getTodayGoalKey() }
@@ -94,11 +95,20 @@ function ensureDefaults() {
   appData.certificates ||= [];
   appData.generalNotes ||= [];
   appData.tools ||= [];
+  appData.toolSpaces ||= [];
   appData.dailyGoals ||= {};
   appData.lab ||= { url:'', planUrl:'emunah-bank-lab.html', title:'EMUNAH BANK LAB' };
   appData.meta ||= { seedVersion:0, lastSection:'dashboard', goalSeedVersion:0, selectedGoalDay:getTodayGoalKey() };
   appData.meta.selectedGoalDay ||= getTodayGoalKey();
+  // Migrate old flat tools to toolSpaces if needed
+  if (appData.tools.length && !appData.toolSpaces.length) {
+    appData.toolSpaces.push({ id:uid(), name:'Geral', icon:'🧰', desc:'Ferramentas gerais', tools: appData.tools.map(t => ({...t})), createdAt:Date.now() });
+    appData.tools = [];
+  }
+  // Ensure toolSpaces structure
+  appData.toolSpaces.forEach(ts => { ts.tools ||= []; ts.icon ||= '🧰'; });
   appData.courses.forEach(course => {
+    if (typeof course.completed !== 'boolean') course.completed = false;
     course.modules ||= [];
     course.modules.forEach(module => {
       module.notes ||= [];
@@ -116,6 +126,11 @@ function ensureDefaults() {
       if (typeof module.completed !== 'boolean') module.completed = false;
     });
   });
+  // Ensure viewed flag on code snippets
+  appData.codeSpaces.forEach(s => (s.subspaces||[]).forEach(ss => (ss.snippets||[]).forEach(sn => { if (typeof sn.viewed !== 'boolean') sn.viewed = false; })));
+  // Ensure solved flag on exercise/interview items
+  appData.exerciseSpaces.forEach(s => (s.subspaces||[]).forEach(ss => (ss.items||[]).forEach(it => { if (typeof it.solved !== 'boolean') it.solved = false; })));
+  appData.interviewSpaces.forEach(s => (s.subspaces||[]).forEach(ss => (ss.items||[]).forEach(it => { if (typeof it.solved !== 'boolean') it.solved = false; if (typeof it.viewed !== 'boolean') it.viewed = false; })));
   appData.certificates.forEach(cert => { cert.imageData ||= ''; cert.imageName ||= ''; });
 }
 function loadUserData() {
@@ -718,6 +733,12 @@ function closeMobileMenu() {
   document.getElementById('mobile-overlay').classList.remove('open');
 }
 
+function openSectionNewTab(section) {
+  const url = new URL(window.location.href);
+  url.hash = section;
+  window.open(url.toString(), '_blank');
+}
+
 function goSection(section, pushHistory = true) {
   currentSection = section;
   appData.meta.lastSection = section;
@@ -758,7 +779,7 @@ function updateStatus() {
     linkedin: appData.linkedinPosts.length,
     certs: appData.certificates.length,
     notes: appData.generalNotes.length,
-    tools: appData.tools.length,
+    tools: appData.toolSpaces.reduce((a,ts)=>a+(ts.tools||[]).length,0),
     goals: Object.values(appData.dailyGoals || {}).reduce((a,list)=>a+(Array.isArray(list)?list.length:0),0),
   };
   document.getElementById('status-stats').textContent = `${totals.courses} cursos · ${totals.docs} docs · ${totals.code} códigos · ${totals.ex + totals.iv} questões · ${totals.linkedin} posts · ${totals.certs} badges · ${totals.tools} ferramentas · ${totals.notes} notas · ${totals.goals} metas`;
@@ -783,7 +804,7 @@ function renderDashboard() {
       <div class="kpi"><div class="kpi-label">Cursos</div><div class="kpi-value">${appData.courses.length}</div><div class="kpi-sub">com módulos, submódulos e vídeos</div></div>
       <div class="kpi"><div class="kpi-label">Docs</div><div class="kpi-value">${appData.docs.length}</div><div class="kpi-sub">editor + anexos</div></div>
       <div class="kpi"><div class="kpi-label">Exemplos</div><div class="kpi-value">${appData.codeSpaces.reduce((a,s)=>a+(s.subspaces?.length||0),0)}</div><div class="kpi-sub">subespaços de código</div></div>
-      <div class="kpi"><div class="kpi-label">Ferramentas</div><div class="kpi-value">${appData.tools.length}</div><div class="kpi-sub">links + instruções</div></div>
+      <div class="kpi"><div class="kpi-label">Ferramentas</div><div class="kpi-value">${appData.toolSpaces.reduce((a,ts)=>a+(ts.tools||[]).length,0)}</div><div class="kpi-sub">em ${appData.toolSpaces.length} espaço(s)</div></div>
       <div class="kpi"><div class="kpi-label">Certificados</div><div class="kpi-value">${appData.certificates.length}</div><div class="kpi-sub">com imagem opcional</div></div>
       <div class="kpi"><div class="kpi-label">Progresso médio</div><div class="kpi-value">${courseAvg}%</div><div class="kpi-sub">dos cursos</div></div>
       <div class="kpi" style="border-color:var(--warn)"><div class="kpi-label">Sequência</div><div class="kpi-value" style="color:var(--warn)">${getStreakData().count}🔥</div><div class="kpi-sub">dias seguidos · recorde ${getStreakData().longest}</div></div>
@@ -851,15 +872,25 @@ function renderCourses() {
   const wrap = document.getElementById('section-courses');
   const course = appData.courses.find(c => c.id === currentDetail.courseId);
   if (!course) {
+    const filter = currentDetail.courseFilter || 'all';
+    const filteredCourses = filter === 'complete' ? appData.courses.filter(c => c.completed) :
+                            filter === 'incomplete' ? appData.courses.filter(c => !c.completed) :
+                            appData.courses;
     wrap.innerHTML = `
       <div class="headline">
         <div><div class="title">Cursos</div><div class="subtitle">Cada curso pode ter módulos, submódulos, vídeos, links, notas, arquivos e progresso</div></div>
         <button class="btn primary" onclick="openCourseModal()">Novo curso</button>
       </div>
+      <div class="course-filter-bar">
+        <span style="font-size:13px;color:var(--text-soft)">Filtrar:</span>
+        ${[['all','Todos'],['complete','Concluídos'],['incomplete','Em andamento']].map(([v,l]) =>
+          `<button class="btn xs ${filter===v?'primary':''}" onclick="setCourseFilter('${v}')">${l}</button>`).join('')}
+        <span class="goal-pill">${filteredCourses.length} / ${appData.courses.length}</span>
+      </div>
       <div class="grid">
-        ${appData.courses.map(c=>`<div class="card clickable" id="course-card-${c.id}" onclick="openCourse('${c.id}')">
+        ${filteredCourses.map(c=>`<div class="card clickable" id="course-card-${c.id}" onclick="openCourse('${c.id}')">
           <div class="card-actions"><button class="btn xs" onclick="event.stopPropagation();openCourseEditModal('${c.id}')">Editar</button><button class="btn xs danger" onclick="event.stopPropagation();deleteCourse('${c.id}')">Excluir</button></div>
-          <div class="card-icon">📂</div><div class="card-title">${esc(c.name)}</div>
+          <div class="card-icon">📂</div><div class="card-title">${esc(c.name)} ${c.completed ? '<span class="badge done">✓ Concluído</span>' : ''}</div>
           <div class="card-meta">${esc(c.desc||'Sem descrição')}<br>Módulos: ${(c.modules||[]).length} · Progresso: ${courseProgress(c)}%</div>
           <div style="margin-top:12px" class="progress"><span style="width:${courseProgress(c)}%"></span></div>
         </div>`).join('')}
@@ -878,6 +909,7 @@ function renderCourses() {
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <span class="badge">Progresso recalculável: ${progress}%</span>
+        <button class="btn ${course.completed ? 'warn' : ''}" onclick="toggleCourseCompleted('${course.id}')">${course.completed ? '✓ Concluído — Desmarcar' : 'Marcar como concluído'}</button>
         <button class="btn" onclick="openCourseEditModal('${course.id}')">Editar curso</button>
         <button class="btn" onclick="recalculateCourseProgress('${course.id}')">Recalcular progresso</button>
         <button class="btn primary" onclick="openModuleModal('${course.id}')">Novo módulo</button>
@@ -1081,6 +1113,13 @@ function toggleSubmoduleDone(courseId,moduleId,subId) {
   const sub = appData.courses.find(c=>c.id===courseId)?.modules?.find(m=>m.id===moduleId)?.submodules?.find(s=>s.id===subId); if (!sub) return;
   sub.completed = !sub.completed; saveUserData(); renderCourses(); showToast('Submódulo atualizado.');
 }
+function setCourseFilter(value) { currentDetail.courseFilter = value; renderCourses(); }
+function toggleCourseCompleted(courseId) {
+  const course = appData.courses.find(c => c.id === courseId); if (!course) return;
+  course.completed = !course.completed;
+  saveUserData(); renderCourses(); renderDashboard(); updateStatus();
+  showToast(course.completed ? 'Curso marcado como concluído.' : 'Curso desmarcado.');
+}
 function recalculateCourseProgress(courseId) { renderCourses(); renderDashboard(); showToast('Progresso recalculado.'); }
 function deleteModule(courseId,moduleId) {
   const course = appData.courses.find(c=>c.id===courseId); if (!course) return;
@@ -1207,14 +1246,33 @@ function renderCode() {
   wrap.innerHTML = `
     <div class="back" onclick="backToCodeSpace()">← Voltar</div>
     <div class="headline"><div id="code-subspace-view-${sub.id}"><div class="title">${esc(sub.name)}</div><div class="subtitle">${esc(sub.desc||'Subespaço')}</div></div><div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" onclick="uploadAttachmentsModal('code-subspace','${space.id}','${sub.id}')">Arquivos</button><button class="btn primary" onclick="openSnippetModal('${space.id}','${sub.id}')">Novo snippet</button></div></div>
+    <div class="practice-toolbar">
+      <select class="select" style="width:auto" onchange="setCodeFilter(this.value)">
+        ${[['all','Todos'],['viewed','Vistos'],['unviewed','Não vistos']].map(([v,l])=>`<option value="${v}" ${(currentDetail.codeFilter||'all')===v?'selected':''}>${l}</option>`).join('')}
+      </select>
+      <span class="goal-pill">Vistos: ${(sub.snippets||[]).filter(s=>s.viewed).length}/${(sub.snippets||[]).length}</span>
+    </div>
     <div class="cols-2">
       <div class="stack">
-        ${(sub.snippets||[]).length ? sub.snippets.map(sn=>`<div class="panel" id="snippet-${sn.id}"><div class="row-top"><div><div class="row-title">${esc(sn.title)}</div><div class="row-sub">${esc(sn.lang||'Código')} · ${esc(sn.description||'')}</div></div><div class="row-actions"><button class="btn xs" onclick="openSnippetModal('${space.id}','${sub.id}','${sn.id}')">Editar</button><button class="btn xs danger" onclick="deleteSnippet('${space.id}','${sub.id}','${sn.id}')">Excluir</button></div></div><pre class="row-text" style="font-family:'Share Tech Mono',monospace;overflow:auto;background:var(--input);padding:12px;border-radius:12px;margin-top:12px">${esc(sn.code)}</pre></div>`).join('') : '<div class="empty">Nenhum snippet neste subespaço.</div>'}
+        ${(() => {
+          const cf = currentDetail.codeFilter || 'all';
+          const snips = (sub.snippets||[]).filter(sn => cf==='viewed' ? sn.viewed : cf==='unviewed' ? !sn.viewed : true);
+          return snips.length ? snips.map(sn=>`<div class="panel" id="snippet-${sn.id}"><div class="row-top"><div><div class="row-title">${esc(sn.title)} ${sn.viewed?'<span class="badge viewed">Visto</span>':''}</div><div class="row-sub">${esc(sn.lang||'Código')} · ${esc(sn.description||'')}</div></div><div class="row-actions"><button class="btn xs ${sn.viewed?'warn':''}" onclick="toggleSnippetViewed('${space.id}','${sub.id}','${sn.id}')">${sn.viewed?'Desmarcar visto':'Marcar como visto'}</button><button class="btn xs" onclick="openSnippetModal('${space.id}','${sub.id}','${sn.id}')">Editar</button><button class="btn xs danger" onclick="deleteSnippet('${space.id}','${sub.id}','${sn.id}')">Excluir</button></div></div><pre class="row-text" style="font-family:'Share Tech Mono',monospace;overflow:auto;background:var(--input);padding:12px;border-radius:12px;margin-top:12px">${esc(sn.code)}</pre></div>`).join('')
+          : '<div class="empty">Nenhum snippet encontrado para este filtro.</div>';
+        })()}
       </div>
       <div class="panel"><div class="panel-title">Arquivos do subespaço (até 5)</div>${renderAttachments(sub.attachments||[], 'code-subspace', space.id, sub.id)}</div>
     </div>`;
 }
-function openCodeSpace(id) { currentDetail.codeSpaceId=id; currentDetail.codeSubspaceId=null; renderCode(); }
+function setCodeFilter(value) { currentDetail.codeFilter = value; renderCode(); }
+function toggleSnippetViewed(spaceId, subId, snId) {
+  const sub = appData.codeSpaces.find(s=>s.id===spaceId)?.subspaces?.find(ss=>ss.id===subId); if(!sub)return;
+  const sn = (sub.snippets||[]).find(s=>s.id===snId); if(!sn)return;
+  sn.viewed = !sn.viewed;
+  saveUserData(); renderCode();
+  showToast(sn.viewed ? 'Snippet marcado como visto.' : 'Desmarcado.');
+}
+function openCodeSpace(id) { currentDetail.codeSpaceId=id; currentDetail.codeSubspaceId=null; currentDetail.codeFilter='all'; renderCode(); }
 function openCodeSubspace(spaceId, subId) { currentDetail.codeSpaceId=spaceId; currentDetail.codeSubspaceId=subId; renderCode(); }
 function openSnippetModal(spaceId, subId, snippetId='') {
   const sub = appData.codeSpaces.find(s=>s.id===spaceId)?.subspaces?.find(ss=>ss.id===subId); if(!sub)return;
@@ -1241,20 +1299,33 @@ function deleteSnippet(spaceId, subId, snId) {
 }
 
 function isPracticeAnswered(item) { return !!String(item?.userAnswer || '').trim(); }
+function isPracticeSolved(item) { return !!item?.solved; }
+function isPracticeViewed(item) { return !!item?.viewed; }
 function practiceFilterOptions(kind) {
-  return [['all','Todas'],['answered','Respondidas'],['unanswered','Não respondidas']];
+  if (kind === 'exercise') return [['all','Todas'],['solved','Resolvidas'],['unsolved','Não resolvidas'],['answered','Respondidas'],['unanswered','Sem resposta']];
+  return [['all','Todas'],['solved','Respondidas'],['unsolved','Não respondidas'],['viewed','Vistas'],['unviewed','Não vistas']];
 }
 function getPracticeFilter(kind) {
-  return kind === 'exercise' ? (currentDetail.exerciseFilter || 'all') : 'all';
+  return kind === 'exercise' ? (currentDetail.exerciseFilter || 'all') : (currentDetail.interviewFilter || 'all');
 }
 function setPracticeFilter(kind, value) {
   if (kind === 'exercise') currentDetail.exerciseFilter = value;
+  else currentDetail.interviewFilter = value;
   renderPractice(kind);
 }
 function getFilteredPracticeItems(kind, items) {
   const filter = getPracticeFilter(kind);
-  if (filter === 'answered') return items.filter(isPracticeAnswered);
-  if (filter === 'unanswered') return items.filter(item => !isPracticeAnswered(item));
+  if (kind === 'exercise') {
+    if (filter === 'solved') return items.filter(isPracticeSolved);
+    if (filter === 'unsolved') return items.filter(it => !isPracticeSolved(it));
+    if (filter === 'answered') return items.filter(isPracticeAnswered);
+    if (filter === 'unanswered') return items.filter(it => !isPracticeAnswered(it));
+  } else {
+    if (filter === 'solved') return items.filter(isPracticeAnswered);
+    if (filter === 'unsolved') return items.filter(it => !isPracticeAnswered(it));
+    if (filter === 'viewed') return items.filter(isPracticeViewed);
+    if (filter === 'unviewed') return items.filter(it => !isPracticeViewed(it));
+  }
   return items;
 }
 function scrollPracticeItem(kind, itemId) {
@@ -1263,7 +1334,20 @@ function scrollPracticeItem(kind, itemId) {
 }
 function togglePracticeIndex(kind) {
   if (kind === 'exercise') currentDetail.exerciseIndexOpen = !currentDetail.exerciseIndexOpen;
+  else currentDetail.interviewIndexOpen = !currentDetail.interviewIndexOpen;
   renderPractice(kind);
+}
+function togglePracticeSolved(kind, spaceId, subId, itemId) {
+  const item = getPracticeSubspace(kind, spaceId, subId)?.items?.find(i=>i.id===itemId); if(!item)return;
+  item.solved = !item.solved;
+  saveUserData(); renderPractice(kind);
+  showToast(item.solved ? 'Marcada como resolvida.' : 'Desmarcada.');
+}
+function togglePracticeViewed(kind, spaceId, subId, itemId) {
+  const item = getPracticeSubspace(kind, spaceId, subId)?.items?.find(i=>i.id===itemId); if(!item)return;
+  item.viewed = !item.viewed;
+  saveUserData(); renderPractice(kind);
+  showToast(item.viewed ? 'Marcada como vista.' : 'Desmarcada.');
 }
 function togglePracticeMinimized(kind, spaceId, subId, itemId) {
   const item = getPracticeSubspace(kind, spaceId, subId)?.items?.find(i=>i.id===itemId); if(!item)return;
@@ -1317,16 +1401,19 @@ function renderPractice(kind) {
   const allItems = sub.items || [];
   const filteredItems = getFilteredPracticeItems(kind, allItems);
   const answeredCount = allItems.filter(isPracticeAnswered).length;
+  const solvedCount = kind === 'exercise' ? allItems.filter(isPracticeSolved).length : 0;
+  const viewedCount = kind === 'interview' ? allItems.filter(isPracticeViewed).length : 0;
+  const indexOpen = kind === 'exercise' ? currentDetail.exerciseIndexOpen : currentDetail.interviewIndexOpen;
   wrap.innerHTML = `
     <div class="back" onclick="backToPracticeSpace('${kind}')">← Voltar</div>
     <div class="headline"><div id="${kind}-subspace-view-${sub.id}"><div class="title">${esc(sub.name)}</div><div class="subtitle">${esc(sub.desc||'Subespaço')}</div></div><div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" onclick="uploadAttachmentsModal('${kind}-subspace','${space.id}','${sub.id}')">Arquivos</button><button class="btn primary" onclick="openPracticeItemModal('${kind}','${space.id}','${sub.id}')">Nova questão</button></div></div>
     <div class="practice-toolbar">
-      ${kind==='exercise' ? `<button class="btn xs" onclick="togglePracticeIndex('exercise')">${currentDetail.exerciseIndexOpen ? 'Ocultar índice' : 'Mostrar índice'}</button>` : ''}
-      ${kind==='exercise' ? `<select class="select" onchange="setPracticeFilter('exercise', this.value)">${practiceFilterOptions(kind).map(([value,label])=>`<option value="${value}" ${getPracticeFilter(kind)===value?'selected':''}>${label}</option>`).join('')}</select>` : ''}
-      <span class="goal-pill">Respondidas: ${answeredCount}/${allItems.length}</span>
-      ${kind==='exercise' ? `<span class="goal-pill">Exibindo: ${filteredItems.length}</span>` : ''}
+      <button class="btn xs" onclick="togglePracticeIndex('${kind}')">${indexOpen ? 'Ocultar índice' : 'Mostrar índice'}</button>
+      <select class="select" style="width:auto" onchange="setPracticeFilter('${kind}', this.value)">${practiceFilterOptions(kind).map(([value,label])=>`<option value="${value}" ${getPracticeFilter(kind)===value?'selected':''}>${label}</option>`).join('')}</select>
+      ${kind==='exercise' ? `<span class="goal-pill">Resolvidas: ${solvedCount}/${allItems.length}</span><span class="goal-pill">Respondidas: ${answeredCount}/${allItems.length}</span>` : `<span class="goal-pill">Respondidas: ${answeredCount}/${allItems.length}</span><span class="goal-pill">Vistas: ${viewedCount}/${allItems.length}</span>`}
+      <span class="goal-pill">Exibindo: ${filteredItems.length}</span>
     </div>
-    ${(kind!=='exercise' || currentDetail.exerciseIndexOpen) ? `<div class="practice-index">${allItems.map((item, idx)=>`<button class="practice-index-item ${isPracticeAnswered(item)?'done':''}" onclick="scrollPracticeItem('${kind}','${item.id}')">${idx+1}. ${esc(item.title)}</button>`).join('')}</div>` : ''}
+    ${indexOpen ? `<div class="practice-index">${allItems.map((item, idx)=>`<button class="practice-index-item ${kind==='exercise'?(isPracticeSolved(item)?'solved':isPracticeAnswered(item)?'done':''):(isPracticeAnswered(item)?'done':isPracticeViewed(item)?'viewed':'')}" onclick="scrollPracticeItem('${kind}','${item.id}')">${idx+1}. ${esc(item.title)}</button>`).join('')}</div>` : ''}
     <div class="cols-2">
       <div class="stack">
         ${filteredItems.length ? filteredItems.map(item=>renderPracticeItem(kind, space.id, sub.id, item)).join('') : '<div class="empty">Nenhuma questão encontrada para este filtro.</div>'}
@@ -1336,12 +1423,19 @@ function renderPractice(kind) {
 }
 function renderPracticeItem(kind, spaceId, subId, item) {
   const answered = isPracticeAnswered(item);
+  const solved = isPracticeSolved(item);
+  const viewed = isPracticeViewed(item);
+  const statusBadge = kind === 'exercise'
+    ? (solved ? '<span class="badge solved">✓ Resolvida</span>' : answered ? '<span class="badge done">Respondida</span>' : '')
+    : (answered ? '<span class="badge done">Respondida</span>' : viewed ? '<span class="badge viewed">Vista</span>' : '');
   return `
   <div class="panel ${item.minimized ? 'minimized' : ''}" id="${kind}-item-${item.id}">
     <div class="row-top">
-      <div><div class="row-title">${esc(item.title)}</div><div class="row-sub">${fmtDate(item.createdAt)} · ${answered ? 'respondida' : 'não respondida'}</div></div>
+      <div><div class="row-title">${esc(item.title)} ${statusBadge}</div><div class="row-sub">${fmtDate(item.createdAt)}</div></div>
       <div class="row-actions">
         <button class="btn xs" onclick="togglePracticeMinimized('${kind}','${spaceId}','${subId}','${item.id}')">${item.minimized ? 'Expandir' : 'Minimizar'}</button>
+        ${kind==='exercise' ? `<button class="btn xs ${solved?'warn':''}" onclick="togglePracticeSolved('${kind}','${spaceId}','${subId}','${item.id}')">${solved ? 'Desmarcar resolvida' : 'Marcar resolvida'}</button>` : ''}
+        ${kind==='interview' ? `<button class="btn xs ${viewed?'warn':''}" onclick="togglePracticeViewed('${kind}','${spaceId}','${subId}','${item.id}')">${viewed ? 'Desmarcar vista' : 'Marcar como vista'}</button>` : ''}
         <button class="btn xs" onclick="toggleModelAnswer('${kind}','${spaceId}','${subId}','${item.id}')">${item.showModel ? 'Esconder resposta' : 'Visualizar resposta'}</button>
         <button class="btn xs danger" onclick="deletePracticeItem('${kind}','${spaceId}','${subId}','${item.id}')">Excluir</button>
       </div>
@@ -1357,7 +1451,7 @@ function renderPracticeItem(kind, spaceId, subId, item) {
         <div class="${item.showModel ? '' : 'answer-hidden'}" id="model-${item.id}">
           <textarea class="textarea" oninput="updatePracticeModelAnswer('${kind}','${spaceId}','${subId}','${item.id}', this.value)">${esc(item.modelAnswer||'')}</textarea>
         </div>
-        ${item.showModel ? '' : '<div class="empty">Resposta oculta. Clique em “Visualizar resposta”.</div>'}
+        ${item.showModel ? '' : '<div class="empty">Resposta oculta. Clique em "Visualizar resposta".</div>'}
       </div>
     </div>
   </div>`;
@@ -1652,13 +1746,47 @@ function deleteCert(certId) {
 
 function renderTools() {
   const wrap = document.getElementById('section-tools');
+  const TOOL_ICONS = ['🧰', '🔧', '🛠', '💻', '⚙', '🖥', '📡', '🔌', '📦', '🗃', '🗄', '🔍', '📋', '📝', '🗂', '🐙', '⚡', '🔐', '🌐', '📊', '🖨', '🖱', '🎛', '📺', '🔑', '🛡', '🔗', '📁', '🚀', '🔬'];
+  const spaceId = currentDetail.toolSpaceId;
+  const space = appData.toolSpaces.find(s => s.id === spaceId);
+  if (!space) {
+    wrap.innerHTML = `
+      <div class="headline">
+        <div><div class="title">Ferramentas</div><div class="subtitle">Espaços personalizados com ícone, link de download, site e instruções</div></div>
+        <button class="btn primary" onclick="openToolSpaceModal()">Novo espaço</button>
+      </div>
+      <div class="grid">
+        ${appData.toolSpaces.map(ts => `
+          <div class="card clickable" id="toolspace-${ts.id}" onclick="openToolSpace('${ts.id}')">
+            <div class="card-actions">
+              <button class="btn xs" onclick="event.stopPropagation();openToolSpaceEditModal('${ts.id}')">Editar</button>
+              <button class="btn xs danger" onclick="event.stopPropagation();deleteToolSpace('${ts.id}')">Excluir</button>
+            </div>
+            <div class="card-icon">${esc(ts.icon||'🧰')}</div>
+            <div class="card-title">${esc(ts.name)}</div>
+            <div class="card-meta">${esc(ts.desc||'Sem descrição')}<br>Ferramentas: ${(ts.tools||[]).length}</div>
+          </div>
+        `).join('')}
+        <div class="card new clickable" onclick="openToolSpaceModal()"><div><div style="font-size:30px;text-align:center">+</div><div>Novo espaço</div></div></div>
+      </div>
+    `;
+    return;
+  }
+  const tools = space.tools || [];
   wrap.innerHTML = `
+    <div class="back" onclick="closeToolSpace()">← Voltar</div>
     <div class="headline">
-      <div><div class="title">Ferramentas</div><div class="subtitle">Área para cadastrar ferramentas com link de download, site oficial e instruções</div></div>
-      <button class="btn primary" onclick="openToolModal()">Nova ferramenta</button>
+      <div class="tool-space-header">
+        <span class="tool-space-icon">${esc(space.icon||'🧰')}</span>
+        <div><div class="title">${esc(space.name)}</div><div class="subtitle">${esc(space.desc||'Espaço de ferramentas')}</div></div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn" onclick="openToolSpaceEditModal('${space.id}')">Editar espaço</button>
+        <button class="btn primary" onclick="openToolModal('','${space.id}')">Nova ferramenta</button>
+      </div>
     </div>
     <div class="stack">
-      ${appData.tools.length ? appData.tools.map(tool => `
+      ${tools.length ? tools.map(tool => `
         <div class="panel" id="tool-${tool.id}">
           <div class="row-top">
             <div>
@@ -1666,31 +1794,94 @@ function renderTools() {
               <div class="row-sub">${esc(tool.category || 'Ferramenta')}</div>
             </div>
             <div class="row-actions">
-              <button class="btn xs" onclick="openToolModal('${tool.id}')">Editar</button>
-              <button class="btn xs danger" onclick="deleteTool('${tool.id}')">Excluir</button>
+              <button class="btn xs" onclick="openToolModal('${tool.id}','${space.id}')">Editar</button>
+              <button class="btn xs danger" onclick="deleteTool('${tool.id}','${space.id}')">Excluir</button>
             </div>
           </div>
           <div class="tool-links">
-            ${tool.downloadUrl ? `<a class="btn xs" target="_blank" href="${esc(tool.downloadUrl)}">Download</a>` : ''}
-            ${tool.websiteUrl ? `<a class="btn xs" target="_blank" href="${esc(tool.websiteUrl)}">Site</a>` : ''}
+            ${tool.downloadUrl ? `<a class="btn xs" target="_blank" href="${esc(tool.downloadUrl)}">⬇ Download</a>` : ''}
+            ${tool.websiteUrl ? `<a class="btn xs" target="_blank" href="${esc(tool.websiteUrl)}">🌐 Site</a>` : ''}
           </div>
           ${tool.instructions ? `<div class="row-text">${nl2br(tool.instructions)}</div>` : '<div class="empty" style="margin-top:12px">Sem instruções cadastradas.</div>'}
         </div>
-      `).join('') : '<div class="empty">Nenhuma ferramenta cadastrada ainda.</div>'}
+      `).join('') : '<div class="empty">Nenhuma ferramenta neste espaço ainda.</div>'}
     </div>
   `;
 }
-function openToolModal(toolId='') {
-  const tool = toolId ? appData.tools.find(t => t.id === toolId) : null;
+function openToolSpace(id) { currentDetail.toolSpaceId = id; renderTools(); }
+function closeToolSpace() { currentDetail.toolSpaceId = null; renderTools(); }
+function openToolSpaceModal() {
+  const TOOL_ICONS = ['🧰', '🔧', '🛠', '💻', '⚙', '🖥', '📡', '🔌', '📦', '🗃', '🗄', '🔍', '📋', '📝', '🗂', '🐙', '⚡', '🔐', '🌐', '📊', '🖨', '🖱', '🎛', '📺', '🔑', '🛡', '🔗', '📁', '🚀', '🔬'];
+  openModal('Novo espaço de ferramentas', `
+    <div class="row"><label class="lbl">Nome</label><input id="ts-name" class="input" placeholder="Ex: Mainframe, Desenvolvimento, Segurança..."></div>
+    <div class="row"><label class="lbl">Descrição</label><input id="ts-desc" class="input" placeholder="Descrição opcional"></div>
+    <div class="row"><label class="lbl">Ícone</label>
+      <input id="ts-icon-val" type="hidden" value="🧰">
+      <div id="ts-icon-preview" style="font-size:32px;margin-bottom:8px">🧰</div>
+      <div class="icon-picker-grid">
+        ${TOOL_ICONS.map(ic => `<div class="icon-opt ${ic==='🧰'?'selected':''}" onclick="selectToolIcon(this,'${ic}')">${ic}</div>`).join('')}
+      </div>
+    </div>
+  `, `<button class="btn primary" onclick="saveToolSpace('')">Criar espaço</button>`);
+}
+function openToolSpaceEditModal(spaceId) {
+  const TOOL_ICONS = ['🧰', '🔧', '🛠', '💻', '⚙', '🖥', '📡', '🔌', '📦', '🗃', '🗄', '🔍', '📋', '📝', '🗂', '🐙', '⚡', '🔐', '🌐', '📊', '🖨', '🖱', '🎛', '📺', '🔑', '🛡', '🔗', '📁', '🚀', '🔬'];
+  const ts = appData.toolSpaces.find(s => s.id === spaceId); if(!ts) return;
+  openModal('Editar espaço', `
+    <div class="row"><label class="lbl">Nome</label><input id="ts-name" class="input" value="${esc(ts.name)}"></div>
+    <div class="row"><label class="lbl">Descrição</label><input id="ts-desc" class="input" value="${esc(ts.desc||'')}"></div>
+    <div class="row"><label class="lbl">Ícone</label>
+      <input id="ts-icon-val" type="hidden" value="${esc(ts.icon||'🧰')}">
+      <div id="ts-icon-preview" style="font-size:32px;margin-bottom:8px">${esc(ts.icon||'🧰')}</div>
+      <div class="icon-picker-grid">
+        ${TOOL_ICONS.map(ic => `<div class="icon-opt ${ic===(ts.icon||'🧰')?'selected':''}" onclick="selectToolIcon(this,'${ic}')">${ic}</div>`).join('')}
+      </div>
+    </div>
+  `, `<button class="btn primary" onclick="saveToolSpace('${spaceId}')">Salvar</button>`);
+}
+function selectToolIcon(el, icon) {
+  document.querySelectorAll('.icon-opt').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('ts-icon-val').value = icon;
+  document.getElementById('ts-icon-preview').textContent = icon;
+}
+function saveToolSpace(spaceId) {
+  const name = document.getElementById('ts-name').value.trim();
+  const desc = document.getElementById('ts-desc').value.trim();
+  const icon = document.getElementById('ts-icon-val').value || '🧰';
+  if (!name) return;
+  if (spaceId) {
+    const ts = appData.toolSpaces.find(s => s.id === spaceId); if(!ts) return;
+    ts.name = name; ts.desc = desc; ts.icon = icon;
+  } else {
+    appData.toolSpaces.push({ id:uid(), name, desc, icon, tools:[], createdAt:Date.now() });
+  }
+  saveUserData(); closeModal(); renderTools(); updateStatus();
+  showToast(spaceId ? 'Espaço atualizado.' : 'Espaço criado.');
+}
+function deleteToolSpace(spaceId) {
+  const ts = appData.toolSpaces.find(s => s.id === spaceId);
+  const name = ts?.name || 'este espaço';
+  if (!confirm(`Excluir "${name}" e todas as ferramentas nele?`)) return;
+  appData.toolSpaces = appData.toolSpaces.filter(s => s.id !== spaceId);
+  if (currentDetail.toolSpaceId === spaceId) currentDetail.toolSpaceId = null;
+  saveUserData(); renderTools(); updateStatus(); showToast('Espaço excluído.');
+}
+function openToolModal(toolId='', spaceId='') {
+  const space = appData.toolSpaces.find(s => s.id === spaceId);
+  const tool = toolId ? (space?.tools||[]).find(t => t.id === toolId) : null;
+  const sid = spaceId || currentDetail.toolSpaceId || '';
   openModal(tool ? 'Editar ferramenta' : 'Nova ferramenta', `
     <div class="row"><label class="lbl">Nome</label><input id="tool-name" class="input" value="${esc(tool?.name || '')}"></div>
     <div class="row"><label class="lbl">Categoria</label><input id="tool-category" class="input" value="${esc(tool?.category || '')}" placeholder="CLI, editor, emulador, utilitário..."></div>
     <div class="row"><label class="lbl">Link de download</label><input id="tool-download" class="input" value="${esc(tool?.downloadUrl || '')}" placeholder="https://..."></div>
     <div class="row"><label class="lbl">Site / documentação</label><input id="tool-website" class="input" value="${esc(tool?.websiteUrl || '')}" placeholder="https://..."></div>
-    <div class="row"><label class="lbl">Instruções</label><textarea id="tool-instructions" class="textarea" style="min-height:220px">${esc(tool?.instructions || '')}</textarea></div>
-  `, `<button class="btn primary" onclick="saveTool('${toolId}')">Salvar</button>`);
+    <div class="row"><label class="lbl">Instruções</label><textarea id="tool-instructions" class="textarea" style="min-height:200px">${esc(tool?.instructions || '')}</textarea></div>
+  `, `<button class="btn primary" onclick="saveTool('${toolId}','${sid}')">Salvar</button>`);
 }
-function saveTool(toolId='') {
+function saveTool(toolId='', spaceId='') {
+  const sid = spaceId || currentDetail.toolSpaceId || '';
+  const space = appData.toolSpaces.find(s => s.id === sid); if(!space) return;
   const name = document.getElementById('tool-name').value.trim();
   const category = document.getElementById('tool-category').value.trim();
   const downloadUrl = document.getElementById('tool-download').value.trim();
@@ -1699,18 +1890,22 @@ function saveTool(toolId='') {
   if (!name) return;
   const payload = { name, category, downloadUrl, websiteUrl, instructions, updatedAt:Date.now() };
   if (toolId) {
-    const tool = appData.tools.find(t => t.id === toolId); if (!tool) return;
+    const tool = (space.tools||[]).find(t => t.id === toolId); if(!tool) return;
     Object.assign(tool, payload);
   } else {
-    appData.tools.unshift({ id:uid(), createdAt:Date.now(), ...payload });
+    space.tools ||= [];
+    space.tools.unshift({ id:uid(), createdAt:Date.now(), ...payload });
   }
-  saveUserData(); closeModal(); renderTools(); renderDashboard(); updateStatus(); showToast(toolId ? 'Ferramenta atualizada.' : 'Ferramenta criada.');
+  saveUserData(); closeModal(); renderTools(); updateStatus();
+  showToast(toolId ? 'Ferramenta atualizada.' : 'Ferramenta criada.');
 }
-function deleteTool(toolId) {
-  const name = appData.tools.find(t => t.id === toolId)?.name || 'esta ferramenta';
+function deleteTool(toolId, spaceId='') {
+  const sid = spaceId || currentDetail.toolSpaceId || '';
+  const space = appData.toolSpaces.find(s => s.id === sid); if(!space) return;
+  const name = (space.tools||[]).find(t => t.id === toolId)?.name || 'esta ferramenta';
   if (!confirm(`Deseja mesmo excluir "${name}"?`)) return;
-  appData.tools = appData.tools.filter(t => t.id !== toolId);
-  saveUserData(); renderTools(); renderDashboard(); updateStatus(); showToast('Ferramenta removida.');
+  space.tools = (space.tools||[]).filter(t => t.id !== toolId);
+  saveUserData(); renderTools(); updateStatus(); showToast('Ferramenta removida.');
 }
 
 function renderLab() {
@@ -1966,10 +2161,12 @@ function handleSearch(query) {
   appData.generalNotes.forEach(note => {
     if ((note.title+' '+note.content).toLowerCase().includes(q)) results.push({ area:'Anotações gerais', title:note.title, text:note.content.slice(0,220), target:{ section:'notes', focusId:`general-note-${note.id}` } });
   });
-  appData.tools.forEach(tool => {
-    if ((tool.name+' '+(tool.category||'')+' '+(tool.instructions||'')+' '+(tool.downloadUrl||'')+' '+(tool.websiteUrl||'')).toLowerCase().includes(q)) {
-      results.push({ area:'Ferramentas', title:tool.name, text:[tool.category, tool.downloadUrl, tool.websiteUrl].filter(Boolean).join(' · ').slice(0,220), target:{ section:'tools', focusId:`tool-${tool.id}` } });
-    }
+  appData.toolSpaces.forEach(ts => {
+    (ts.tools||[]).forEach(tool => {
+      if ((tool.name+' '+(tool.category||'')+' '+(tool.instructions||'')+' '+(tool.downloadUrl||'')+' '+(tool.websiteUrl||'')).toLowerCase().includes(q)) {
+        results.push({ area:'Ferramentas', title:`${esc(ts.icon||'')} ${tool.name}`, text:[ts.name, tool.category, tool.downloadUrl, tool.websiteUrl].filter(Boolean).join(' · ').slice(0,220), target:{ section:'tools', focusId:`tool-${tool.id}` } });
+      }
+    });
   });
   currentDetail.searchResults = results;
   const html = `
@@ -2089,7 +2286,7 @@ function importContent() {
               }
             });
           };
-          ['courses','docs','generalNotes','linkedinPosts','certificates','tools'].forEach(mergeSimple);
+          ['courses','docs','generalNotes','linkedinPosts','certificates','toolSpaces'].forEach(mergeSimple);
           saveUserData(); closeModal(); renderAll();
           showToast(`Backup mesclado: ${merged} item(ns) novo(s) adicionado(s).`);
           return;
@@ -2267,6 +2464,20 @@ window.openSnippetModal               = openSnippetModal;
 window.openSubmoduleModal             = openSubmoduleModal;
 window.openSubspaceModal              = openSubspaceModal;
 window.openToolModal                  = openToolModal;
+window.saveToolSpace                  = saveToolSpace;
+window.openToolSpaceModal             = openToolSpaceModal;
+window.openToolSpaceEditModal         = openToolSpaceEditModal;
+window.deleteToolSpace                = deleteToolSpace;
+window.openToolSpace                  = openToolSpace;
+window.closeToolSpace                 = closeToolSpace;
+window.selectToolIcon                 = selectToolIcon;
+window.setCourseFilter                = setCourseFilter;
+window.toggleCourseCompleted          = toggleCourseCompleted;
+window.setCodeFilter                  = setCodeFilter;
+window.toggleSnippetViewed            = toggleSnippetViewed;
+window.togglePracticeSolved           = togglePracticeSolved;
+window.togglePracticeViewed           = togglePracticeViewed;
+window.openSectionNewTab              = openSectionNewTab;
 window.recalculateCourseProgress      = recalculateCourseProgress;
 window.removeAttachment               = removeAttachment;
 window.saveCert                       = saveCert;
@@ -2317,5 +2528,6 @@ window.exportAllData   = exportAllData;
 window.nextVerse       = nextVerse;
 window.toggleMobileMenu = toggleMobileMenu;
 window.closeMobileMenu = closeMobileMenu;
+function toggleLabPlan() {}
 window.toggleLabPlan   = toggleLabPlan;
 });
