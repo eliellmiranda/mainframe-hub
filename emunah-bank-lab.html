@@ -132,11 +132,14 @@ pre{background:#050b05;border:1px solid var(--border);border-radius:var(--r);pad
 .legend{display:flex;gap:.8rem;flex-wrap:wrap;margin-bottom:1.2rem;padding:.7rem .9rem;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r)}
 .leg-item{display:flex;align-items:center;gap:.4rem;font-size:calc(.72rem + 2pt);color:var(--text2)}
 .leg-dot{width:9px;height:9px;border-radius:2px;flex-shrink:0}
-.ann-sec{margin-top:.9rem;padding-top:.9rem;border-top:1px solid var(--border)}
-.ann-lbl{font-family:var(--mono);font-size:calc(.62rem + 2pt);color:var(--text3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.35rem;display:flex;align-items:center;gap:.5rem}
-.ann-saved{color:var(--green);font-size:calc(.62rem + 2pt);opacity:0;transition:opacity .3s}
+.step-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,320px);gap:1rem;align-items:start}
+.step-main{min-width:0}
+.step-side{position:relative}
+.ann-sec{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:.8rem .85rem}
+.ann-lbl{font-family:var(--mono);font-size:calc(.62rem + 2pt);color:var(--text3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.45rem;display:flex;align-items:center;justify-content:space-between;gap:.5rem}
+.ann-saved{color:var(--green);font-size:calc(.62rem + 2pt);opacity:0;transition:opacity .3s;white-space:nowrap}
 .ann-saved.show{opacity:1}
-textarea.ann{width:100%;background:rgba(0,0,0,.25);border:1px solid var(--border);border-radius:var(--r);color:var(--text2);font-family:var(--mono);font-size:calc(.76rem + 2pt);padding:.55rem .75rem;min-height:65px;resize:vertical}
+textarea.ann{width:100%;background:rgba(0,0,0,.25);border:1px solid var(--border);border-radius:var(--r);color:var(--text2);font-family:var(--mono);font-size:calc(.76rem + 2pt);padding:.55rem .75rem;min-height:180px;resize:vertical}
 textarea.ann:focus{border-color:var(--green);outline:none;color:var(--text)}
 #settings{position:fixed;top:50px;right:0;bottom:0;width:300px;background:var(--bg1);border-left:1px solid var(--border);z-index:100;padding:1.3rem;overflow-y:auto;transform:translateX(100%);transition:transform .25s}
 #settings.open{transform:translateX(0)}
@@ -152,6 +155,8 @@ textarea.ann:focus{border-color:var(--green);outline:none;color:var(--text)}
   .pni.active{border-bottom-color:var(--green)}
   .mini-prog,.pni-s{display:none}
   #main{padding:1.1rem}
+  .step-grid{grid-template-columns:1fr}
+  textarea.ann{min-height:120px}
   #settings{width:100%;top:auto;bottom:0;height:70vh;border-left:none;border-top:1px solid var(--border);transform:translateY(100%)}
   #settings.open{transform:translateY(0)}
 }
@@ -490,17 +495,21 @@ function renderStep(s){
       <div class="sex" id="ax-${s.id}">▼</div>
     </div>
     <div class="sb2 hidden" id="bd-${s.id}">
-      <div class="sbi">
-        ${s.desc?`<div class="sdesc">${esc(s.desc)}</div>`:''}
-        ${extra}
-        ${s.warn?`<div class="wb">⚠ ${esc(s.warn)}</div>`:''}
-        ${s.note?`<div class="nb">ℹ ${esc(s.note)}</div>`:''}
-        ${codes}
-        ${s.done?`<div class="dc">${esc(s.done)}</div>`:''}
-        <div class="ann-sec">
-          <div class="ann-lbl">Anotações<span class="ann-saved" id="as-${s.id}">salvo ✓</span></div>
-          <textarea class="ann" id="an-${s.id}" placeholder="Notas, dúvidas, erros encontrados...">${esc(ANN[s.id]||'')}</textarea>
+      <div class="sbi step-grid">
+        <div class="step-main">
+          ${s.desc?`<div class="sdesc">${esc(s.desc)}</div>`:''}
+          ${extra}
+          ${s.warn?`<div class="wb">⚠ ${esc(s.warn)}</div>`:''}
+          ${s.note?`<div class="nb">ℹ ${esc(s.note)}</div>`:''}
+          ${codes}
+          ${s.done?`<div class="dc">${esc(s.done)}</div>`:''}
         </div>
+        <aside class="step-side">
+          <div class="ann-sec">
+            <div class="ann-lbl"><span>Anotações deste item</span><span class="ann-saved" id="as-${s.id}">salvo ✓</span></div>
+            <textarea class="ann" id="an-${s.id}" placeholder="Notas, dúvidas, erros encontrados neste item...">${esc(ANN[s.id]||'')}</textarea>
+          </div>
+        </aside>
       </div>
     </div>
   </div>`;
