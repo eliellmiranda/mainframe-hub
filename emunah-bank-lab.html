@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>EMUNAH BANK LAB — PLANO DE IMPLEMENTAÇÃO</title>
+<title>EMUNAH BANK LAB — PLANO DE IMPLEMENTAÇÃO OPERACIONAL</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='10' fill='%23080d08'/><text y='36' x='32' font-size='26' text-anchor='middle' dominant-baseline='middle'>🦖</text><text y='58' x='32' font-size='9' font-family='monospace' font-weight='bold' fill='%234ade80' text-anchor='middle'>EBLAB</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -160,7 +160,7 @@ textarea.ann:focus{border-color:var(--green);outline:none;color:var(--text)}
 <body>
 <div id="auth-screen">
 <div class="auth-box">
-  <div class="auth-logo">EMUNAH<span>.BANK</span><br>LAB<span> — PLANO DE IMPLEMENTAÇÃO</span></div>
+  <div class="auth-logo">EMUNAH<span>.BANK</span><br>LAB<span> — PLANO DE IMPLEMENTAÇÃO OPERACIONAL</span></div>
   <div id="f-login">
     <div class="auth-title">Acessar</div>
     <div class="auth-sub">Entre com suas credenciais para continuar.</div>
@@ -261,7 +261,7 @@ const PH=[
    done:'LISTCAT de cada dataset retorna sem erro.'}
 ]},
 {id:'f0',num:0,title:'Fundação',sub:'Contratos antes do código',
- desc:'Estrutura USS, schema DB2 e YAMLs de catálogo.',
+ desc:'Prepare o ambiente-base antes de qualquer execução: estrutura USS, datasets remotos, schema DB2 e configuração central. Só avance quando o host estiver coerente com o projeto local.',
  steps:[
   {id:'f0s1',num:'0.1',title:'Estrutura de pastas local',sub:'Já existe — verificar e consolidar',tags:['DATA'],badge:'exist',
    codes:[{l:'Inventário atual',c:'COBOL/BATCH : EBCLLOAD EBVALI01 EBPOST01 EBSALD01 EBEXTR01 EBCONC01\nJCL/BATCH   : EBJCLLD EBJVALD EBJPOST EBJSALD EBJCONC EBJEXTR EBJEOD\nCOPYBOOKS   : CPCLI001 CPCNT001 CPLCT001 CPSLD001 CPAUD001 CPEXT001 CPREJ001\nREXX        : EBCHKLAB EBSUBJCL\nPENDENTE    : EBREPR01 EBBACK01'}],
@@ -293,9 +293,25 @@ const PH=[
    done:'salvar_cliente({...},"RUN001") cria JSON em /lab/data/staging/clientes/.'}
 ]},
 {id:'f2',num:2,title:'Integração',sub:'Canal → mainframe via Zowe',
- desc:'Publica staging no host, submete cadeia batch, coleta spool.',
+ desc:'Sincroniza os arquivos locais com o host via Zowe CLI, publica staging no remoto, submete a cadeia batch e coleta evidências do spool. Esta fase é o elo entre o projeto local e a execução no mainframe.',
  steps:[
+  {id:'f2s0',num:'2.0',title:'Subir arquivos locais para o host',sub:'USS + datasets remotos com Zowe CLI',tags:['USS','JCL','DATA'],badge:'miss',
+   desc:'Antes de submeter qualquer job, publique no host os artefatos que existem apenas na sua máquina. Use USS para o orquestrador Python e envie JCL, REXX e arquivos de carga para os destinos remotos corretos.',
+   note:'Sequência recomendada: 1) ativar o profile do Zowe; 2) criar /lab no USS; 3) subir a árvore local para o USS; 4) enviar JCL/REXX e arquivos de entrada para datasets; 5) conferir no remoto; 6) só então iniciar a cadeia batch.',
+   warn:'Para arquivos-texto, suba em modo com conversão de encoding (ex.: IBM-1047). Use --binary apenas para conteúdo realmente binário.',
+   codes:[
+    {l:'Mapa rápido — origem local -> destino remoto',c:'./lab/**                          -> /lab/**\n./jcl/EBJ*.jcl                   -> <HQL>.EMUNAH.DEV.JCL(XXXXXXXX)\n./rexx/EBCHKLAB.rexx             -> <HQL>.EMUNAH.DEV.REXX(EBCHKLAB)\n./rexx/EBSUBJCL.rexx             -> <HQL>.EMUNAH.DEV.REXX(EBSUBJCL)\n./data/seed/clientes.txt         -> <HQL>.EMUNAH.ARQ.CLIENTE.SEQ\n./data/seed/contas.txt           -> <HQL>.EMUNAH.ARQ.CONTA.SEQ\n./data/entrada/lancamentos_d0.txt -> <HQL>.EMUNAH.ARQ.LANCTO.IN.SEQ'},
+    {l:'1) Preparar variáveis e profile do Zowe CLI',c:'zowe profiles list\nexport ZOWE_OPT="--zosmf-profile SEU_PERFIL"\nexport HLQ="Z77948"\nexport USS_ROOT="/lab"'},
+    {l:'2) Criar a estrutura base no USS remoto',c:'zowe zos-files create uss-directory "$USS_ROOT" $ZOWE_OPT\nzowe zos-files create uss-directory "$USS_ROOT/orchestrator" $ZOWE_OPT\nzowe zos-files create uss-directory "$USS_ROOT/config" $ZOWE_OPT\nzowe zos-files create uss-directory "$USS_ROOT/automation" $ZOWE_OPT\nzowe zos-files create uss-directory "$USS_ROOT/canal" $ZOWE_OPT\nzowe zos-files create uss-directory "$USS_ROOT/data" $ZOWE_OPT'},
+    {l:'3) Subir a árvore local /lab para o USS remoto',c:'zowe zos-files upload dir-to-uss "./lab" "$USS_ROOT" --recursive --encoding IBM-1047 $ZOWE_OPT\n\n# alternativa mais controlada com .zosattributes\n# zowe zos-files upload dir-to-uss "./lab" "$USS_ROOT" --recursive --attributes ./.zosattributes $ZOWE_OPT'},
+    {l:'4) Subir membros JCL e REXX para datasets remotos',c:'zowe zos-files upload file-to-data-set "./jcl/EBJCLLD.jcl" "$HLQ.EMUNAH.DEV.JCL(EBJCLLD)" --encoding IBM-1047 $ZOWE_OPT\nzowe zos-files upload file-to-data-set "./jcl/EBJVALD.jcl" "$HLQ.EMUNAH.DEV.JCL(EBJVALD)" --encoding IBM-1047 $ZOWE_OPT\nzowe zos-files upload file-to-data-set "./jcl/EBJPOST.jcl" "$HLQ.EMUNAH.DEV.JCL(EBJPOST)" --encoding IBM-1047 $ZOWE_OPT\nzowe zos-files upload file-to-data-set "./jcl/EBJSALD.jcl" "$HLQ.EMUNAH.DEV.JCL(EBJSALD)" --encoding IBM-1047 $ZOWE_OPT\nzowe zos-files upload file-to-data-set "./jcl/EBJEXTR.jcl" "$HLQ.EMUNAH.DEV.JCL(EBJEXTR)" --encoding IBM-1047 $ZOWE_OPT\nzowe zos-files upload file-to-data-set "./jcl/EBJCONC.jcl" "$HLQ.EMUNAH.DEV.JCL(EBJCONC)" --encoding IBM-1047 $ZOWE_OPT\nzowe zos-files upload file-to-data-set "./jcl/EBJEOD.jcl"  "$HLQ.EMUNAH.DEV.JCL(EBJEOD)"  --encoding IBM-1047 $ZOWE_OPT\n\nzowe zos-files upload file-to-data-set "./rexx/EBCHKLAB.rexx" "$HLQ.EMUNAH.DEV.REXX(EBCHKLAB)" --encoding IBM-1047 $ZOWE_OPT\nzowe zos-files upload file-to-data-set "./rexx/EBSUBJCL.rexx" "$HLQ.EMUNAH.DEV.REXX(EBSUBJCL)" --encoding IBM-1047 $ZOWE_OPT'},
+    {l:'5) Subir os arquivos de seed e entrada usados na execução',c:'zowe zos-files upload file-to-data-set "./data/seed/clientes.txt" "$HLQ.EMUNAH.ARQ.CLIENTE.SEQ" --encoding IBM-1047 $ZOWE_OPT\nzowe zos-files upload file-to-data-set "./data/seed/contas.txt"   "$HLQ.EMUNAH.ARQ.CONTA.SEQ"   --encoding IBM-1047 $ZOWE_OPT\nzowe zos-files upload file-to-data-set "./data/entrada/lancamentos_d0.txt" "$HLQ.EMUNAH.ARQ.LANCTO.IN.SEQ" --encoding IBM-1047 $ZOWE_OPT'},
+    {l:'6) Validar no remoto antes de rodar',c:'zowe zos-files list uss-files "$USS_ROOT" $ZOWE_OPT\nzowe zos-files list all-members "$HLQ.EMUNAH.DEV.JCL" $ZOWE_OPT\nzowe zos-files list all-members "$HLQ.EMUNAH.DEV.REXX" $ZOWE_OPT\nzowe zos-files list data-set "$HLQ.EMUNAH.ARQ.*" $ZOWE_OPT'}
+   ],
+   done:'Os artefatos locais foram publicados no host e a execução remota já enxerga JCL, REXX, USS e arquivos de entrada.'},
   {id:'f2s1',num:'2.1',title:'lab.py start — cadeia batch',sub:'Submete e monitora cada job',tags:['python'],badge:'miss',
+   desc:'Execute este passo somente depois de concluir a sincronização do item 2.0. Se os arquivos do USS, os membros JCL ou os arquivos de entrada não tiverem sido enviados, a cadeia vai falhar logo nas primeiras etapas.',
+   note:'Pré-requisitos mínimos: /lab disponível no USS, JCLLIB carregada, datasets de entrada atualizados e app_config.yaml coerente com o HLQ remoto.',
    codes:[{l:'/lab/orchestrator/lab.py',c:'#!/usr/bin/env python3\nimport argparse,yaml,subprocess,time,json\nCFG=yaml.safe_load(open("/lab/config/app_config.yaml"))\n\ndef submeter(membro):\n    lib=CFG["host"]["jcllib"]\n    r=subprocess.run(["zowe","jobs","submit","data-set",\n        f"{lib}({membro})","--rfj"],capture_output=True,text=True)\n    if r.returncode!=0: raise RuntimeError(r.stderr)\n    return json.loads(r.stdout)["data"]["jobid"]\n\ndef cmd_start(args):\n    for job in ["EBJCLLD","EBJVALD","EBJPOST","EBJSALD","EBJEXTR","EBJCONC","EBJEOD"]:\n        jid=submeter(job)\n        print(f"  {job} -> {jid}")'}],
    done:'python3 lab.py start --run RUN001 executa a cadeia.'}
 ]},
