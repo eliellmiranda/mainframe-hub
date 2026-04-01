@@ -76,7 +76,7 @@ textarea{resize:vertical;min-height:72px;font-size:calc(.78rem + 2pt);line-heigh
 .mini-prog{width:32px;height:3px;background:var(--bg3);border-radius:2px;flex-shrink:0}
 .mini-bar{height:100%;background:var(--green);border-radius:2px;transition:width .3s}
 .sidebar-actions{padding:0 .7rem;display:flex;flex-direction:column;gap:.35rem}
-#main{overflow-y:auto;padding:1.6rem 1.8rem;max-width:880px}
+#main{overflow-y:auto;padding:1.6rem 2rem;width:100%;max-width:none}
 .ph-hdr{margin-bottom:1.4rem}
 .ph-num-row{display:flex;align-items:center;gap:.9rem;margin-bottom:.35rem}
 .ph-big{font-family:var(--mono);font-size:calc(1.8rem + 2pt);font-weight:600;color:var(--green);line-height:1}
@@ -118,6 +118,7 @@ textarea{resize:vertical;min-height:72px;font-size:calc(.78rem + 2pt);line-heigh
 .sex{font-size:calc(.68rem + 2pt);color:var(--text3);transition:transform .2s;margin-top:2px;flex-shrink:0}
 .sex.open{transform:rotate(180deg)}
 .sb2{padding:0 1rem 1rem;border-top:1px solid var(--border)}
+.sbi{width:100%}
 .sbi{padding-top:.9rem}
 .sdesc{font-size:calc(.835rem + 2pt);color:var(--text2);line-height:1.65;margin-bottom:.9rem}
 .cb-wrap{margin-bottom:.9rem}
@@ -132,15 +133,23 @@ pre{background:#050b05;border:1px solid var(--border);border-radius:var(--r);pad
 .legend{display:flex;gap:.8rem;flex-wrap:wrap;margin-bottom:1.2rem;padding:.7rem .9rem;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r)}
 .leg-item{display:flex;align-items:center;gap:.4rem;font-size:calc(.72rem + 2pt);color:var(--text2)}
 .leg-dot{width:9px;height:9px;border-radius:2px;flex-shrink:0}
-.step-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,320px);gap:1rem;align-items:start}
+.step-grid{display:grid;grid-template-columns:minmax(0,1.75fr) minmax(380px,1fr);gap:1.2rem;align-items:start}
 .step-main{min-width:0}
-.step-side{position:relative}
-.ann-sec{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:.8rem .85rem}
+.step-side{position:relative;min-width:0}
+.ann-sec{position:sticky;top:1rem;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:.8rem .85rem}
 .ann-lbl{font-family:var(--mono);font-size:calc(.62rem + 2pt);color:var(--text3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.45rem;display:flex;align-items:center;justify-content:space-between;gap:.5rem}
 .ann-saved{color:var(--green);font-size:calc(.62rem + 2pt);opacity:0;transition:opacity .3s;white-space:nowrap}
 .ann-saved.show{opacity:1}
-textarea.ann{width:100%;background:rgba(0,0,0,.25);border:1px solid var(--border);border-radius:var(--r);color:var(--text2);font-family:var(--mono);font-size:calc(.76rem + 2pt);padding:.55rem .75rem;min-height:180px;resize:vertical}
+textarea.ann{width:100%;background:rgba(0,0,0,.25);border:1px solid var(--border);border-radius:var(--r);color:var(--text2);font-family:var(--mono);font-size:calc(.76rem + 2pt);padding:.55rem .75rem;min-height:220px;resize:vertical}
 textarea.ann:focus{border-color:var(--green);outline:none;color:var(--text)}
+.ann-actions{display:flex;gap:.5rem;flex-wrap:wrap;margin:.55rem 0 .65rem}
+.ann-btn{background:transparent;border:1px solid var(--border2);border-radius:var(--r);color:var(--text2);font-family:var(--mono);font-size:calc(.66rem + 2pt);padding:.35rem .65rem;cursor:pointer;transition:all .15s}
+.ann-btn:hover,.ann-btn.active{background:var(--bg3);border-color:var(--green);color:var(--green)}
+.ann-hint{font-size:calc(.68rem + 2pt);color:var(--text3);margin-bottom:.6rem;line-height:1.5}
+.ann-preview{margin-top:.8rem;padding:.75rem .85rem;background:rgba(0,0,0,.22);border:1px solid var(--border);border-radius:var(--r);font-size:calc(.76rem + 2pt);line-height:1.7;color:var(--text2);word-break:break-word}
+.ann-preview a{color:var(--blue);text-decoration:underline;text-underline-offset:3px}
+.ann-preview a:hover{color:#93c5fd}
+.ann-empty{color:var(--text3);font-style:italic}
 #settings{position:fixed;top:50px;right:0;bottom:0;width:300px;background:var(--bg1);border-left:1px solid var(--border);z-index:100;padding:1.3rem;overflow-y:auto;transform:translateX(100%);transition:transform .25s}
 #settings.open{transform:translateX(0)}
 .cfg-title{font-family:var(--mono);font-size:calc(.82rem + 2pt);font-weight:600;color:var(--text);margin-bottom:1.3rem}
@@ -155,6 +164,7 @@ textarea.ann:focus{border-color:var(--green);outline:none;color:var(--text)}
   .pni.active{border-bottom-color:var(--green)}
   .mini-prog,.pni-s{display:none}
   #main{padding:1.1rem}
+  .ann-sec{position:static}
   .step-grid{grid-template-columns:1fr}
   textarea.ann{min-height:120px}
   #settings{width:100%;top:auto;bottom:0;height:70vh;border-left:none;border-top:1px solid var(--border);transform:translateY(100%)}
@@ -472,7 +482,17 @@ function showPhase(pid){
   ph.steps.forEach(s=>{
     document.getElementById(`sh-${s.id}`)?.addEventListener('click',()=>toggleStep(s.id));
     const ck=document.getElementById(`ck-${s.id}`);if(ck)ck.addEventListener('click',e=>{e.stopPropagation();toggleDone(s.id);});
-    const an=document.getElementById(`an-${s.id}`);if(an){an.value=ANN[s.id]||'';an.addEventListener('input',()=>autoSave(s.id,an.value));}
+    const an=document.getElementById(`an-${s.id}`);
+    if(an){
+      an.value=ANN[s.id]||'';
+      an.addEventListener('input',()=>{autoSave(s.id,an.value);refreshAnnPreview(s.id,an.value);});
+      refreshAnnPreview(s.id,an.value);
+    }
+    const ab=document.getElementById(`at-${s.id}`);
+    if(ab){
+      ab.addEventListener('click',e=>{e.stopPropagation();toggleAnnPreview(s.id);});
+      applyAnnPreviewState(s.id);
+    }
   });
 }
 function badgeHtml(b){const m={exist:['sb-exist','JÁ EXISTE'],fix:['sb-fix','CORRIGIR'],miss:['sb-miss','IMPLEMENTAR'],new:['sb-new','ACHADO NOVO']};const[c,l]=m[b]||m.miss;return`<span class="sbadge ${c}">${l}</span>`;}
@@ -507,7 +527,12 @@ function renderStep(s){
         <aside class="step-side">
           <div class="ann-sec">
             <div class="ann-lbl"><span>Anotações deste item</span><span class="ann-saved" id="as-${s.id}">salvo ✓</span></div>
+            <div class="ann-actions">
+              <button type="button" class="ann-btn" id="at-${s.id}">Mostrar links clicáveis</button>
+            </div>
+            <div class="ann-hint">Cole URLs completas ou use o formato <code>[texto](https://exemplo.com)</code>.</div>
             <textarea class="ann" id="an-${s.id}" placeholder="Notas, dúvidas, erros encontrados neste item...">${esc(ANN[s.id]||'')}</textarea>
+            <div class="ann-preview hidden" id="ap-${s.id}"></div>
           </div>
         </aside>
       </div>
@@ -515,6 +540,39 @@ function renderStep(s){
   </div>`;
 }
 function toggleStep(id){const bd=document.getElementById(`bd-${id}`),ax=document.getElementById(`ax-${id}`);if(!bd)return;const h=bd.classList.contains('hidden');bd.classList.toggle('hidden',!h);ax&&ax.classList.toggle('open',h);}
+let APV={};
+function formatAnnotationHtml(text){
+  const src=String(text||'');
+  if(!src.trim())return '<span class="ann-empty">Sem links ou observações ainda.</span>';
+  const rx=/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s]+|www\.[^\s]+)/g;
+  let out='',last=0,m;
+  while((m=rx.exec(src))!==null){
+    out+=esc(src.slice(last,m.index)).replace(/\n/g,'<br>');
+    if(m[1]&&m[2]){
+      out+=`<a href="${esc(m[2])}" target="_blank" rel="noopener noreferrer">${esc(m[1])}</a>`;
+    }else{
+      const raw=m[3];
+      const href=raw.startsWith('www.')?`https://${raw}`:raw;
+      out+=`<a href="${esc(href)}" target="_blank" rel="noopener noreferrer">${esc(raw)}</a>`;
+    }
+    last=rx.lastIndex;
+  }
+  out+=esc(src.slice(last)).replace(/\n/g,'<br>');
+  return out;
+}
+function refreshAnnPreview(id,val){
+  const box=document.getElementById(`ap-${id}`);
+  if(box)box.innerHTML=formatAnnotationHtml(val);
+}
+function applyAnnPreviewState(id){
+  const box=document.getElementById(`ap-${id}`),btn=document.getElementById(`at-${id}`),an=document.getElementById(`an-${id}`);
+  if(!box||!btn)return;
+  box.classList.toggle('hidden',!APV[id]);
+  btn.classList.toggle('active',!!APV[id]);
+  btn.textContent=APV[id]?'Ocultar links clicáveis':'Mostrar links clicáveis';
+  refreshAnnPreview(id,an?an.value:(ANN[id]||''));
+}
+function toggleAnnPreview(id){APV[id]=!APV[id];applyAnnPreviewState(id);}
 function toggleDone(id){
   PROG[id]=!PROG[id];
   const ck=document.getElementById(`ck-${id}`),sc=document.getElementById(`sc-${id}`);
