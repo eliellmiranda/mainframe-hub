@@ -66,7 +66,22 @@ label.lbl { display:block; font-size:13px; font-weight:600; margin-bottom:8px; c
 }
 .nav-item:hover { background:var(--surface-2); color:var(--text); }
 .nav-item.active { background:var(--surface); color:var(--text); border-left-color:var(--accent); }
+.nav-item-wrap { position:relative; display:flex; align-items:center; }
+.nav-item-wrap .nav-item { flex:1; }
+.nav-newtab { display:none; position:absolute; right:8px; padding:3px 6px; font-size:11px; border:1px solid var(--border); background:var(--surface-2); color:var(--text-soft); border-radius:8px; cursor:pointer; line-height:1; }
+.nav-item-wrap:hover .nav-newtab { display:block; }
+.nav-newtab:hover { color:var(--accent); border-color:var(--accent); }
 .side-foot { padding:14px 18px; border-top:1px solid var(--border); display:grid; gap:10px; }
+
+.tool-space-header { display:flex; align-items:center; gap:10px; margin-bottom:16px; }
+.tool-space-icon { font-size:28px; }
+.icon-picker-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(42px,1fr)); gap:8px; margin-top:12px; }
+.icon-opt { font-size:22px; padding:8px; border-radius:10px; border:2px solid transparent; cursor:pointer; text-align:center; background:var(--surface-2); transition:.12s; }
+.icon-opt:hover { border-color:var(--accent); }
+.icon-opt.selected { border-color:var(--accent); background:color-mix(in oklab, var(--accent) 15%, var(--surface-2)); }
+.course-filter-bar { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px; align-items:center; }
+.badge.solved { color:var(--warn); border-color:color-mix(in oklab, var(--warn) 35%, var(--border)); }
+.badge.viewed { color:var(--link); border-color:color-mix(in oklab, var(--link) 35%, var(--border)); }
 
 .main { margin-left:260px; min-height:100vh; }
 .topbar {
@@ -154,9 +169,10 @@ label.lbl { display:block; font-size:13px; font-weight:600; margin-bottom:8px; c
 .overdue-tag { display:inline-flex; align-items:center; gap:6px; padding:5px 10px; border-radius:999px; border:1px solid var(--warn); color:var(--warn); font-size:12px; font-weight:700; }
 .practice-toolbar { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; align-items:center; }
 .practice-index { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:10px; margin-bottom:14px; }
-.practice-index-item { border:1px solid var(--border); background:var(--surface-2); border-radius:14px; padding:10px 12px; cursor:pointer; }
-.practice-index-item:hover { border-color:var(--accent); }
-.practice-index-item.done { border-color:var(--ok); }
+.practice-index-item { border:1px solid var(--border); background:var(--surface-2); border-radius:14px; padding:10px 12px; cursor:pointer; color:var(--text); text-align:left; }
+.practice-index-item:hover { border-color:var(--accent); color:var(--text); }
+.practice-index-item.done { border-color:var(--accent); color:var(--accent); background:color-mix(in oklab, var(--accent) 8%, var(--surface-2)); }
+.practice-index-item.solved { border-color:var(--warn); color:var(--warn); background:color-mix(in oklab, var(--warn) 8%, var(--surface-2)); }
 .panel.minimized .exercise-main-body { display:none; }
 .goal-grid { display:grid; grid-template-columns:1.15fr .85fr; gap:16px; }
 .goal-card { background:var(--surface); border:1px solid var(--border); border-radius:18px; padding:16px; box-shadow:var(--shadow); }
