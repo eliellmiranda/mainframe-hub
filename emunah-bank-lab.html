@@ -391,7 +391,7 @@ textarea.ann:focus{border-color:var(--green);outline:none;color:var(--text)}
     <div class="h-logo">EMUNAH<span>.BANK.LAB</span></div>
     <div class="h-prog"><div class="prog-outer"><div class="prog-inner" id="gbar" style="width:0%"></div></div><span class="prog-lbl" id="glbl">0/0</span></div>
     <div class="h-right">
-      <span class="h-shortcut" title="Atalhos: Ctrl + ' abre o diário rápido · Ctrl + \\ foca a árvore do projeto">Ctrl + ' · Ctrl + \\</span>
+      <span class="h-shortcut" title="Atalhos: Ctrl + ' abre o diário rápido · Ctrl + \\ abre a tela da árvore do projeto">Ctrl + ' · Ctrl + \\</span>
       <span class="h-user" id="huser"></span>
       <button class="h-btn" onclick="toggleSettings()">Config</button>
       <button class="h-btn" onclick="doLogout()">Sair</button>
@@ -742,13 +742,6 @@ function buildSidebar(){
     el.innerHTML=`<div class="pnb">${t.icon}</div><div class="pni-info"><div class="pni-t">${esc(t.title)}</div><div class="pni-s">${esc(t.sub)}</div></div>`;
     el.onclick=()=>{CVIEW='tool';CPHASE=t.id;renderTool(t.id);highlightSidebar();};
     tnav.appendChild(el);
-    if(t.id==='t-cmds'){
-      const treeWrap=document.createElement('div');
-      treeWrap.className='sidebar-tree-wrap';
-      treeWrap.id='sidebar-project-tree';
-      treeWrap.innerHTML=renderSidebarProjectTree();
-      tnav.appendChild(treeWrap);
-    }
   });
 }
 function highlightSidebar(){
@@ -786,12 +779,13 @@ function renderSidebarProjectTreeNode(node){
     ${hasChildren&&isOpen?`<ul class="sidebar-tree-children">${node.children.map(child=>renderSidebarProjectTreeNode(child)).join('')}</ul>`:''}
   </li>`;
 }
-function focusSidebarProjectTree(){
-  const box=document.querySelector('#sidebar-project-tree .sidebar-tree-box');
-  if(box){
-    box.focus();
-    box.scrollIntoView({behavior:'smooth',block:'nearest'});
-  }
+function openProjectTreeTool(){
+  CVIEW='tool';
+  CPHASE='t-tree';
+  renderTool('t-tree');
+  highlightSidebar();
+  const pc=document.getElementById('pc');
+  if(pc)pc.scrollIntoView({behavior:'smooth',block:'start'});
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -949,7 +943,7 @@ function renderCmdsPage(){
   let html=`
     <div class="ph-hdr">
       <div class="ph-num-row"><div class="ph-big" style="font-size:calc(1.4rem + 2pt);color:var(--blue)">C</div><div class="ph-title">Comandos — Zowe CLI / PowerShell</div></div>
-      <div class="ph-desc">Repositório de comandos úteis do dia a dia. A árvore do projeto fica no menu lateral, logo abaixo de Comandos.</div>
+      <div class="ph-desc">Repositório de comandos úteis do dia a dia. A árvore do projeto agora tem uma tela própria no menu lateral.</div>
     </div>
     <div class="cmd-composer">
       <div class="cmd-composer-row">
@@ -999,7 +993,7 @@ function renderProjectTreePanel(){
       <div class="project-tree-toolbar">
         <div>
           <div class="panel-title" style="margin-bottom:.25rem">Árvore do projeto</div>
-          <div class="ph-desc" style="margin-top:0">Estrutura do projeto logo abaixo de Comandos. Você pode renomear, adicionar pasta/arquivo e excluir qualquer item.</div>
+          <div class="ph-desc" style="margin-top:0">Estrutura do projeto em uma tela própria no menu lateral. Você pode renomear, adicionar pasta/arquivo e excluir qualquer item.</div>
         </div>
         <div class="project-tree-actions">
           <button class="btn btn-g" style="width:auto;padding:.42rem .85rem" onclick="addProjectRoot('folder')">+ Pasta raiz</button>
@@ -1114,7 +1108,7 @@ function renderProjectTreeSection(){
     <div class="project-tree-wrap">
       <div class="project-tree-panel">
         <div class="ph-num-row" style="margin-bottom:.35rem"><div class="ph-big" style="font-size:calc(1.15rem + 2pt);color:var(--green)">T</div><div class="ph-title" style="font-size:calc(.98rem + 2pt)">Árvore do projeto</div></div>
-        <div class="ph-desc" style="margin-top:0;margin-bottom:.8rem">Estrutura editável do projeto logo abaixo de Comandos. Você pode renomear, adicionar ou remover qualquer item.</div>
+        <div class="ph-desc" style="margin-top:0;margin-bottom:.8rem">Estrutura editável do projeto em uma tela própria no menu lateral. Você pode renomear, adicionar ou remover qualquer item.</div>
         <div class="project-tree-toolbar">
           <button class="btn btn-g" style="width:auto;padding:.42rem .85rem" onclick="addRootTreeNode('folder')">+ Pasta raiz</button>
           <button class="btn btn-g" style="width:auto;padding:.42rem .85rem" onclick="addRootTreeNode('file')">+ Arquivo raiz</button>
@@ -1218,6 +1212,7 @@ function resetProjectTree(){
 function renderTool(tid){
   if(tid==='t-diary')renderDiaryPage();
   else if(tid==='t-cmds')renderCmdsPage();
+  else if(tid==='t-tree')document.getElementById('pc').innerHTML=renderProjectTreeSection();
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1247,7 +1242,7 @@ document.addEventListener('keydown',e=>{
   }
   if(e.ctrlKey&&(e.key==='\\'||e.code==='Backslash')){
     e.preventDefault();
-    focusSidebarProjectTree();
+    openProjectTreeTool();
     return;
   }
   if(e.key==='Escape'){
