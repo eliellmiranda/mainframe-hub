@@ -54,10 +54,23 @@ let appData = null;
 let currentSection = 'dashboard';
 let currentDetail = { courseId:null, docId:null, codeSpaceId:null, codeSubspaceId:null, exerciseSpaceId:null, exerciseSubspaceId:null, interviewSpaceId:null, interviewSubspaceId:null, goalDay:null, exerciseFilter:'all', exerciseIndexOpen:true, searchResults:[] };
 
-const WORK_DIARY_CATEGORIES = ['Projeto','Estudo','Reunião','Planejamento','Entrega','Bloqueio'];
+const DEFAULT_WORK_DIARY_CATEGORIES = ['Geral'];
 let workDiaryFilter = 'ALL';
 let workDiarySearch = '';
 let workDiaryPendingFiles = {};
+
+function normalizeWorkDiaryCategories(list) {
+  const cleaned = (Array.isArray(list) ? list : [])
+    .map(v => String(v || '').trim())
+    .filter(Boolean);
+  const unique = [];
+  cleaned.forEach(category => {
+    if (!unique.some(existing => existing.toLowerCase() === category.toLowerCase())) unique.push(category);
+  });
+  return unique.length ? unique : [...DEFAULT_WORK_DIARY_CATEGORIES];
+}
+function getWorkDiaryCategories() { return normalizeWorkDiaryCategories(appData?.workDiaryCategories); }
+function getWorkDiaryFallbackCategory() { return getWorkDiaryCategories()[0] || DEFAULT_WORK_DIARY_CATEGORIES[0]; }
 
 function readLS(k, fallback=null) { try { const raw = localStorage.getItem(k); return raw ? JSON.parse(raw) : fallback; } catch { return fallback; } }
 function writeLS(k, v) { localStorage.setItem(k, JSON.stringify(v)); }
@@ -83,6 +96,7 @@ function baseData() {
     linkedinPosts: [],
     certificates: [],
     workDiary: [],
+    workDiaryCategories: [...DEFAULT_WORK_DIARY_CATEGORIES],
     generalNotes: [],
     tools: [],
     dailyGoals: {},
@@ -99,6 +113,7 @@ function ensureDefaults() {
   appData.linkedinPosts ||= [];
   appData.certificates ||= [];
   appData.workDiary ||= [];
+  appData.workDiaryCategories = normalizeWorkDiaryCategories(appData.workDiaryCategories);
   appData.generalNotes ||= [];
   appData.tools ||= [];
   appData.dailyGoals ||= {};
@@ -742,6 +757,24 @@ function getSectionLabel(section) {
   }[section] || String(section || '').toUpperCase();
 }
 
+function getSectionLabel(section) {
+  return ({
+    'dashboard':'Dashboard',
+    'goals':'Metas diárias',
+    'work-diary':'Diário de trabalho',
+    'notes':'Notas livres',
+    'courses':'Cursos',
+    'docs':'Documentação',
+    'code':'Exemplos de código',
+    'exercises':'Exercícios',
+    'interviews':'Entrevistas',
+    'linkedin':'LinkedIn',
+    'certs':'Certificados',
+    'tools':'Ferramentas',
+    'lab':'Lab'
+  })[section] || String(section || '').replace(/-/g,' ');
+}
+
 function goSection(section, pushHistory = true) {
   currentSection = section;
   appData.meta.lastSection = section;
@@ -845,7 +878,8 @@ function renderDashboard() {
     <div class="grid">
       ${[
         ['🎯','Metas diárias','goals','Monte e marque tarefas por dia, com sugestões automáticas baseadas no conteúdo do site.'],
-        ['📝','Anotações gerais','notes','Notas rápidas e organizadas para qualquer assunto.'],
+        ['📝','Diário de trabalho','work-diary','Registros com categorias personalizadas, anexos, busca e filtro.'],
+        ['📓','Notas livres','notes','Notas rápidas e organizadas para qualquer assunto.'],
         ['📂','Cursos','courses','Cursos com módulos, submódulos, vídeos, anexos e progresso recalculável.'],
         ['📋','Documentação','docs','Espaços com editor livre e até 5 anexos.'],
         ['💻','Exemplos de código','code','Espaços > subespaços > snippets, edição e anexos.'],
@@ -1483,18 +1517,22 @@ function fmtWorkDiaryDate(value) {
   const d = new Date(value);
   return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'}) + ' ' + d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
 }
-function getWorkDiaryCategoryOptions(selected='Projeto') {
-  return WORK_DIARY_CATEGORIES.map(category => `<option value="${esc(category)}" ${category===selected?'selected':''}>${esc(category)}</option>`).join('');
+function getWorkDiaryCategoryOptions(selected='') {
+  return getWorkDiaryCategories().map(category => `<option value="${esc(category)}" ${category===selected?'selected':''}>${esc(category)}</option>`).join('');
 }
-function renderWorkDiaryComposer(targetId, placeholder='O que você fez, decidiu ou aprendeu agora?') {
+function renderWorkDiaryComposer(targetId, placeholder='O que você fez, decidiu ou aprendeu agora?', showManageButton=false) {
   workDiaryPendingFiles[targetId] ||= [];
+  const selected = getWorkDiaryFallbackCategory();
   return `
     <div class="diary-composer">
       <div class="diary-composer-top">
         <span class="diary-ts">${fmtWorkDiaryDate(new Date().toISOString())}</span>
-        <select class="select diary-category-select" id="${targetId}-category">
-          ${getWorkDiaryCategoryOptions()}
-        </select>
+        <div class="diary-category-row">
+          <select class="select diary-category-select" id="${targetId}-category">
+            ${getWorkDiaryCategoryOptions(selected)}
+          </select>
+          ${showManageButton ? `<button class="btn xs" type="button" onclick="openWorkDiaryCategoriesModal()">Categorias</button>` : ''}
+        </div>
       </div>
       <textarea class="diary-textarea" id="${targetId}-text" placeholder="${esc(placeholder)}"></textarea>
       <div class="diary-bottom">
@@ -1532,6 +1570,56 @@ function rmWorkDiaryFile(targetId, idx) {
   workDiaryPendingFiles[targetId] = (workDiaryPendingFiles[targetId] || []).filter((_, index) => index !== idx);
   renderWorkDiaryFileChips(targetId);
 }
+function renderWorkDiaryCategoriesManagerContent() {
+  const categories = getWorkDiaryCategories();
+  return `
+    <div class="stack">
+      <div class="panel">
+        <div class="panel-title">Categorias atuais</div>
+        ${categories.map(category => `
+          <div class="file-row">
+            <div class="file-name"><strong>${esc(category)}</strong></div>
+            ${categories.length > 1 ? `<button class="btn xs danger" onclick='deleteWorkDiaryCategory(${JSON.stringify(category)})'>Excluir</button>` : `<span class="muted" style="font-size:12px">mínimo 1</span>`}
+          </div>
+        `).join('')}
+      </div>
+      <div class="panel">
+        <div class="panel-title">Nova categoria</div>
+        <div class="row"><input id="wd-new-category" class="input" placeholder="Ex: Produção, Deploy, COBOL, Sprint..."></div>
+        <div class="muted" style="font-size:13px">Você define suas próprias opções. Quando uma categoria for excluída, os registros dela migram para a primeira categoria restante.</div>
+      </div>
+    </div>`;
+}
+function openWorkDiaryCategoriesModal() {
+  openModal('Categorias do diário de trabalho', renderWorkDiaryCategoriesManagerContent(), `<button class="btn primary" onclick="addWorkDiaryCategoryFromModal()">Adicionar</button>`);
+}
+function addWorkDiaryCategoryFromModal() {
+  const input = document.getElementById('wd-new-category');
+  const value = String(input?.value || '').trim();
+  if (!value) return showToast('Digite um nome para a categoria.');
+  const categories = getWorkDiaryCategories();
+  if (categories.some(category => category.toLowerCase() === value.toLowerCase())) return showToast('Essa categoria já existe.');
+  appData.workDiaryCategories = normalizeWorkDiaryCategories([...categories, value]);
+  saveUserData();
+  openWorkDiaryCategoriesModal();
+  renderWorkDiary();
+  showToast('Categoria adicionada.');
+}
+function deleteWorkDiaryCategory(categoryToDelete) {
+  const categories = getWorkDiaryCategories();
+  if (categories.length <= 1) return showToast('Mantenha ao menos uma categoria.');
+  const remaining = categories.filter(category => category !== categoryToDelete);
+  const fallback = remaining[0] || DEFAULT_WORK_DIARY_CATEGORIES[0];
+  appData.workDiaryCategories = normalizeWorkDiaryCategories(remaining);
+  appData.workDiary.forEach(entry => {
+    if ((entry.category || getWorkDiaryFallbackCategory()) === categoryToDelete) entry.category = fallback;
+  });
+  if (workDiaryFilter === categoryToDelete) workDiaryFilter = 'ALL';
+  saveUserData();
+  openWorkDiaryCategoriesModal();
+  renderWorkDiary();
+  showToast(`Categoria removida. Registros migrados para ${fallback}.`);
+}
 function openWorkDiaryQuickEntry() {
   workDiaryPendingFiles['diary-quick'] = [];
   openModal('Registro rápido — Diário', renderWorkDiaryComposer('diary-quick', 'Registre algo importante sem sair da tela atual.'), '');
@@ -1542,20 +1630,22 @@ function saveWorkDiaryEntry(targetId) {
   const categoryValue = document.getElementById(`${targetId}-category`);
   const textContent = textValue?.value?.trim() || '';
   if (!textContent) return showToast('Escreva algo antes de salvar.');
+  const fallbackCategory = getWorkDiaryFallbackCategory();
+  const selectedCategory = categoryValue?.value || fallbackCategory;
   const entry = {
     id: uid(),
     createdAt: Date.now(),
     updatedAt: Date.now(),
-    category: categoryValue?.value || 'Projeto',
+    category: selectedCategory,
     text: textContent,
     files: (workDiaryPendingFiles[targetId] || []).map(file => ({ ...file }))
   };
   appData.workDiary.unshift(entry);
   if (textValue) textValue.value = '';
-  if (categoryValue) categoryValue.value = 'Projeto';
+  if (categoryValue) categoryValue.value = fallbackCategory;
   workDiaryPendingFiles[targetId] = [];
   saveUserData();
-  renderNotes();
+  renderWorkDiary();
   renderDashboard();
   updateStatus();
   if (targetId === 'diary-quick') closeModal();
@@ -1567,10 +1657,10 @@ function toggleWorkDiaryEntry(entryId) {
 function deleteWorkDiaryEntry(entryId) {
   const entry = appData.workDiary.find(item => item.id === entryId);
   if (!entry) return;
-  if (!confirm(`Deseja mesmo excluir este registro de ${entry.category.toLowerCase()}?`)) return;
+  if (!confirm(`Deseja mesmo excluir este registro de ${(entry.category || getWorkDiaryFallbackCategory()).toLowerCase()}?`)) return;
   appData.workDiary = appData.workDiary.filter(item => item.id !== entryId);
   saveUserData();
-  renderNotes();
+  renderWorkDiary();
   renderDashboard();
   updateStatus();
   showToast('Registro removido.');
@@ -1601,7 +1691,7 @@ function renderWorkDiaryEntry(entry) {
     <div class="diary-entry panel" id="work-diary-${entry.id}">
       <div class="diary-entry-hdr" onclick="toggleWorkDiaryEntry('${entry.id}')">
         <span class="diary-entry-ts">${fmtWorkDiaryDate(entry.updatedAt || entry.createdAt)}</span>
-        <span class="diary-entry-mode">${esc(entry.category || 'Projeto')}</span>
+        <span class="diary-entry-mode">${esc(entry.category || getWorkDiaryFallbackCategory())}</span>
         <span class="diary-entry-preview">${esc(preview)}</span>
         ${filesCount}
         <span class="diary-entry-del" onclick="event.stopPropagation();deleteWorkDiaryEntry('${entry.id}')">&times;</span>
@@ -1613,22 +1703,25 @@ function renderWorkDiaryEntry(entry) {
     </div>`;
 }
 function renderWorkDiaryFilters(entries) {
+  const categories = getWorkDiaryCategories();
   const buttons = [`<button class="diary-filter-btn${workDiaryFilter==='ALL'?' active':''}" onclick="setWorkDiaryFilter('ALL')">Todos (${entries.length})</button>`];
-  WORK_DIARY_CATEGORIES.forEach(category => {
-    const total = entries.filter(entry => (entry.category || 'Projeto') === category).length;
-    buttons.push(`<button class="diary-filter-btn${workDiaryFilter===category?' active':''}" onclick="setWorkDiaryFilter('${esc(category)}')">${esc(category)} (${total})</button>`);
+  categories.forEach(category => {
+    const total = entries.filter(entry => (entry.category || getWorkDiaryFallbackCategory()) === category).length;
+    buttons.push(`<button class="diary-filter-btn${workDiaryFilter===category?' active':''}" onclick='setWorkDiaryFilter(${JSON.stringify(category)})'>${esc(category)} (${total})</button>`);
   });
   return buttons.join('');
 }
 function setWorkDiaryFilter(category) {
   workDiaryFilter = category;
-  renderNotes();
+  renderWorkDiary();
 }
-function renderNotes() {
-  const wrap = document.getElementById('section-notes');
+function renderWorkDiary() {
+  const wrap = document.getElementById('section-work-diary');
+  if (!wrap) return;
   const allEntries = appData.workDiary || [];
   const filteredEntries = allEntries.filter(entry => {
-    const matchesFilter = workDiaryFilter === 'ALL' || (entry.category || 'Projeto') === workDiaryFilter;
+    const fallbackCategory = getWorkDiaryFallbackCategory();
+    const matchesFilter = workDiaryFilter === 'ALL' || (entry.category || fallbackCategory) === workDiaryFilter;
     const haystack = `${entry.category || ''} ${entry.text || ''} ${(entry.files || []).map(file => file.name).join(' ')}`.toLowerCase();
     const matchesSearch = !workDiarySearch || haystack.includes(workDiarySearch.toLowerCase());
     return matchesFilter && matchesSearch;
@@ -1637,27 +1730,35 @@ function renderNotes() {
     <div class="headline">
       <div>
         <div class="title">Diário de trabalho</div>
-        <div class="subtitle">Registro rápido com categorias pré-cadastradas, anexos, busca e filtros. Atalho: Ctrl + '</div>
+        <div class="subtitle">Registro rápido com categorias cadastradas por você, anexos, busca e filtros. Atalho: Ctrl + '</div>
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <button class="btn" onclick="openWorkDiaryQuickEntry()">Registro rápido</button>
-        <button class="btn primary" onclick="openGeneralNoteModal()">Nova nota livre</button>
+        <button class="btn" onclick="openWorkDiaryCategoriesModal()">Categorias</button>
       </div>
     </div>
-    ${renderWorkDiaryComposer('diary-main')}
+    ${renderWorkDiaryComposer('diary-main', 'O que você fez, decidiu ou aprendeu agora?', true)}
     <div class="panel" style="margin-bottom:16px">
       <div class="panel-title">Buscar e filtrar</div>
-      <div class="diary-search"><input class="input" type="text" placeholder="Buscar por texto, categoria ou nome do anexo..." value="${esc(workDiarySearch)}" oninput="workDiarySearch=this.value;renderNotes()"></div>
+      <div class="diary-search"><input class="input" type="text" placeholder="Buscar por texto, categoria ou nome do anexo..." value="${esc(workDiarySearch)}" oninput="workDiarySearch=this.value;renderWorkDiary()"></div>
       <div class="diary-filter">${renderWorkDiaryFilters(allEntries)}</div>
     </div>
     <div class="stack">
       ${filteredEntries.length ? filteredEntries.map(renderWorkDiaryEntry).join('') : '<div class="empty">Nenhum registro encontrado para esse filtro.</div>'}
     </div>
-    <div class="headline" style="margin-top:24px">
+  `;
+  renderWorkDiaryFileChips('diary-main');
+}
+function renderNotes() {
+  const wrap = document.getElementById('section-notes');
+  if (!wrap) return;
+  wrap.innerHTML = `
+    <div class="headline">
       <div>
-        <div class="title" style="font-size:40px">Notas livres</div>
-        <div class="subtitle">Anotações gerais continuam disponíveis abaixo do diário.</div>
+        <div class="title">Notas livres</div>
+        <div class="subtitle">Espaço separado do diário para ideias, rascunhos e anotações gerais.</div>
       </div>
+      <button class="btn primary" onclick="openGeneralNoteModal()">Nova nota livre</button>
     </div>
     <div class="stack">
       ${appData.generalNotes.length ? appData.generalNotes.map(note => `
@@ -1674,7 +1775,6 @@ function renderNotes() {
       `).join('') : '<div class="empty">Nenhuma nota livre cadastrada.</div>'}
     </div>
   `;
-  renderWorkDiaryFileChips('diary-main');
 }
 function openGeneralNoteModal(noteId='') {
   const note = noteId ? appData.generalNotes.find(n => n.id === noteId) : null;
@@ -2165,7 +2265,7 @@ function handleSearch(query) {
   });
   appData.workDiary.forEach(entry => {
     const diaryText = `${entry.category || ''} ${entry.text || ''} ${(entry.files || []).map(file => file.name).join(' ')}`.toLowerCase();
-    if (diaryText.includes(q)) results.push({ area:'Diário de trabalho', title:`${entry.category || 'Projeto'} · ${fmtWorkDiaryDate(entry.updatedAt || entry.createdAt)}`, text:(entry.text || '').slice(0,220), target:{ section:'notes', focusId:`work-diary-${entry.id}` } });
+    if (diaryText.includes(q)) results.push({ area:'Diário de trabalho', title:`${entry.category || getWorkDiaryFallbackCategory()} · ${fmtWorkDiaryDate(entry.updatedAt || entry.createdAt)}`, text:(entry.text || '').slice(0,220), target:{ section:'work-diary', focusId:`work-diary-${entry.id}` } });
   });
   appData.generalNotes.forEach(note => {
     if ((note.title+' '+note.content).toLowerCase().includes(q)) results.push({ area:'Anotações gerais', title:note.title, text:note.content.slice(0,220), target:{ section:'notes', focusId:`general-note-${note.id}` } });
@@ -2294,6 +2394,7 @@ function importContent() {
             });
           };
           ['courses','docs','workDiary','generalNotes','linkedinPosts','certificates','tools'].forEach(mergeSimple);
+          appData.workDiaryCategories = normalizeWorkDiaryCategories([...(appData.workDiaryCategories || []), ...((src.workDiaryCategories) || [])]);
           saveUserData(); closeModal(); renderAll();
           showToast(`Backup mesclado: ${merged} item(ns) novo(s) adicionado(s).`);
           return;
@@ -2373,7 +2474,7 @@ function closeModal() { document.getElementById('modal-wrap').classList.remove('
 document.getElementById('modal-wrap').addEventListener('click', e => { if (e.target.id === 'modal-wrap') closeModal(); });
 
 function renderAll() {
-  renderDashboard(); renderGoals(); renderNotes(); renderCourses(); renderDocs(); renderCode(); renderExercises(); renderInterviews(); renderLinkedin(); renderCerts(); renderTools(); renderLab(); updateStatus();
+  renderDashboard(); renderGoals(); renderWorkDiary(); renderNotes(); renderCourses(); renderDocs(); renderCode(); renderExercises(); renderInterviews(); renderLinkedin(); renderCerts(); renderTools(); renderLab(); updateStatus();
 }
 
 document.addEventListener('keydown', e => {
