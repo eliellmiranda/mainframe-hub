@@ -584,8 +584,9 @@ const PH=[
 // TOOLS DATA (sidebar tool items)
 // ═══════════════════════════════════════════════════════════════
 const TOOLS=[
-  {id:'t-diary',icon:'D',title:'Diário',sub:'Ctrl + \''},
-  {id:'t-cmds',icon:'C',title:'Comandos',sub:'Zowe CLI / PowerShell · árvore abaixo'}
+  {id:'t-diary',icon:'D',title:'Diário',sub:"Ctrl + '"},
+  {id:'t-cmds',icon:'C',title:'Comandos',sub:'Zowe CLI / PowerShell'},
+  {id:'t-tree',icon:'A',title:'Árvore',sub:'Ctrl + \\'}
 ];
 
 // ═══════════════════════════════════════════════════════════════
@@ -1151,7 +1152,7 @@ function findTreeNode(id){
 }
 function rerenderTree(){
   saveTree();
-  renderSidebar();
+  buildSidebar();
   if(CVIEW==='tool'&&CPHASE==='t-cmds')renderCmdsPage();
 }
 function toggleTreeNode(id){
