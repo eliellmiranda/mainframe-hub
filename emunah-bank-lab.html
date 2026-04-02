@@ -595,7 +595,8 @@ const TOOLS=[
 const K={
   USERS:'ebl_users',SESSION:'ebl_sess',REMEMBER:'ebl_rem',
   prog:u=>`ebl_p_${u}`,ann:u=>`ebl_a_${u}`,annFiles:u=>`ebl_af_${u}`,
-  diary:u=>`ebl_diary_${u}`,cmds:u=>`ebl_cmds_${u}`,tree:u=>`ebl_tree_${u}`
+  diary:u=>`ebl_diary_${u}`,cmds:u=>`ebl_cmds_${u}`,tree:u=>`ebl_tree_${u}`,
+  TREE_DEFAULT:'ebl_tree_default'
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -697,13 +698,22 @@ function normalizeProjectTree(nodes){
     children:normalizeProjectTree(n&&n.children)
   }));
 }
+function getSavedDefaultProjectTree(){
+  try{
+    const raw=localStorage.getItem(K.TREE_DEFAULT);
+    return raw?normalizeProjectTree(JSON.parse(raw)):null;
+  }catch(e){return null;}
+}
+function getEffectiveDefaultProjectTree(){
+  return getSavedDefaultProjectTree() || defaultProjectTree();
+}
 function loadUD(u){
   PROG=JSON.parse(localStorage.getItem(K.prog(u))||'{}');
   ANN=JSON.parse(localStorage.getItem(K.ann(u))||'{}');
   ANNFILES=JSON.parse(localStorage.getItem(K.annFiles(u))||'{}');
   DIARY=JSON.parse(localStorage.getItem(K.diary(u))||'[]');
   CMDS=JSON.parse(localStorage.getItem(K.cmds(u))||'[]');
-  PTREE=normalizeProjectTree(JSON.parse(localStorage.getItem(K.tree(u))||'null')||defaultProjectTree());
+  PTREE=normalizeProjectTree(JSON.parse(localStorage.getItem(K.tree(u))||'null')||getEffectiveDefaultProjectTree());
 }
 function saveP(){localStorage.setItem(K.prog(CU),JSON.stringify(PROG));updateProg();}
 function saveA(sid,val){ANN[sid]=val;localStorage.setItem(K.ann(CU),JSON.stringify(ANN));}
@@ -1113,6 +1123,7 @@ function renderProjectTreeSection(){
         <div class="project-tree-toolbar">
           <button class="btn btn-g" style="width:auto;padding:.42rem .85rem" onclick="addRootTreeNode('folder')">+ Pasta raiz</button>
           <button class="btn btn-g" style="width:auto;padding:.42rem .85rem" onclick="addRootTreeNode('file')">+ Arquivo raiz</button>
+          <button class="btn btn-g" style="width:auto;padding:.42rem .85rem" onclick="saveCurrentTreeAsDefault()">Salvar atual como padrão</button>
           <button class="btn btn-g" style="width:auto;padding:.42rem .85rem" onclick="resetProjectTree()">Restaurar árvore padrão</button>
         </div>
         ${PTREE.length?`<ul class="project-tree-list">${PTREE.map(node=>renderProjectTreeNode(node)).join('')}</ul>`:'<div class="project-tree-empty">Nenhum item na árvore ainda.</div>'}
@@ -1205,9 +1216,14 @@ function deleteTreeNode(id){
   hit.list.splice(hit.index,1);
   rerenderTree();
 }
+function saveCurrentTreeAsDefault(){
+  if(!confirm('Salvar a árvore atual como nova árvore padrão?'))return;
+  localStorage.setItem(K.TREE_DEFAULT,JSON.stringify(normalizeProjectTree(PTREE)));
+  alert('Árvore padrão salva com sucesso.');
+}
 function resetProjectTree(){
   if(!confirm('Restaurar a árvore padrão do projeto?'))return;
-  PTREE=defaultProjectTree();
+  PTREE=getEffectiveDefaultProjectTree();
   rerenderTree();
 }
 
