@@ -633,6 +633,14 @@ let CU='',PROG={},ANN={},ANNFILES={},DIARY=[],CMDS=[],PTREE=[],CPHASE='fx',CVIEW
 let diaryPendingFiles=[];
 let cmdPendingFiles=[];
 
+function safeJSONParse(raw,fallback){
+  try{
+    const parsed=JSON.parse(raw);
+    return parsed==null?fallback:parsed;
+  }catch(e){
+    return fallback;
+  }
+}
 function treeNode(name,type='folder',children=[]){return{id:Date.now().toString(36)+Math.random().toString(36).slice(2,7),name,type,children,open:true};}
 function defaultProjectTree(){
   return [
@@ -664,12 +672,12 @@ function normalizeProjectTree(nodes){
   }));
 }
 function loadUD(u){
-  PROG=JSON.parse(localStorage.getItem(K.prog(u))||'{}');
-  ANN=JSON.parse(localStorage.getItem(K.ann(u))||'{}');
-  ANNFILES=JSON.parse(localStorage.getItem(K.annFiles(u))||'{}');
-  DIARY=JSON.parse(localStorage.getItem(K.diary(u))||'[]');
-  CMDS=JSON.parse(localStorage.getItem(K.cmds(u))||'[]');
-  PTREE=normalizeProjectTree(JSON.parse(localStorage.getItem(K.tree(u))||'null')||defaultProjectTree());
+  PROG=safeJSONParse(localStorage.getItem(K.prog(u))||'{}',{});
+  ANN=safeJSONParse(localStorage.getItem(K.ann(u))||'{}',{});
+  ANNFILES=safeJSONParse(localStorage.getItem(K.annFiles(u))||'{}',{});
+  DIARY=safeJSONParse(localStorage.getItem(K.diary(u))||'[]',[]);
+  CMDS=safeJSONParse(localStorage.getItem(K.cmds(u))||'[]',[]);
+  PTREE=normalizeProjectTree(safeJSONParse(localStorage.getItem(K.tree(u))||'null',null)||defaultProjectTree());
 }
 function saveP(){localStorage.setItem(K.prog(CU),JSON.stringify(PROG));updateProg();}
 function saveA(sid,val){ANN[sid]=val;localStorage.setItem(K.ann(CU),JSON.stringify(ANN));}
@@ -1031,7 +1039,7 @@ function addChildTreeNode(id,type){
   const hit=findTreeNode(id);
   if(!hit)return;
   if(hit.node.type==='file')hit.node.type='folder';
-  hit.node.children ||= [];
+  if(!Array.isArray(hit.node.children))hit.node.children=[];
   hit.node.open=true;
   const label=type==='folder'?'Nova pasta':'Novo arquivo';
   const name=prompt(`Nome do novo ${type==='folder'?'filho':'arquivo'}:`,label);
@@ -1208,7 +1216,7 @@ function applyAnnPreviewState(id){
 }
 function toggleAnnPreview(id){APV[id]=!APV[id];applyAnnPreviewState(id);}
 function getAnnFiles(id){return Array.isArray(ANNFILES[id])?ANNFILES[id]:[];}
-function triggerAnnFile(id){document.getElementById(`anf-${id}`)?.click();}
+function triggerAnnFile(id){const input=document.getElementById(`anf-${id}`);if(input)input.click();}
 function handleAnnFiles(id,input){
   const files=Array.from(input.files||[]);
   if(!files.length)return;
