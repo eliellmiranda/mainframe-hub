@@ -290,6 +290,26 @@ textarea.ann:focus{border-color:var(--green);outline:none;color:var(--text)}
 .project-tree-children{margin-left:1rem;padding-left:.7rem;border-left:1px dashed var(--border2);margin-top:.35rem}
 .project-tree-empty{padding:.9rem;border:1px dashed var(--border2);border-radius:8px;color:var(--text3);font-style:italic}
 
+.sidebar-tree-wrap{padding:.35rem .7rem .9rem;border-top:1px solid rgba(255,255,255,.02)}
+.sidebar-tree-head{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin:.2rem 0 .5rem}
+.sidebar-tree-title{font-family:var(--mono);font-size:calc(.62rem + 2pt);color:var(--text3);letter-spacing:.1em;text-transform:uppercase}
+.sidebar-tree-shortcut{font-family:var(--mono);font-size:calc(.56rem + 2pt);color:var(--blue)}
+.sidebar-tree-box{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:.45rem;max-height:260px;overflow:auto}
+.sidebar-tree-list,.sidebar-tree-children{list-style:none;margin:0;padding:0}
+.sidebar-tree-item{margin:.2rem 0}
+.sidebar-tree-row{display:flex;align-items:center;gap:.35rem;padding:.26rem .3rem;border-radius:6px}
+.sidebar-tree-row:hover{background:rgba(255,255,255,.03)}
+.sidebar-tree-toggle{width:14px;text-align:center;color:var(--text3);cursor:pointer;font-family:var(--mono);font-size:calc(.58rem + 2pt);user-select:none}
+.sidebar-tree-toggle.disabled{opacity:.35;cursor:default}
+.sidebar-tree-icon{font-size:calc(.62rem + 2pt);min-width:14px;color:var(--text2)}
+.sidebar-tree-name{flex:1;min-width:0;font-size:calc(.63rem + 2pt);color:var(--text);word-break:break-word;cursor:pointer}
+.sidebar-tree-name.folder{color:var(--green)}
+.sidebar-tree-name.file{color:var(--blue)}
+.sidebar-tree-actions{display:flex;gap:.2rem;flex-wrap:wrap}
+.sidebar-tree-btn{background:transparent;border:1px solid var(--border2);border-radius:5px;color:var(--text3);font-family:var(--mono);font-size:calc(.5rem + 2pt);padding:.12rem .3rem;cursor:pointer}
+.sidebar-tree-btn:hover{background:var(--bg3);color:var(--text)}
+.sidebar-tree-children{margin-left:.7rem;padding-left:.55rem;border-left:1px dashed var(--border2)}
+
 /* ── SETTINGS ── */
 #settings{position:fixed;top:50px;right:0;bottom:0;width:300px;background:var(--bg1);border-left:1px solid var(--border);z-index:100;padding:1.3rem;overflow-y:auto;transform:translateX(100%);transition:transform .25s}
 #settings.open{transform:translateX(0)}
@@ -371,7 +391,7 @@ textarea.ann:focus{border-color:var(--green);outline:none;color:var(--text)}
     <div class="h-logo">EMUNAH<span>.BANK.LAB</span></div>
     <div class="h-prog"><div class="prog-outer"><div class="prog-inner" id="gbar" style="width:0%"></div></div><span class="prog-lbl" id="glbl">0/0</span></div>
     <div class="h-right">
-      <span class="h-shortcut" title="Atalho para abrir o Diário rápido">Ctrl + '</span>
+      <span class="h-shortcut" title="Atalhos: Ctrl + ' abre o diário rápido · Ctrl + \\ foca a árvore do projeto">Ctrl + ' · Ctrl + \\</span>
       <span class="h-user" id="huser"></span>
       <button class="h-btn" onclick="toggleSettings()">Config</button>
       <button class="h-btn" onclick="doLogout()">Sair</button>
@@ -565,7 +585,7 @@ const PH=[
 // ═══════════════════════════════════════════════════════════════
 const TOOLS=[
   {id:'t-diary',icon:'D',title:'Diário',sub:'Ctrl + \''},
-  {id:'t-cmds',icon:'C',title:'Comandos',sub:'Zowe CLI / PowerShell'}
+  {id:'t-cmds',icon:'C',title:'Comandos',sub:'Zowe CLI / PowerShell · árvore abaixo'}
 ];
 
 // ═══════════════════════════════════════════════════════════════
@@ -722,12 +742,56 @@ function buildSidebar(){
     el.innerHTML=`<div class="pnb">${t.icon}</div><div class="pni-info"><div class="pni-t">${esc(t.title)}</div><div class="pni-s">${esc(t.sub)}</div></div>`;
     el.onclick=()=>{CVIEW='tool';CPHASE=t.id;renderTool(t.id);highlightSidebar();};
     tnav.appendChild(el);
+    if(t.id==='t-cmds'){
+      const treeWrap=document.createElement('div');
+      treeWrap.className='sidebar-tree-wrap';
+      treeWrap.id='sidebar-project-tree';
+      treeWrap.innerHTML=renderSidebarProjectTree();
+      tnav.appendChild(treeWrap);
+    }
   });
 }
 function highlightSidebar(){
   document.querySelectorAll('.pni').forEach(el=>el.classList.remove('active'));
   const active=document.getElementById(`n-${CPHASE}`);
   if(active)active.classList.add('active');
+}
+function renderSidebarProjectTree(){
+  return `
+    <div class="sidebar-tree-head">
+      <div class="sidebar-tree-title">Árvore do projeto</div>
+      <div class="sidebar-tree-shortcut">Ctrl + \\</div>
+    </div>
+    <div class="sidebar-tree-box" tabindex="0" aria-label="Árvore do projeto">
+      <div class="sidebar-tree-actions" style="margin-bottom:.45rem">
+        <button class="sidebar-tree-btn" onclick="event.stopPropagation();addRootTreeNode('folder')">+ pasta</button>
+        <button class="sidebar-tree-btn" onclick="event.stopPropagation();addRootTreeNode('file')">+ arquivo</button>
+      </div>
+      ${PTREE.length?`<ul class="sidebar-tree-list">${PTREE.map(node=>renderSidebarProjectTreeNode(node)).join('')}</ul>`:'<div class="project-tree-empty">Nenhum item na árvore ainda.</div>'}
+    </div>`;
+}
+function renderSidebarProjectTreeNode(node){
+  const hasChildren=Array.isArray(node.children)&&node.children.length>0;
+  const isOpen=node.open!==false;
+  return `<li class="sidebar-tree-item">
+    <div class="sidebar-tree-row">
+      <span class="sidebar-tree-toggle ${hasChildren?'':'disabled'}" onclick="event.stopPropagation();${hasChildren?`toggleTreeNode('${node.id}')`:''}">${hasChildren?(isOpen?'▾':'▸'):'•'}</span>
+      <span class="sidebar-tree-icon">${node.type==='folder'?'📁':'📄'}</span>
+      <span class="sidebar-tree-name ${node.type==='folder'?'folder':'file'}" onclick="event.stopPropagation();editTreeNode('${node.id}')">${esc(node.name)}</span>
+      <div class="sidebar-tree-actions">
+        ${node.type==='folder'?`<button class="sidebar-tree-btn" onclick="event.stopPropagation();addChildTreeNode('${node.id}','folder')">+p</button><button class="sidebar-tree-btn" onclick="event.stopPropagation();addChildTreeNode('${node.id}','file')">+a</button>`:''}
+        <button class="sidebar-tree-btn" onclick="event.stopPropagation();deleteTreeNode('${node.id}')">x</button>
+      </div>
+    </div>
+    ${hasChildren&&isOpen?`<ul class="sidebar-tree-children">${node.children.map(child=>renderSidebarProjectTreeNode(child)).join('')}</ul>`:''}
+  </li>`;
+}
+function focusSidebarProjectTree(){
+  const box=document.querySelector('#sidebar-project-tree .sidebar-tree-box');
+  if(box){
+    box.focus();
+    box.scrollIntoView({behavior:'smooth',block:'nearest'});
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -885,7 +949,7 @@ function renderCmdsPage(){
   let html=`
     <div class="ph-hdr">
       <div class="ph-num-row"><div class="ph-big" style="font-size:calc(1.4rem + 2pt);color:var(--blue)">C</div><div class="ph-title">Comandos — Zowe CLI / PowerShell</div></div>
-      <div class="ph-desc">Repositório de comandos úteis do dia a dia. Salve, organize e copie rapidamente.</div>
+      <div class="ph-desc">Repositório de comandos úteis do dia a dia. A árvore do projeto fica no menu lateral, logo abaixo de Comandos.</div>
     </div>
     <div class="cmd-composer">
       <div class="cmd-composer-row">
@@ -926,8 +990,6 @@ function renderCmdsPage(){
       </div>`;
     });
   }
-  html+=renderProjectTreeSection();
-  html+=renderProjectTreePanel();
   document.getElementById('pc').innerHTML=html;
 }
 
@@ -1095,6 +1157,7 @@ function findTreeNode(id){
 }
 function rerenderTree(){
   saveTree();
+  renderSidebar();
   if(CVIEW==='tool'&&CPHASE==='t-cmds')renderCmdsPage();
 }
 function toggleTreeNode(id){
@@ -1180,6 +1243,12 @@ document.addEventListener('keydown',e=>{
     const modal=document.getElementById('diary-modal');
     if(modal.classList.contains('open'))closeDiaryModal();
     else openDiaryModal();
+    return;
+  }
+  if(e.ctrlKey&&(e.key==='\\'||e.code==='Backslash')){
+    e.preventDefault();
+    focusSidebarProjectTree();
+    return;
   }
   if(e.key==='Escape'){
     const modal=document.getElementById('diary-modal');
