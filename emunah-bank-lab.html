@@ -277,6 +277,19 @@ textarea.ann:focus{border-color:var(--green);outline:none;color:var(--text)}
 .project-tree-btn.edit:hover{border-color:var(--blue);color:var(--blue)}
 .project-tree-btn.del:hover{border-color:var(--red);color:var(--red)}
 
+
+.project-tree-panel{margin-top:1rem;background:var(--bg1);border:1px solid var(--border);border-radius:var(--rl);padding:1rem}
+.project-tree-toolbar{display:flex;gap:.5rem;flex-wrap:wrap;justify-content:space-between;align-items:center;margin-bottom:.8rem}
+.project-tree-actions{display:flex;gap:.45rem;flex-wrap:wrap}
+.project-tree-list,.project-tree-children{list-style:none;margin:0;padding:0}
+.project-tree-node{margin:.28rem 0}
+.project-tree-row{display:flex;align-items:center;gap:.45rem;padding:.38rem .45rem;border:1px solid var(--border);border-radius:8px;background:var(--bg2)}
+.project-tree-icon{font-family:var(--mono);font-size:calc(.7rem + 2pt);color:var(--text3);min-width:18px}
+.project-tree-name{flex:1;min-width:0;word-break:break-word;font-size:calc(.76rem + 2pt)}
+.project-tree-controls{display:flex;gap:.3rem;flex-wrap:wrap}
+.project-tree-children{margin-left:1rem;padding-left:.7rem;border-left:1px dashed var(--border2);margin-top:.35rem}
+.project-tree-empty{padding:.9rem;border:1px dashed var(--border2);border-radius:8px;color:var(--text3);font-style:italic}
+
 /* ── SETTINGS ── */
 #settings{position:fixed;top:50px;right:0;bottom:0;width:300px;background:var(--bg1);border-left:1px solid var(--border);z-index:100;padding:1.3rem;overflow-y:auto;transform:translateX(100%);transition:transform .25s}
 #settings.open{transform:translateX(0)}
@@ -633,14 +646,6 @@ let CU='',PROG={},ANN={},ANNFILES={},DIARY=[],CMDS=[],PTREE=[],CPHASE='fx',CVIEW
 let diaryPendingFiles=[];
 let cmdPendingFiles=[];
 
-function safeJSONParse(raw,fallback){
-  try{
-    const parsed=JSON.parse(raw);
-    return parsed==null?fallback:parsed;
-  }catch(e){
-    return fallback;
-  }
-}
 function treeNode(name,type='folder',children=[]){return{id:Date.now().toString(36)+Math.random().toString(36).slice(2,7),name,type,children,open:true};}
 function defaultProjectTree(){
   return [
@@ -672,12 +677,12 @@ function normalizeProjectTree(nodes){
   }));
 }
 function loadUD(u){
-  PROG=safeJSONParse(localStorage.getItem(K.prog(u))||'{}',{});
-  ANN=safeJSONParse(localStorage.getItem(K.ann(u))||'{}',{});
-  ANNFILES=safeJSONParse(localStorage.getItem(K.annFiles(u))||'{}',{});
-  DIARY=safeJSONParse(localStorage.getItem(K.diary(u))||'[]',[]);
-  CMDS=safeJSONParse(localStorage.getItem(K.cmds(u))||'[]',[]);
-  PTREE=normalizeProjectTree(safeJSONParse(localStorage.getItem(K.tree(u))||'null',null)||defaultProjectTree());
+  PROG=JSON.parse(localStorage.getItem(K.prog(u))||'{}');
+  ANN=JSON.parse(localStorage.getItem(K.ann(u))||'{}');
+  ANNFILES=JSON.parse(localStorage.getItem(K.annFiles(u))||'{}');
+  DIARY=JSON.parse(localStorage.getItem(K.diary(u))||'[]');
+  CMDS=JSON.parse(localStorage.getItem(K.cmds(u))||'[]');
+  PTREE=normalizeProjectTree(JSON.parse(localStorage.getItem(K.tree(u))||'null')||defaultProjectTree());
 }
 function saveP(){localStorage.setItem(K.prog(CU),JSON.stringify(PROG));updateProg();}
 function saveA(sid,val){ANN[sid]=val;localStorage.setItem(K.ann(CU),JSON.stringify(ANN));}
@@ -922,7 +927,89 @@ function renderCmdsPage(){
     });
   }
   html+=renderProjectTreeSection();
+  html+=renderProjectTreePanel();
   document.getElementById('pc').innerHTML=html;
+}
+
+function renderProjectTreePanel(){
+  return `
+    <div class="project-tree-panel">
+      <div class="project-tree-toolbar">
+        <div>
+          <div class="panel-title" style="margin-bottom:.25rem">Árvore do projeto</div>
+          <div class="ph-desc" style="margin-top:0">Estrutura do projeto logo abaixo de Comandos. Você pode renomear, adicionar pasta/arquivo e excluir qualquer item.</div>
+        </div>
+        <div class="project-tree-actions">
+          <button class="btn btn-g" style="width:auto;padding:.42rem .85rem" onclick="addProjectRoot('folder')">+ Pasta raiz</button>
+          <button class="btn btn-g" style="width:auto;padding:.42rem .85rem" onclick="addProjectRoot('file')">+ Arquivo raiz</button>
+          <button class="btn btn-g" style="width:auto;padding:.42rem .85rem" onclick="resetProjectTree()">Restaurar árvore padrão</button>
+        </div>
+      </div>
+      ${PTREE.length?`<ul class="project-tree-list">${PTREE.map(renderProjectTreeNode).join('')}</ul>`:'<div class="project-tree-empty">Nenhum item na árvore ainda.</div>'}
+    </div>`;
+}
+function renderProjectTreeNode(node){
+  const kids=Array.isArray(node.children)?node.children:[];
+  return `<li class="project-tree-node">
+    <div class="project-tree-row">
+      <span class="project-tree-icon">${node.type==='folder'?'📁':'📄'}</span>
+      <span class="project-tree-name">${esc(node.name)}</span>
+      <div class="project-tree-controls">
+        <button class="btn btn-s" style="width:auto" onclick="renameProjectNode('${node.id}')">Renomear</button>
+        ${node.type==='folder'?`<button class="btn btn-s" style="width:auto" onclick="addProjectChild('${node.id}','folder')">+ Pasta</button><button class="btn btn-s" style="width:auto" onclick="addProjectChild('${node.id}','file')">+ Arquivo</button>`:''}
+        <button class="btn btn-d" style="width:auto" onclick="deleteProjectNode('${node.id}')">Excluir</button>
+      </div>
+    </div>
+    ${kids.length?`<ul class="project-tree-children">${kids.map(renderProjectTreeNode).join('')}</ul>`:''}
+  </li>`;
+}
+function walkProjectTree(nodes,targetId,parent){
+  for(let i=0;i<nodes.length;i++){
+    const node=nodes[i];
+    if(node.id===targetId)return {node:node,parent:parent,index:i};
+    const found=walkProjectTree(node.children||[],targetId,node);
+    if(found)return found;
+  }
+  return null;
+}
+function addProjectRoot(type){
+  const name=prompt(type==='folder'?'Nome da nova pasta raiz:':'Nome do novo arquivo raiz:');
+  if(!name||!name.trim())return;
+  PTREE.push({id:'pt-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),name:name.trim(),type:type==='file'?'file':'folder',children:[]});
+  savePTree();renderCmdsPage();
+}
+function addProjectChild(parentId,type){
+  const hit=walkProjectTree(PTREE,parentId,null);
+  if(!hit||!hit.node||hit.node.type!=='folder')return;
+  const name=prompt(type==='folder'?'Nome da nova pasta:':'Nome do novo arquivo:');
+  if(!name||!name.trim())return;
+  hit.node.children=hit.node.children||[];
+  hit.node.children.push({id:'pt-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),name:name.trim(),type:type==='file'?'file':'folder',children:[]});
+  savePTree();renderCmdsPage();
+}
+function renameProjectNode(nodeId){
+  const hit=walkProjectTree(PTREE,nodeId,null);
+  if(!hit||!hit.node)return;
+  const name=prompt('Novo nome:', hit.node.name || '');
+  if(!name||!name.trim())return;
+  hit.node.name=name.trim();
+  savePTree();renderCmdsPage();
+}
+function deleteProjectNode(nodeId){
+  const hit=walkProjectTree(PTREE,nodeId,null);
+  if(!hit||!hit.node)return;
+  if(!confirm('Excluir "'+hit.node.name+'" da árvore?'))return;
+  if(hit.parent){
+    hit.parent.children.splice(hit.index,1);
+  }else{
+    PTREE.splice(hit.index,1);
+  }
+  savePTree();renderCmdsPage();
+}
+function resetProjectTree(){
+  if(!confirm('Restaurar a árvore padrão do projeto?'))return;
+  PTREE=defaultProjectTree();
+  savePTree();renderCmdsPage();
 }
 
 function updateCmdToggle(){
@@ -1039,7 +1126,7 @@ function addChildTreeNode(id,type){
   const hit=findTreeNode(id);
   if(!hit)return;
   if(hit.node.type==='file')hit.node.type='folder';
-  if(!Array.isArray(hit.node.children))hit.node.children=[];
+  hit.node.children ||= [];
   hit.node.open=true;
   const label=type==='folder'?'Nova pasta':'Novo arquivo';
   const name=prompt(`Nome do novo ${type==='folder'?'filho':'arquivo'}:`,label);
@@ -1137,6 +1224,7 @@ function showPhase(pid){
       ab.addEventListener('click',e=>{e.stopPropagation();toggleAnnPreview(s.id);});
       applyAnnPreviewState(s.id);
     }
+    renderAnnFiles(s.id);
     renderAnnFileList(s.id);
   });
 }
@@ -1216,7 +1304,7 @@ function applyAnnPreviewState(id){
 }
 function toggleAnnPreview(id){APV[id]=!APV[id];applyAnnPreviewState(id);}
 function getAnnFiles(id){return Array.isArray(ANNFILES[id])?ANNFILES[id]:[];}
-function triggerAnnFile(id){const input=document.getElementById(`anf-${id}`);if(input)input.click();}
+function triggerAnnFile(id){document.getElementById(`anf-${id}`)?.click();}
 function handleAnnFiles(id,input){
   const files=Array.from(input.files||[]);
   if(!files.length)return;
