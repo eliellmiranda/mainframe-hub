@@ -6,7 +6,7 @@
 <title>EMUNAH BANK LAB — PLANO DE IMPLEMENTAÇÃO OPERACIONAL</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='10' fill='%23080d08'/><text y='36' x='32' font-size='26' text-anchor='middle' dominant-baseline='middle'>🦖</text><text y='58' x='32' font-size='9' font-family='monospace' font-weight='bold' fill='%234ade80' text-anchor='middle'>EBLAB</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:wght@300;400;500;600&family=Share+Tech+Mono&family=VT323&family=Silkscreen:wght@400;700&family=Space+Mono:wght@400;700&family=Major+Mono+Display&family=Press+Start+2P&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -167,6 +167,16 @@ textarea.ann:focus{border-color:var(--green);outline:none;color:var(--text)}
 .ann-preview a{color:var(--blue);text-decoration:underline;text-underline-offset:3px}
 .ann-preview a:hover{color:#93c5fd}
 .ann-empty{color:var(--text3);font-style:italic}
+.ann-files-toolbar{display:flex;gap:.5rem;flex-wrap:wrap;margin:.65rem 0 .45rem}
+.ann-file-btn{display:inline-flex;align-items:center;gap:.35rem;font-family:var(--mono);font-size:calc(.66rem + 2pt);color:var(--text2);background:transparent;border:1px dashed var(--border2);border-radius:var(--r);padding:.35rem .7rem;cursor:pointer;transition:all .15s}
+.ann-file-btn:hover{border-color:var(--green);color:var(--green)}
+.ann-files-list{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.55rem}
+.ann-file-chip{display:inline-flex;align-items:center;gap:.35rem;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:.24rem .55rem;font-family:var(--mono);font-size:calc(.62rem + 2pt);color:var(--text2);max-width:220px}
+.ann-file-chip span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ann-file-chip a{color:var(--teal);text-decoration:none}
+.ann-file-chip a:hover{text-decoration:underline}
+.ann-file-rm{cursor:pointer;color:var(--red);font-weight:bold;flex-shrink:0}
+.ann-file-rm:hover{color:#fca5a5}
 
 /* ── DIARY ── */
 .diary-composer{background:var(--bg1);border:1px solid var(--border);border-radius:var(--rl);padding:1.1rem;margin-bottom:1.2rem}
@@ -244,6 +254,28 @@ textarea.ann:focus{border-color:var(--green);outline:none;color:var(--text)}
 .cmd-copy-btn.copied{border-color:var(--green);color:var(--green)}
 .cmd-filter{display:flex;gap:.4rem;margin-bottom:1rem;flex-wrap:wrap}
 .cmd-empty{text-align:center;padding:2rem;color:var(--text3);font-style:italic;font-size:calc(.82rem + 2pt)}
+
+/* ── PROJECT TREE ── */
+.project-tree-wrap{margin-top:1.2rem}
+.project-tree-panel{background:var(--bg1);border:1px solid var(--border);border-radius:var(--rl);padding:1rem 1rem 1.05rem}
+.project-tree-toolbar{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.9rem}
+.project-tree-empty{text-align:center;padding:1.2rem;color:var(--text3);font-style:italic;border:1px dashed var(--border2);border-radius:var(--r)}
+.project-tree-list,.project-tree-list ul{list-style:none;margin:0;padding-left:0}
+.project-tree-list ul{margin-left:.95rem;padding-left:.95rem;border-left:1px dashed var(--border2)}
+.project-tree-node{margin:.28rem 0}
+.project-tree-row{display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;background:rgba(0,0,0,.14);border:1px solid var(--border);border-radius:var(--r);padding:.42rem .55rem}
+.project-tree-toggle{width:18px;text-align:center;color:var(--text3);cursor:pointer;user-select:none;font-family:var(--mono)}
+.project-tree-toggle.disabled{opacity:.35;cursor:default}
+.project-tree-icon{font-size:calc(.75rem + 2pt);flex-shrink:0}
+.project-tree-name{font-family:var(--mono);font-size:calc(.72rem + 2pt);color:var(--text);flex:1;min-width:120px;word-break:break-word}
+.project-tree-name.folder{color:var(--green)}
+.project-tree-name.file{color:var(--blue)}
+.project-tree-actions{display:flex;gap:.3rem;flex-wrap:wrap}
+.project-tree-btn{background:transparent;border:1px solid var(--border2);border-radius:var(--r);color:var(--text3);font-family:var(--mono);font-size:calc(.6rem + 2pt);padding:.24rem .5rem;cursor:pointer;transition:all .15s}
+.project-tree-btn:hover{background:var(--bg3);color:var(--text)}
+.project-tree-btn.add:hover{border-color:var(--green);color:var(--green)}
+.project-tree-btn.edit:hover{border-color:var(--blue);color:var(--blue)}
+.project-tree-btn.del:hover{border-color:var(--red);color:var(--red)}
 
 /* ── SETTINGS ── */
 #settings{position:fixed;top:50px;right:0;bottom:0;width:300px;background:var(--bg1);border-left:1px solid var(--border);z-index:100;padding:1.3rem;overflow-y:auto;transform:translateX(100%);transition:transform .25s}
@@ -328,7 +360,6 @@ textarea.ann:focus{border-color:var(--green);outline:none;color:var(--text)}
     <div class="h-right">
       <span class="h-shortcut" title="Atalho para abrir o Diário rápido">Ctrl + '</span>
       <span class="h-user" id="huser"></span>
-      <button class="h-btn" onclick="openLabFontModal()">Fonte</button>
       <button class="h-btn" onclick="toggleSettings()">Config</button>
       <button class="h-btn" onclick="doLogout()">Sair</button>
     </div>
@@ -529,8 +560,8 @@ const TOOLS=[
 // ═══════════════════════════════════════════════════════════════
 const K={
   USERS:'ebl_users',SESSION:'ebl_sess',REMEMBER:'ebl_rem',
-  prog:u=>`ebl_p_${u}`,ann:u=>`ebl_a_${u}`,
-  diary:u=>`ebl_diary_${u}`,cmds:u=>`ebl_cmds_${u}`
+  prog:u=>`ebl_p_${u}`,ann:u=>`ebl_a_${u}`,annFiles:u=>`ebl_af_${u}`,
+  diary:u=>`ebl_diary_${u}`,cmds:u=>`ebl_cmds_${u}`,tree:u=>`ebl_tree_${u}`
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -598,20 +629,54 @@ function doLogout(){localStorage.removeItem(K.SESSION);location.reload();}
 // ═══════════════════════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════════════════════
-let CU='',PROG={},ANN={},DIARY=[],CMDS=[],CPHASE='fx',CVIEW='phase';
+let CU='',PROG={},ANN={},ANNFILES={},DIARY=[],CMDS=[],PTREE=[],CPHASE='fx',CVIEW='phase';
 let diaryPendingFiles=[];
 let cmdPendingFiles=[];
 
+function treeNode(name,type='folder',children=[]){return{id:Date.now().toString(36)+Math.random().toString(36).slice(2,7),name,type,children,open:true};}
+function defaultProjectTree(){
+  return [
+    treeNode('/lab','folder',[
+      treeNode('orchestrator','folder',[treeNode('lab.py','file'),treeNode('feedback.py','file'),treeNode('scaffold.py','file')]),
+      treeNode('catalog','folder',[treeNode('demandas','folder'),treeNode('erros','folder')]),
+      treeNode('hints','folder'),
+      treeNode('runbooks','folder'),
+      treeNode('logs','folder'),
+      treeNode('config','folder',[treeNode('app_config.yaml','file')]),
+      treeNode('reports','folder',[treeNode('runs','folder')]),
+      treeNode('automation','folder',[treeNode('inject','folder'),treeNode('baseline','folder'),treeNode('submit','folder'),treeNode('collect','folder'),treeNode('validate','folder')]),
+      treeNode('canal','folder',[treeNode('agente','folder',[treeNode('domain','folder',[treeNode('models','folder'),treeNode('layouts','folder')]),treeNode('services','folder'),treeNode('app','folder')])]),
+      treeNode('data','folder',[treeNode('staging','folder',[treeNode('clientes','folder'),treeNode('contas','folder')]),treeNode('baseline','folder'),treeNode('expected','folder'),treeNode('actual','folder'),treeNode('entrada','folder')])
+    ]),
+    treeNode('jcl','folder',[treeNode('EBJCLLD.jcl','file'),treeNode('EBJVALD.jcl','file'),treeNode('EBJPOST.jcl','file'),treeNode('EBJSALD.jcl','file'),treeNode('EBJEXTR.jcl','file'),treeNode('EBJCONC.jcl','file'),treeNode('EBJEOD.jcl','file')]),
+    treeNode('rexx','folder',[treeNode('EBCHKLAB.rexx','file'),treeNode('EBSUBJCL.rexx','file')]),
+    treeNode('data','folder',[treeNode('seed','folder',[treeNode('clientes.txt','file'),treeNode('contas.txt','file')]),treeNode('entrada','folder',[treeNode('lancamentos_d0.txt','file')])])
+  ];
+}
+function normalizeProjectTree(nodes){
+  const src=Array.isArray(nodes)?nodes:[];
+  return src.map(n=>({
+    id:n&&n.id?n.id:Date.now().toString(36)+Math.random().toString(36).slice(2,7),
+    name:String(n&&n.name||'novo item'),
+    type:n&&n.type==='file'?'file':'folder',
+    open:n&&typeof n.open==='boolean'?n.open:true,
+    children:normalizeProjectTree(n&&n.children)
+  }));
+}
 function loadUD(u){
   PROG=JSON.parse(localStorage.getItem(K.prog(u))||'{}');
   ANN=JSON.parse(localStorage.getItem(K.ann(u))||'{}');
+  ANNFILES=JSON.parse(localStorage.getItem(K.annFiles(u))||'{}');
   DIARY=JSON.parse(localStorage.getItem(K.diary(u))||'[]');
   CMDS=JSON.parse(localStorage.getItem(K.cmds(u))||'[]');
+  PTREE=normalizeProjectTree(JSON.parse(localStorage.getItem(K.tree(u))||'null')||defaultProjectTree());
 }
 function saveP(){localStorage.setItem(K.prog(CU),JSON.stringify(PROG));updateProg();}
 function saveA(sid,val){ANN[sid]=val;localStorage.setItem(K.ann(CU),JSON.stringify(ANN));}
+function saveAnnFiles(){localStorage.setItem(K.annFiles(CU),JSON.stringify(ANNFILES));updateProg();}
 function saveDiary(){localStorage.setItem(K.diary(CU),JSON.stringify(DIARY));}
 function saveCmds(){localStorage.setItem(K.cmds(CU),JSON.stringify(CMDS));}
+function saveTree(){localStorage.setItem(K.tree(CU),JSON.stringify(PTREE));}
 
 function startApp(u){
   CU=u;loadUD(u);
@@ -848,6 +913,7 @@ function renderCmdsPage(){
       </div>`;
     });
   }
+  html+=renderProjectTreeSection();
   document.getElementById('pc').innerHTML=html;
 }
 
@@ -884,6 +950,108 @@ function copyCmd(id){
 function toggleCmdCard(id){
   const el=document.getElementById(`cmdb-${id}`);
   if(el)el.classList.toggle('hidden');
+}
+
+function renderProjectTreeSection(){
+  return `
+    <div class="project-tree-wrap">
+      <div class="project-tree-panel">
+        <div class="ph-num-row" style="margin-bottom:.35rem"><div class="ph-big" style="font-size:calc(1.15rem + 2pt);color:var(--green)">T</div><div class="ph-title" style="font-size:calc(.98rem + 2pt)">Árvore do projeto</div></div>
+        <div class="ph-desc" style="margin-top:0;margin-bottom:.8rem">Estrutura editável do projeto logo abaixo de Comandos. Você pode renomear, adicionar ou remover qualquer item.</div>
+        <div class="project-tree-toolbar">
+          <button class="btn btn-g" style="width:auto;padding:.42rem .85rem" onclick="addRootTreeNode('folder')">+ Pasta raiz</button>
+          <button class="btn btn-g" style="width:auto;padding:.42rem .85rem" onclick="addRootTreeNode('file')">+ Arquivo raiz</button>
+          <button class="btn btn-g" style="width:auto;padding:.42rem .85rem" onclick="resetProjectTree()">Restaurar árvore padrão</button>
+        </div>
+        ${PTREE.length?`<ul class="project-tree-list">${PTREE.map(node=>renderProjectTreeNode(node)).join('')}</ul>`:'<div class="project-tree-empty">Nenhum item na árvore ainda.</div>'}
+      </div>
+    </div>`;
+}
+function renderProjectTreeNode(node){
+  const hasChildren=Array.isArray(node.children)&&node.children.length>0;
+  const isOpen=node.open!==false;
+  return `<li class="project-tree-node">
+    <div class="project-tree-row">
+      <span class="project-tree-toggle ${hasChildren?'':'disabled'}" onclick="${hasChildren?`toggleTreeNode('${node.id}')`:''}">${hasChildren?(isOpen?'▾':'▸'):'•'}</span>
+      <span class="project-tree-icon">${node.type==='folder'?'📁':'📄'}</span>
+      <span class="project-tree-name ${node.type==='folder'?'folder':'file'}">${esc(node.name)}</span>
+      <div class="project-tree-actions">
+        <button class="project-tree-btn edit" onclick="editTreeNode('${node.id}')">renomear</button>
+        <button class="project-tree-btn add" onclick="addChildTreeNode('${node.id}','folder')">+ pasta</button>
+        <button class="project-tree-btn add" onclick="addChildTreeNode('${node.id}','file')">+ arquivo</button>
+        <button class="project-tree-btn del" onclick="deleteTreeNode('${node.id}')">excluir</button>
+      </div>
+    </div>
+    ${hasChildren&&isOpen?`<ul>${node.children.map(child=>renderProjectTreeNode(child)).join('')}</ul>`:''}
+  </li>`;
+}
+function walkTree(nodes,cb,parent=null){
+  for(let i=0;i<nodes.length;i++){
+    const res=cb(nodes[i],nodes,i,parent);
+    if(res===true)return true;
+    if(nodes[i].children&&walkTree(nodes[i].children,cb,nodes[i]))return true;
+  }
+  return false;
+}
+function findTreeNode(id){
+  let found=null;
+  walkTree(PTREE,(node,list,index,parent)=>{if(node.id===id){found={node,list,index,parent};return true;}});
+  return found;
+}
+function rerenderTree(){
+  saveTree();
+  if(CVIEW==='tool'&&CPHASE==='t-cmds')renderCmdsPage();
+}
+function toggleTreeNode(id){
+  const hit=findTreeNode(id);
+  if(!hit)return;
+  hit.node.open=hit.node.open===false;
+  rerenderTree();
+}
+function editTreeNode(id){
+  const hit=findTreeNode(id);
+  if(!hit)return;
+  const next=prompt('Novo nome do item:',hit.node.name);
+  if(next===null)return;
+  const name=next.trim();
+  if(!name)return;
+  hit.node.name=name;
+  rerenderTree();
+}
+function addRootTreeNode(type){
+  const label=type==='folder'?'Nova pasta':'Novo arquivo';
+  const name=prompt(`Nome do ${type==='folder'?'diretório':'arquivo'} raiz:`,label);
+  if(name===null)return;
+  const clean=name.trim();
+  if(!clean)return;
+  PTREE.push(treeNode(clean,type,[]));
+  rerenderTree();
+}
+function addChildTreeNode(id,type){
+  const hit=findTreeNode(id);
+  if(!hit)return;
+  if(hit.node.type==='file')hit.node.type='folder';
+  hit.node.children ||= [];
+  hit.node.open=true;
+  const label=type==='folder'?'Nova pasta':'Novo arquivo';
+  const name=prompt(`Nome do novo ${type==='folder'?'filho':'arquivo'}:`,label);
+  if(name===null)return;
+  const clean=name.trim();
+  if(!clean)return;
+  hit.node.children.push(treeNode(clean,type,[]));
+  rerenderTree();
+}
+function deleteTreeNode(id){
+  const hit=findTreeNode(id);
+  if(!hit)return;
+  if(!confirm(`Excluir "${hit.node.name}" da árvore?`))return;
+  hit.list.splice(hit.index,1);
+  rerenderTree();
+}
+function resetProjectTree(){
+  if(!confirm('Restaurar a árvore padrão do projeto?'))return;
+  PTREE=defaultProjectTree();
+  rerenderTree();
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -961,6 +1129,7 @@ function showPhase(pid){
       ab.addEventListener('click',e=>{e.stopPropagation();toggleAnnPreview(s.id);});
       applyAnnPreviewState(s.id);
     }
+    renderAnnFileList(s.id);
   });
 }
 function badgeHtml(b){const m={exist:['sb-exist','JÁ EXISTE'],fix:['sb-fix','CORRIGIR'],miss:['sb-miss','IMPLEMENTAR'],new:['sb-new','ACHADO NOVO']};const[c,l]=m[b]||m.miss;return`<span class="sbadge ${c}">${l}</span>`;}
@@ -998,8 +1167,13 @@ function renderStep(s){
             <div class="ann-actions">
               <button type="button" class="ann-btn" id="at-${s.id}">Mostrar links clicáveis</button>
             </div>
-            <div class="ann-hint">Cole URLs completas ou use o formato <code>[texto](https://exemplo.com)</code>.</div>
+            <div class="ann-hint">Cole URLs completas ou use o formato <code>[texto](https://exemplo.com)</code>. Agora este item também aceita anexos.</div>
             <textarea class="ann" id="an-${s.id}" placeholder="Notas, dúvidas, erros encontrados neste item...">${esc(ANN[s.id]||'')}</textarea>
+            <div class="ann-files-toolbar">
+              <button type="button" class="ann-file-btn" onclick="triggerAnnFile('${s.id}')">+ Anexo</button>
+              <input type="file" id="anf-${s.id}" class="hidden" multiple onchange="handleAnnFiles('${s.id}',this)">
+            </div>
+            <div class="ann-files-list" id="afl-${s.id}"></div>
             <div class="ann-preview hidden" id="ap-${s.id}"></div>
           </div>
         </aside>
@@ -1033,6 +1207,41 @@ function applyAnnPreviewState(id){
   refreshAnnPreview(id,an?an.value:(ANN[id]||''));
 }
 function toggleAnnPreview(id){APV[id]=!APV[id];applyAnnPreviewState(id);}
+function getAnnFiles(id){return Array.isArray(ANNFILES[id])?ANNFILES[id]:[];}
+function triggerAnnFile(id){document.getElementById(`anf-${id}`)?.click();}
+function handleAnnFiles(id,input){
+  const files=Array.from(input.files||[]);
+  if(!files.length)return;
+  if(!Array.isArray(ANNFILES[id]))ANNFILES[id]=[];
+  files.forEach(f=>{
+    const reader=new FileReader();
+    reader.onload=e=>{
+      if(!Array.isArray(ANNFILES[id]))ANNFILES[id]=[];
+      ANNFILES[id].push({name:f.name,size:f.size,data:e.target.result,ts:new Date().toISOString()});
+      saveAnnFiles();
+      renderAnnFileList(id);
+      const el=document.getElementById(`as-${id}`);
+      if(el){el.classList.add('show');setTimeout(()=>el.classList.remove('show'),1800);}
+    };
+    reader.readAsDataURL(f);
+  });
+  input.value='';
+}
+function renderAnnFileList(id){
+  const box=document.getElementById(`afl-${id}`);
+  if(!box)return;
+  const files=getAnnFiles(id);
+  if(!files.length){box.innerHTML='';return;}
+  box.innerHTML=files.map((f,idx)=>`<div class="ann-file-chip"><a href="${f.data}" download="${esc(f.name)}">${esc(f.name)}</a><span class="ann-file-rm" onclick="rmAnnFile('${id}',${idx})">&times;</span></div>`).join('');
+}
+function rmAnnFile(id,idx){
+  const files=getAnnFiles(id);
+  files.splice(idx,1);
+  ANNFILES[id]=files;
+  if(!files.length)delete ANNFILES[id];
+  saveAnnFiles();
+  renderAnnFileList(id);
+}
 function toggleDone(id){
   PROG[id]=!PROG[id];
   const ck=document.getElementById(`ck-${id}`),sc=document.getElementById(`sc-${id}`);
@@ -1054,21 +1263,22 @@ function updateProg(){
     const mb=document.getElementById(`mb-${ph.id}`);if(mb)mb.style.width=p+'%';
   });
   const ac=Object.values(ANN).filter(v=>v&&v.trim()).length;
+  const af=Object.values(ANNFILES).reduce((a,list)=>a+(Array.isArray(list)?list.length:0),0);
   const cp=document.getElementById('cprog'),ca=document.getElementById('cann');
   const cd=document.getElementById('cdiary'),cc=document.getElementById('ccmds');
   if(cp)cp.textContent=`${done}/${all.length} (${pct}%)`;
-  if(ca)ca.textContent=`${ac} anotações`;
+  if(ca)ca.textContent=`${ac} anotações · ${af} anexos`;
   if(cd)cd.textContent=`${DIARY.length} registros`;
   if(cc)cc.textContent=`${CMDS.length} comandos`;
 }
 let SO=false;
 function toggleSettings(){SO=!SO;document.getElementById('settings').classList.toggle('open',SO);}
 function clearProg(){if(!confirm('Limpar todo o progresso? Irreversível.'))return;PROG={};saveP();if(CVIEW==='phase')showPhase(CPHASE);}
-function clearAnn(){if(!confirm('Limpar anotações? Irreversível.'))return;ANN={};localStorage.setItem(K.ann(CU),'{}');if(CVIEW==='phase')showPhase(CPHASE);updateProg();}
+function clearAnn(){if(!confirm('Limpar anotações e anexos destes itens? Irreversível.'))return;ANN={};ANNFILES={};localStorage.setItem(K.ann(CU),'{}');localStorage.setItem(K.annFiles(CU),'{}');if(CVIEW==='phase')showPhase(CPHASE);updateProg();}
 function clearDiary(){if(!confirm('Limpar diário? Irreversível.'))return;DIARY=[];saveDiary();if(CVIEW==='tool'&&CPHASE==='t-diary')renderTool('t-diary');updateProg();}
 function clearCmds(){if(!confirm('Limpar comandos? Irreversível.'))return;CMDS=[];saveCmds();if(CVIEW==='tool'&&CPHASE==='t-cmds')renderTool('t-cmds');updateProg();}
 function exportData(){
-  const d={user:CU,exportedAt:new Date().toISOString(),progress:PROG,annotations:ANN,diary:DIARY,commands:CMDS};
+  const d={user:CU,exportedAt:new Date().toISOString(),progress:PROG,annotations:ANN,annotationFiles:ANNFILES,diary:DIARY,commands:CMDS,projectTree:PTREE};
   const b=new Blob([JSON.stringify(d,null,2)],{type:'application/json'});
   const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=`emunah-bank-lab-${CU}-${Date.now()}.json`;a.click();URL.revokeObjectURL(u);
 }
@@ -1080,9 +1290,11 @@ function importData(){
         const d=JSON.parse(ev.target.result);
         if(d.progress)PROG=d.progress;
         if(d.annotations)ANN=d.annotations;
+        if(d.annotationFiles)ANNFILES=d.annotationFiles;
         if(d.diary)DIARY=d.diary;
         if(d.commands)CMDS=d.commands;
-        saveP();localStorage.setItem(K.ann(CU),JSON.stringify(ANN));saveDiary();saveCmds();
+        if(d.projectTree)PTREE=normalizeProjectTree(d.projectTree);
+        saveP();localStorage.setItem(K.ann(CU),JSON.stringify(ANN));localStorage.setItem(K.annFiles(CU),JSON.stringify(ANNFILES));saveDiary();saveCmds();saveTree();
         if(CVIEW==='phase')showPhase(CPHASE);else renderTool(CPHASE);
         alert('Importado.');
       }catch{alert('Arquivo inválido.');}
@@ -1101,224 +1313,6 @@ function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/<
   else{sf('login');if(rem)document.getElementById('lu').value=rem;}
   document.getElementById('lp')?.addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
   document.getElementById('lu')?.addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('lp').focus();});
-})();
-</script>
-
-
-<div id="workspace-modal" class="workspace-modal hidden">
-  <div class="workspace-box">
-    <div class="workspace-head">
-      <strong>// EXPLORADOR E MAPA</strong>
-      <div class="row-actions">
-        <button class="h-btn" onclick="resetWorkspaceTrees()">Resetar</button>
-        <button class="h-btn" onclick="closeWorkspaceModal()">Fechar</button>
-      </div>
-    </div>
-    <div class="workspace-grid">
-      <section class="workspace-panel">
-        <div class="workspace-panel-title">Árvore do projeto</div>
-        <div class="workspace-panel-sub">Cada pasta e arquivo pode ser renomeado, descrito, removido ou expandido.</div>
-        <div id="workspace-tree-left" class="tree-editor-wrap"></div>
-      </section>
-      <section class="workspace-panel">
-        <div class="workspace-panel-title">Mapa de datasets</div>
-        <div class="workspace-panel-sub">Mesmo estilo da árvore da esquerda, sem imagens.</div>
-        <div id="workspace-tree-right" class="tree-editor-wrap"></div>
-      </section>
-    </div>
-  </div>
-</div>
-
-<style>
-/* WORKSPACE TREE MODAL */
-.workspace-modal{position:fixed;inset:0;z-index:260;background:rgba(0,0,0,.72);backdrop-filter:blur(4px);padding:2rem;display:flex;align-items:center;justify-content:center}
-.workspace-box{width:min(96vw,1400px);max-height:92vh;overflow:hidden;background:var(--bg1);border:1px solid var(--border2);border-radius:var(--rl);display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.45)}
-.workspace-head{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:1rem 1.2rem;border-bottom:1px solid var(--border);font-family:var(--mono);color:var(--green)}
-.workspace-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;padding:1rem;overflow:auto}
-.workspace-panel{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:.9rem;min-width:0}
-.workspace-panel-title{font-family:var(--mono);font-size:calc(.8rem + 2pt);color:var(--text);margin-bottom:.25rem}
-.workspace-panel-sub{font-size:calc(.68rem + 2pt);color:var(--text3);margin-bottom:.85rem}
-.tree-editor-wrap{display:grid;gap:.45rem}
-.tree-node{border:1px solid rgba(38,64,38,.6);border-radius:var(--r);background:rgba(0,0,0,.14)}
-.tree-row{display:flex;align-items:center;gap:.45rem;padding:.45rem .55rem;flex-wrap:wrap}
-.tree-toggle{width:22px;height:22px;border:none;background:transparent;color:var(--text3);cursor:pointer;font-family:var(--mono)}
-.tree-icon{font-family:var(--mono);font-size:calc(.7rem + 2pt);color:var(--green);min-width:18px;text-align:center}
-.tree-name-input{flex:1;min-width:160px;background:rgba(0,0,0,.22);border:1px solid var(--border2);border-radius:4px;color:var(--text);font-family:var(--mono);padding:.32rem .45rem;font-size:calc(.72rem + 2pt)}
-.tree-actions{display:flex;gap:.35rem;flex-wrap:wrap}
-.tree-btn{background:transparent;border:1px solid var(--border2);border-radius:4px;color:var(--text2);font-family:var(--mono);padding:.22rem .45rem;cursor:pointer;font-size:calc(.6rem + 2pt)}
-.tree-btn:hover{background:var(--bg3);color:var(--text)}
-.tree-btn.danger{color:var(--red);border-color:rgba(248,113,113,.35)}
-.tree-desc{padding:0 .55rem .6rem .55rem}
-.tree-desc textarea{width:100%;min-height:58px;background:rgba(0,0,0,.22);border:1px solid var(--border);border-radius:4px;color:var(--text2);font-family:var(--mono);padding:.45rem .55rem;font-size:calc(.68rem + 2pt);resize:vertical}
-.tree-children{display:grid;gap:.45rem;padding:0 .55rem .55rem 1.25rem;border-top:1px dashed rgba(38,64,38,.45)}
-.tree-empty{padding:.75rem .6rem;color:var(--text3);font-style:italic;font-size:calc(.68rem + 2pt)}
-@media(max-width:980px){.workspace-grid{grid-template-columns:1fr}.workspace-modal{padding:.75rem}}
-</style>
-<script>
-(function(){
-  const LAB_FONT_KEY='ebl_font_preset_v2';
-  const TREE_KEY_LEFT='ebl_workspace_tree_left_v2';
-  const TREE_KEY_RIGHT='ebl_workspace_tree_right_v2';
-  const LAB_FONT_PRESETS={
-    'lab-classic':{label:'Lab clássico',mono:'"IBM Plex Mono",monospace',sans:'"IBM Plex Sans",sans-serif'},
-    'ibm-serious':{label:'IBM sério',mono:'"IBM Plex Mono",monospace',sans:'"IBM Plex Sans",sans-serif'},
-    'terminal-root':{label:'Terminal raiz',mono:'"VT323",monospace',sans:'"VT323",monospace'},
-    'tech-clean':{label:'Tech clean',mono:'"Share Tech Mono",monospace',sans:'"IBM Plex Sans",sans-serif'},
-    'space-console':{label:'Space console',mono:'"Space Mono",monospace',sans:'"Space Mono",monospace'},
-    'retro-pixel':{label:'Retro pixel',mono:'"Silkscreen",monospace',sans:'"Silkscreen",monospace'},
-    'arcade':{label:'Arcade 80s',mono:'"Press Start 2P",monospace',sans:'"Press Start 2P",monospace'}
-  };
-  function uidNode(){return 'n'+Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);}
-  function mkNode(name,type,children,desc){return {id:uidNode(),name,type:type||'folder',desc:desc||'',open:true,children:Array.isArray(children)?children:[]};}
-  const defaultLeft=mkNode('EMUNAH-BANK-LAB','folder',[
-    mkNode('automation','folder',[mkNode('coleta','folder',[mkNode('placehold-backup-positivo-dell.txt','file')]),mkNode('incidentes','folder',[mkNode('placehold-backup-positivo-dell.txt','file')]),mkNode('reset','folder',[mkNode('placehold-backup-positivo-dell.txt','file')]),mkNode('submit','folder',[mkNode('placehold-backup-positivo-dell.txt','file')]),mkNode('valida','folder',[mkNode('placehold-backup-positivo-dell.txt','file')])]),
-    mkNode('cobol','folder',[mkNode('batch','folder',[mkNode('EBCLLOAD.cbl','file'),mkNode('EBCONC01.cbl','file'),mkNode('EBEXTR01.cbl','file'),mkNode('EBPOST01.cbl','file'),mkNode('EBSALD01.cbl','file'),mkNode('EBVALI01.cbl','file')]),mkNode('common','folder',[mkNode('placehold-backup-positivo-dell.txt','file')]),mkNode('hml','folder',[mkNode('EBSMKH01.cbl','file')]),mkNode('online','folder',[mkNode('placehold-backup-positivo-dell.txt','file')])]),
-    mkNode('contexto claude','folder',[mkNode('emunah-claude-project','folder',[mkNode('00-COMO-USAR-NO-CLAUDE.md','file'),mkNode('01-PROJECT-INSTRUCTIONS.md','file'),mkNode('02-MERCADO-MAINFRAME-APLICADO-AO-LAB.md','file'),mkNode('03-CORE-BANCARIO-APLICADO-AO-LAB.md','file'),mkNode('04-MAINFRAME-NA-PRATICA.md','file'),mkNode('05-MODELO-FUNCIONAL-DO-EMUNAH-LAB.md','file'),mkNode('06-ROADMAP-DE-IMPLEMENTACAO.md','file'),mkNode('07-PROMPTS-UTEIS.md','file'),mkNode('PACK-COMPLETO-PARA-COLAR.md','file'),mkNode('PACK-COMPLETO-PARA-COLAR.txt','file')]),mkNode('files','folder',[mkNode('00-COMO-USAR-NO-CLAUDE.md','file'),mkNode('01-PROJECT-INSTRUCTIONS.md','file'),mkNode('02-MERCADO-MAINFRAME-APLICADO-AO-LAB.md','file'),mkNode('03-CORE-BANCARIO-APLICADO-AO-LAB.md','file'),mkNode('04-MAINFRAME-NA-PRATICA.md','file'),mkNode('05-MODELO-FUNCIONAL-DO-EMUNAH-LAB.md','file'),mkNode('06-ROADMAP-DE-IMPLEMENTACAO.md','file'),mkNode('07-PROMPTS-UTEIS.md','file'),mkNode('08-CONVENCOES-DE-CODIGO.md','file')]),mkNode('ferramentas_mainframe.md','file')]),
-    mkNode('copybooks','folder',[mkNode('copybooks-atualizados-claude','folder',[mkNode('files','folder',[mkNode('08-CONVENCOES-DE-CODIGO.md','file'),mkNode('CPAUD001.cpy','file'),mkNode('CPCLI001.cpy','file'),mkNode('CPCNT001.cpy','file'),mkNode('CPEXT001.cpy','file'),mkNode('CPLCT001.cpy','file'),mkNode('CPREJ001.cpy','file'),mkNode('CPSLD001.cpy','file')])]),mkNode('db2','folder',[mkNode('placehold-backup-positivo-dell.txt','file')]),mkNode('layouts','folder',[mkNode('CPAUD001.cpy','file'),mkNode('CPCLI001.cpy','file'),mkNode('CPCNT001.cpy','file'),mkNode('CPLCT001.cpy','file'),mkNode('CPSLD001.cpy','file')]),mkNode('telas','folder',[mkNode('placehold-backup-positivo-dell.txt','file')])]),
-    mkNode('data','folder',[mkNode('backup','folder',[mkNode('placehold-backup-positivo-dell.txt','file')]),mkNode('entrada','folder',[mkNode('lancamentos_d0.txt','file')]),mkNode('rejeito','folder',[mkNode('placehold-backup-positivo-dell.txt','file')]),mkNode('saida','folder',[mkNode('placehold-backup-positivo-dell.txt','file')]),mkNode('seed','folder',[mkNode('clientes.txt','file'),mkNode('contas.txt','file')])]),
-    mkNode('docs','folder',[mkNode('change-log','folder',[mkNode('case-001.txt','file'),mkNode('case-002.txt','file'),mkNode('case-003.txt','file')]),mkNode('ibm','folder',[mkNode('db2','folder',[mkNode('Db2 13 for zOS - application programming.pdf','file'),mkNode('db2z_13_codesbook.pdf','file'),mkNode('db2z_13_SQL Reference.pdf','file'),mkNode('db2z_13_Utility Guide and Reference.pdf','file')]),mkNode('Enterprise COBOL-language-reference.pdf','file'),mkNode('Enterprise COBOL-messages-and-codes.pdf','file'),mkNode('Enterprise COBOL-programming-guide.pdf','file'),mkNode('zOS-MVS-JCL-REFERENCE.pdf','file'),mkNode('zOS-MVS-JCL-USERS-GUIDE.pdf','file'),mkNode('zOS-TSOE-PRIMER.pdf','file'),mkNode('zOS-TSOE-REXX-USERS-GUIDE.pdf','file')]),mkNode('01-visao-geral.md','file'),mkNode('02-arquitetura.md','file'),mkNode('03-modulos.md','file'),mkNode('04-mapa-datasets.md','file'),mkNode('05-grade-batch.md','file'),mkNode('06-runbooks.md','file'),mkNode('07-cenarios-incidente.md','file'),mkNode('08-fluxo-zowe.md','file'),mkNode('09-padroes-publicacao.md','file')]),
-    mkNode('jcl','folder',[mkNode('batch','folder',[mkNode('EBJCLLD.jcl','file'),mkNode('EBJCONC.jcl','file'),mkNode('EBJEOD.jcl','file'),mkNode('EBJEXTR.jcl','file'),mkNode('EBJLOAD.jcl','file'),mkNode('EBJPOST.jcl','file'),mkNode('EBJSALD.jcl','file'),mkNode('EBJVALD.jcl','file'),mkNode('EBSEED.jcl','file')]),mkNode('compile','folder',[mkNode('EBBUILD.jcl','file'),mkNode('EBCOMP.jcl','file'),mkNode('EBLINK.jcl','file')]),mkNode('deploy','folder',[mkNode('placehold-backup-positivo-dell.txt','file')]),mkNode('hml','folder',[mkNode('EBJCONCH.jcl','file'),mkNode('EBJSMKH.jcl','file')]),mkNode('prd','folder',[mkNode('EBJEODP.jcl','file'),mkNode('EBJPOSTP.jcl','file')]),mkNode('util','folder',[mkNode('placehold-backup-positivo-dell.txt','file')])]),
-    mkNode('parmlib','folder',[mkNode('EBAUDITP.txt','file'),mkNode('EBBATCHP.txt','file')]),
-    mkNode('reports','folder',[mkNode('execucoes','folder',[mkNode('placehold-backup-positivo-dell.txt','file')]),mkNode('logs','folder',[mkNode('placehold-backup-positivo-dell.txt','file')]),mkNode('spool','folder',[mkNode('placehold-backup-positivo-dell.txt','file')])]),
-    mkNode('rexx','folder',[mkNode('operador','folder',[mkNode('placehold-backup-positivo-dell.txt','file')]),mkNode('util','folder',[mkNode('placehold-backup-positivo-dell.txt','file')]),mkNode('EBCHKLAB.rexx','file'),mkNode('EBSUBJCL.rexx','file')]),
-    mkNode('scenarios','folder',[mkNode('placehold-backup-positivo-dell.txt','file')]),
-    mkNode('tests','folder',[mkNode('actual','folder',[mkNode('placehold-backup-positivo-dell.txt','file')]),mkNode('expected','folder',[mkNode('placehold-backup-positivo-dell.txt','file')])])
-  ],'Estrutura principal do projeto local.')
-  ;
-  const defaultRight=mkNode('MAPA DE DATASETS','folder',[
-    mkNode('Z77948.EMUNAH.ARQ','folder',[mkNode('AUDIT.SEQ','file'),mkNode('CLIENTE.KSDS','file'),mkNode('CONCIL.SEQ','file'),mkNode('CONTA.KSDS','file'),mkNode('ENTRADA.SEQ','file'),mkNode('EXTRATO.GDG','file'),mkNode('EXTRATO.GDG.G0001V00','file'),mkNode('EXTRATO.GDG.G0002V00','file'),mkNode('LANCTO.ESDS','file'),mkNode('REJEITO.SEQ','file'),mkNode('SALDO.KSDS','file')]),
-    mkNode('Z77948.EMUNAH.BAK','folder',[mkNode('CONTA.SEQ','file')]),
-    mkNode('Z77948.EMUNAH.DEV.COBOL','folder',[mkNode('EBCLLOAD','file'),mkNode('EBCONC01','file'),mkNode('EBEXTR01','file'),mkNode('EBPOST01','file'),mkNode('EBSALD01','file'),mkNode('EBVALI01','file')]),
-    mkNode('Z77948.EMUNAH.DEV.COPY','folder',[mkNode('CPAUD001','file'),mkNode('CPCLI001','file'),mkNode('CPCNT001','file'),mkNode('CPLCT001','file'),mkNode('CPSLD001','file')]),
-    mkNode('Z77948.EMUNAH.DEV.JCL','folder',[mkNode('CRTGEN','file'),mkNode('DEFGDG','file'),mkNode('DELGDG','file'),mkNode('EBALLOC','file'),mkNode('EBBUILD','file'),mkNode('EBCOMP','file'),mkNode('EBJCLLD','file'),mkNode('EBJCONC','file'),mkNode('EBJEOD','file'),mkNode('EBJEXTR','file'),mkNode('EBJLOAD','file'),mkNode('EBJPOST','file'),mkNode('EBJSALD','file'),mkNode('EBJVALD','file'),mkNode('EBLINK','file'),mkNode('EBSEED','file')]),
-    mkNode('Z77948.EMUNAH.DEV.LOADLIB','folder',[mkNode('EBCLLOAD','file')]),
-    mkNode('Z77948.EMUNAH.DEV.REXX','folder',[mkNode('EBCHKLAB','file'),mkNode('EBSUBJCL','file')]),
-    mkNode('Z77948.EMUNAH.HML.COBOL','folder',[mkNode('EBSMKH01','file')]),
-    mkNode('Z77948.EMUNAH.HML.JCL','folder',[mkNode('EBJCONCH','file'),mkNode('EBJSMKH','file')]),
-    mkNode('Z77948.EMUNAH.PRD.JCL','folder',[mkNode('EBJEODP','file'),mkNode('EBJPOSTP','file')]),
-    mkNode('Z77948.EMUNAH.PRD.PARMLIB','folder',[mkNode('EBAUDITP','file'),mkNode('EBBATCHP','file')]),
-    mkNode('Z77948.EMUNAH.SEED.CLIENTES.SEQ','file'),
-    mkNode('Z77948.EMUNAH.SEED.CONTAS.SEQ','file')
-  ],'Visão dos datasets e bibliotecas mainframe.')
-  ;
-  function cloneTree(obj){return JSON.parse(JSON.stringify(obj));}
-  function normalizeTree(node,rootName){
-    if(!node||typeof node!=='object')return cloneTree(rootName==='MAPA DE DATASETS'?defaultRight:defaultLeft);
-    if(node.name===rootName && Array.isArray(node.children)){
-      node.children=node.children.filter(child=>child&&child.name!==rootName);
-    }
-    const seen=new Map();
-    node.children=(Array.isArray(node.children)?node.children:[]).reduce((acc,child)=>{
-      if(!child||typeof child!=='object')return acc;
-      child.id=child.id||uidNode();
-      child.type=child.type||((child.children&&child.children.length)?'folder':'file');
-      child.desc=String(child.desc||'');
-      child.open=child.open!==false;
-      normalizeTree(child, rootName);
-      const key=`${child.type}:${child.name}`.toLowerCase();
-      if(node.name===rootName && seen.has(key) && child.type==='folder'){
-        const existing=seen.get(key);
-        existing.children=(existing.children||[]).concat(child.children||[]);
-        existing.children.forEach(c=>normalizeTree(c,rootName));
-      }else{acc.push(child);seen.set(key,child);}
-      return acc;
-    },[]);
-    return node;
-  }
-  let treeState={left:null,right:null};
-  function loadTree(key,def,rootName){
-    try{const raw=localStorage.getItem(key);if(raw)return normalizeTree(JSON.parse(raw),rootName);}catch(e){}
-    return cloneTree(def);
-  }
-  function saveTree(side){
-    const key=side==='left'?TREE_KEY_LEFT:TREE_KEY_RIGHT;
-    localStorage.setItem(key, JSON.stringify(treeState[side]));
-  }
-  function findNode(node,id,parent=null){
-    if(!node)return null;
-    if(node.id===id)return {node,parent};
-    for(const child of (node.children||[])){
-      const found=findNode(child,id,node);
-      if(found)return found;
-    }
-    return null;
-  }
-  function renderTree(side){
-    const mount=document.getElementById(side==='left'?'workspace-tree-left':'workspace-tree-right');
-    if(!mount)return;
-    const root=treeState[side];
-    mount.innerHTML=renderTreeNode(root,side,true);
-  }
-  function renderTreeNode(node,side,isRoot){
-    const hasChildren=Array.isArray(node.children)&&node.children.length>0;
-    return `<div class="tree-node">
-      <div class="tree-row">
-        <button class="tree-toggle" ${hasChildren?'':'style="visibility:hidden"'} onclick="toggleTreeNode('${side}','${node.id}')">${hasChildren?(node.open?'▾':'▸'):'•'}</button>
-        <span class="tree-icon">${node.type==='folder'?'📁':'📄'}</span>
-        <input class="tree-name-input" value="${esc(node.name)}" oninput="renameTreeNode('${side}','${node.id}',this.value)">
-        <div class="tree-actions">
-          ${node.type==='folder'?`<button class="tree-btn" onclick="addTreeChild('${side}','${node.id}','folder')">+ pasta</button><button class="tree-btn" onclick="addTreeChild('${side}','${node.id}','file')">+ arquivo</button>`:''}
-          ${!isRoot?`<button class="tree-btn danger" onclick="deleteTreeNode('${side}','${node.id}')">Excluir</button>`:''}
-        </div>
-      </div>
-      ${node.open?`<div class="tree-desc"><textarea placeholder="Descrição do item..." oninput="describeTreeNode('${side}','${node.id}',this.value)">${esc(node.desc||'')}</textarea></div>${hasChildren?`<div class="tree-children">${node.children.map(child=>renderTreeNode(child,side,false)).join('')}</div>`:'<div class="tree-empty">Sem itens filhos.</div>'}`:''}
-    </div>`;
-  }
-  function loadWorkspaceTrees(){
-    treeState.left=loadTree(TREE_KEY_LEFT, defaultLeft, 'EMUNAH-BANK-LAB');
-    treeState.right=loadTree(TREE_KEY_RIGHT, defaultRight, 'MAPA DE DATASETS');
-  }
-  function openWorkspaceModal(){
-    loadWorkspaceTrees();
-    const modal=document.getElementById('workspace-modal');
-    modal.classList.remove('hidden');
-    renderTree('left');
-    renderTree('right');
-  }
-  function closeWorkspaceModal(){document.getElementById('workspace-modal').classList.add('hidden');}
-  function toggleTreeNode(side,id){const found=findNode(treeState[side],id);if(!found)return;found.node.open=!found.node.open;saveTree(side);renderTree(side);}
-  function renameTreeNode(side,id,val){const found=findNode(treeState[side],id);if(!found)return;found.node.name=String(val||'').trim()|| (found.node.type==='folder'?'nova-pasta':'novo-arquivo');saveTree(side);}
-  function describeTreeNode(side,id,val){const found=findNode(treeState[side],id);if(!found)return;found.node.desc=String(val||'');saveTree(side);}
-  function addTreeChild(side,parentId,type){const found=findNode(treeState[side],parentId);if(!found||found.node.type!=='folder')return;found.node.children=found.node.children||[];found.node.open=true;found.node.children.push(mkNode(type==='folder'?'nova-pasta':'novo-arquivo',type,[],''));saveTree(side);renderTree(side);}
-  function deleteTreeNode(side,id){const found=findNode(treeState[side],id);if(!found||!found.parent)return;const label=found.node.name||'este item';if(!confirm(`Excluir "${label}" da árvore?`))return;found.parent.children=(found.parent.children||[]).filter(child=>child.id!==id);saveTree(side);renderTree(side);}
-  function resetWorkspaceTrees(){if(!confirm('Restaurar as árvores padrão?'))return;localStorage.removeItem(TREE_KEY_LEFT);localStorage.removeItem(TREE_KEY_RIGHT);loadWorkspaceTrees();renderTree('left');renderTree('right');}
-  function applyLabFontPreset(id,persist){
-    const preset=LAB_FONT_PRESETS[id]||LAB_FONT_PRESETS['lab-classic'];
-    document.documentElement.style.setProperty('--mono', preset.mono);
-    document.documentElement.style.setProperty('--sans', preset.sans);
-    document.documentElement.dataset.labFont=id;
-    if(persist) localStorage.setItem(LAB_FONT_KEY,id);
-  }
-  function openLabFontModal(){
-    const current=localStorage.getItem(LAB_FONT_KEY)||'lab-classic';
-    const options=Object.entries(LAB_FONT_PRESETS).map(([id,cfg])=>`<option value="${id}" ${id===current?'selected':''}>${cfg.label}</option>`).join('');
-    const existing=document.getElementById('lab-font-modal');
-    if(existing) existing.remove();
-    const box=document.createElement('div');
-    box.id='lab-font-modal';
-    box.className='workspace-modal';
-    box.innerHTML=`<div class="workspace-box" style="max-width:640px"><div class="workspace-head"><strong>// FONTE DO LAB</strong><div class="row-actions"><button class="h-btn" onclick="closeLabFontModal()">Fechar</button></div></div><div style="padding:1rem"><div class="fg"><label class="fl">Preset</label><select id="lab-font-select">${options}</select></div><div class="nb">Fontes carregadas: IBM Plex Mono, VT323, Share Tech Mono, Space Mono, Major Mono Display, Silkscreen e Press Start 2P.</div><button class="btn btn-p" style="width:auto" onclick="saveLabFontPreset()">Aplicar</button></div></div>`;
-    document.body.appendChild(box);
-  }
-  function closeLabFontModal(){document.getElementById('lab-font-modal')?.remove();}
-  function saveLabFontPreset(){const id=document.getElementById('lab-font-select').value;applyLabFontPreset(id,true);closeLabFontModal();}
-  document.addEventListener('keydown',e=>{
-    if(e.ctrlKey&&(e.key==='\\' || e.code==='Backslash')){e.preventDefault();const modal=document.getElementById('workspace-modal');if(modal.classList.contains('hidden'))openWorkspaceModal();else closeWorkspaceModal();}
-    if(e.key==='Escape'){const modal=document.getElementById('workspace-modal');if(modal&&!modal.classList.contains('hidden'))closeWorkspaceModal();}
-  });
-  const savedFont=localStorage.getItem(LAB_FONT_KEY)||'lab-classic';
-  applyLabFontPreset(savedFont,false);
-  window.openWorkspaceModal=openWorkspaceModal;
-  window.closeWorkspaceModal=closeWorkspaceModal;
-  window.toggleTreeNode=toggleTreeNode;
-  window.renameTreeNode=renameTreeNode;
-  window.describeTreeNode=describeTreeNode;
-  window.addTreeChild=addTreeChild;
-  window.deleteTreeNode=deleteTreeNode;
-  window.resetWorkspaceTrees=resetWorkspaceTrees;
-  window.openLabFontModal=openLabFontModal;
-  window.closeLabFontModal=closeLabFontModal;
-  window.saveLabFontPreset=saveLabFontPreset;
 })();
 </script>
 </body>
