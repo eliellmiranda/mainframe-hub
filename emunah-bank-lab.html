@@ -1129,8 +1129,7 @@ function renderProjectTreeNode(node){
       <span class="project-tree-name ${node.type==='folder'?'folder':'file'}">${esc(node.name)}</span>
       <div class="project-tree-actions">
         <button class="project-tree-btn edit" onclick="editTreeNode('${node.id}')">renomear</button>
-        <button class="project-tree-btn add" onclick="addChildTreeNode('${node.id}','folder')">+ pasta</button>
-        <button class="project-tree-btn add" onclick="addChildTreeNode('${node.id}','file')">+ arquivo</button>
+        ${node.type==='folder'?`<button class="project-tree-btn add" onclick="addChildTreeNode('${node.id}','folder')">+ pasta</button><button class="project-tree-btn add" onclick="addChildTreeNode('${node.id}','file')">+ arquivo</button>`:''}
         <button class="project-tree-btn del" onclick="deleteTreeNode('${node.id}')">excluir</button>
       </div>
     </div>
@@ -1153,7 +1152,12 @@ function findTreeNode(id){
 function rerenderTree(){
   saveTree();
   buildSidebar();
-  if(CVIEW==='tool'&&CPHASE==='t-cmds')renderCmdsPage();
+  highlightSidebar();
+  if(CVIEW==='tool'&&CPHASE==='t-tree'){
+    document.getElementById('pc').innerHTML=renderProjectTreeSection();
+  }else if(CVIEW==='tool'&&CPHASE==='t-cmds'){
+    renderCmdsPage();
+  }
 }
 function toggleTreeNode(id){
   const hit=findTreeNode(id);
