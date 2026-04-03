@@ -78,10 +78,9 @@ function baseData() {
     linkedinPosts: [],
     certificates: [],
     generalNotes: [],
+    noteCategories: [],
+    noteRecords: [],
     tools: [],
-    workDiaryEntries: [],
-    workDiaryCategories: ['Geral'],
-    fontPreset: 'mfhub-classic',
     dailyGoals: {},
     lab: { url:'', planUrl:'emunah-bank-lab.html', title:'EMUNAH BANK LAB' },
     meta: { seedVersion:0, lastSection:'dashboard', goalSeedVersion:0, selectedGoalDay:getTodayGoalKey() }
@@ -96,25 +95,13 @@ function ensureDefaults() {
   appData.linkedinPosts ||= [];
   appData.certificates ||= [];
   appData.generalNotes ||= [];
+  appData.noteCategories ||= [];
+  appData.noteRecords ||= [];
   appData.tools ||= [];
-  appData.workDiaryEntries ||= [];
-  appData.workDiaryCategories ||= ['Geral'];
-  appData.fontPreset ||= 'mfhub-classic';
   appData.dailyGoals ||= {};
   appData.lab ||= { url:'', planUrl:'emunah-bank-lab.html', title:'EMUNAH BANK LAB' };
   appData.meta ||= { seedVersion:0, lastSection:'dashboard', goalSeedVersion:0, selectedGoalDay:getTodayGoalKey() };
   appData.meta.selectedGoalDay ||= getTodayGoalKey();
-  appData.workDiaryCategories = Array.from(new Set((appData.workDiaryCategories || []).map(v => String(v || '').trim()).filter(Boolean)));
-  if (!appData.workDiaryCategories.length) appData.workDiaryCategories = ['Geral'];
-  appData.workDiaryEntries = (appData.workDiaryEntries || []).map(entry => ({
-    id: entry.id || uid(),
-    text: String(entry.text || ''),
-    category: String(entry.category || appData.workDiaryCategories[0] || 'Geral'),
-    files: Array.isArray(entry.files) ? entry.files : [],
-    createdAt: entry.createdAt || entry.ts || Date.now(),
-    updatedAt: entry.updatedAt || entry.createdAt || entry.ts || Date.now(),
-    open: !!entry.open
-  }));
   appData.courses.forEach(course => {
     course.modules ||= [];
     course.modules.forEach(module => {
@@ -416,7 +403,6 @@ function startApp(user, displayName = user) {
   currentUser = user;
   loadUserData();
   applySavedTheme();
-  applyFontPreset(appData.fontPreset || 'mfhub-classic');
   ensureSeedData();
   ensureDailyGoalsSeeded();
   updateStreak();
@@ -776,11 +762,12 @@ function updateStatus() {
     linkedin: appData.linkedinPosts.length,
     certs: appData.certificates.length,
     notes: appData.generalNotes.length,
+    noteCategories: appData.noteCategories.length,
+    noteRecords: appData.noteRecords.length,
     tools: appData.tools.length,
-    diary: appData.workDiaryEntries.length,
     goals: Object.values(appData.dailyGoals || {}).reduce((a,list)=>a+(Array.isArray(list)?list.length:0),0),
   };
-  document.getElementById('status-stats').textContent = `${totals.courses} cursos · ${totals.docs} docs · ${totals.code} códigos · ${totals.ex + totals.iv} questões · ${totals.linkedin} posts · ${totals.certs} badges · ${totals.tools} ferramentas · ${totals.diary} diário · ${totals.notes} notas · ${totals.goals} metas`;
+  document.getElementById('status-stats').textContent = `${totals.courses} cursos · ${totals.docs} docs · ${totals.code} códigos · ${totals.ex + totals.iv} questões · ${totals.linkedin} posts · ${totals.certs} badges · ${totals.tools} ferramentas · ${totals.notes} notas · ${totals.noteCategories} categorias · ${totals.noteRecords} registros · ${totals.goals} metas`;
 }
 
 function renderDashboard() {
@@ -1473,306 +1460,113 @@ function deleteSubspace(kind, spaceId, subId) {
 
 
 
-const FONT_PRESETS = {
-  'mfhub-classic': { label:'MFHUB Classic', mainframe:'"IBM Plex Mono","Share Tech Mono",monospace', display:'"VT323","Major Mono Display","Share Tech Mono",monospace' },
-  'ibm-serious': { label:'IBM sério', mainframe:'"IBM Plex Mono",monospace', display:'"IBM Plex Mono",monospace' },
-  'terminal-root': { label:'Terminal raiz', mainframe:'"VT323",monospace', display:'"VT323",monospace' },
-  'tech-clean': { label:'Tech clean', mainframe:'"Share Tech Mono",monospace', display:'"Share Tech Mono",monospace' },
-  'space-console': { label:'Space console', mainframe:'"Space Mono",monospace', display:'"Major Mono Display","Space Mono",monospace' },
-  'retro-pixel': { label:'Retro pixel', mainframe:'"Silkscreen",monospace', display:'"Press Start 2P","Silkscreen",monospace' }
-};
-function applyFontPreset(presetId, persist=false) {
-  const preset = FONT_PRESETS[presetId] || FONT_PRESETS['mfhub-classic'];
-  document.documentElement.style.setProperty('--mainframe-font', preset.mainframe);
-  document.documentElement.style.setProperty('--display-font', preset.display);
-  document.documentElement.dataset.fontPreset = presetId;
-  if (persist && appData) {
-    appData.fontPreset = presetId;
-    saveUserData();
-  }
-}
-function openFontModal() {
-  const selected = appData?.fontPreset || 'mfhub-classic';
-  openModal('Escolher fonte do site', `
-    <div class="row"><label class="lbl">Preset</label>
-      <select id="font-preset" class="select">
-        ${Object.entries(FONT_PRESETS).map(([id, cfg]) => `<option value="${id}" ${id===selected?'selected':''}>${cfg.label}</option>`).join('')}
-      </select>
-    </div>
-    <div class="auth-note">Combinações disponíveis: IBM Plex Mono, VT323, Share Tech Mono, Space Mono, Major Mono Display, Silkscreen e Press Start 2P.</div>
-  `, `<button class="btn primary" onclick="saveFontPreset()">Aplicar</button>`);
-}
-function saveFontPreset() {
-  const presetId = document.getElementById('font-preset').value;
-  applyFontPreset(presetId, true);
-  closeModal();
-  renderAll();
-  showToast('Fonte aplicada.');
-}
-
-let workDiaryFilter = 'ALL';
-let workDiarySearch = '';
-let workDiaryPendingFiles = {};
-let workDiaryCategoryDraft = [];
-function getWorkDiaryCategories() {
-  const cats = Array.from(new Set((appData.workDiaryCategories || []).map(v => String(v || '').trim()).filter(Boolean)));
-  return cats.length ? cats : ['Geral'];
-}
-function getDiaryEntriesFiltered() {
-  const q = workDiarySearch.trim().toLowerCase();
-  return (appData.workDiaryEntries || []).filter(entry => {
-    if (workDiaryFilter !== 'ALL' && String(entry.category || '') !== workDiaryFilter) return false;
-    if (!q) return true;
-    const hay = `${entry.category || ''} ${entry.text || ''} ${(entry.files || []).map(f => f.name).join(' ')}`.toLowerCase();
-    return hay.includes(q);
-  });
-}
-function renderWorkDiaryComposer(targetId) {
-  const categories = getWorkDiaryCategories();
-  const ts = fmtDate(Date.now());
-  return `
-    <div class="panel work-diary-composer">
-      <div class="row-top" style="margin-bottom:12px">
-        <div>
-          <div class="panel-title">Diário de trabalho</div>
-          <div class="row-sub">${esc(ts)}</div>
-        </div>
-        <div class="row-actions">
-          <button class="btn xs" onclick="openWorkDiaryCategoriesModal()">Categorias</button>
-        </div>
-      </div>
-      <div class="row"><label class="lbl">Categoria</label>
-        <select id="${targetId}-category" class="select">
-          ${categories.map(cat => `<option value="${esc(cat)}">${esc(cat)}</option>`).join('')}
-        </select>
-      </div>
-      <div class="row"><label class="lbl">Registro</label><textarea id="${targetId}-text" class="textarea work-diary-textarea" placeholder="O que você fez, resolveu, estudou ou bloqueou agora?"></textarea></div>
-      <div class="row-top">
-        <div class="row-actions">
-          <button class="btn xs" onclick="triggerWorkDiaryFile('${targetId}')">+ Arquivo</button>
-          <input id="${targetId}-file" class="hidden" type="file" multiple onchange="handleWorkDiaryFiles('${targetId}', this)">
-        </div>
-        <button class="btn primary" onclick="saveWorkDiaryEntry('${targetId}')">Salvar registro</button>
-      </div>
-      <div id="${targetId}-files" class="attachment-chip-list"></div>
-    </div>`;
-}
-function triggerWorkDiaryFile(targetId) {
-  document.getElementById(`${targetId}-file`)?.click();
-}
-function handleWorkDiaryFiles(targetId, input) {
-  const files = Array.from(input?.files || []);
-  workDiaryPendingFiles[targetId] ||= [];
-  if (!files.length) return;
-  let remaining = files.length;
-  files.forEach(file => {
-    const reader = new FileReader();
-    reader.onload = e => {
-      workDiaryPendingFiles[targetId].push({ id: uid(), name:file.name, size:file.size, type:file.type, data:e.target.result });
-      remaining -= 1;
-      if (remaining === 0) renderWorkDiaryPendingFiles(targetId);
-    };
-    reader.readAsDataURL(file);
-  });
-}
-function renderWorkDiaryPendingFiles(targetId) {
-  const wrap = document.getElementById(`${targetId}-files`);
-  if (!wrap) return;
-  wrap.innerHTML = (workDiaryPendingFiles[targetId] || []).map((file, idx) => `
-    <span class="attachment-chip">
-      <span>${esc(file.name)}</span>
-      <button class="attachment-chip-rm" onclick="removeWorkDiaryPendingFile('${targetId}', ${idx})">&times;</button>
-    </span>`).join('');
-}
-function removeWorkDiaryPendingFile(targetId, idx) {
-  workDiaryPendingFiles[targetId] ||= [];
-  workDiaryPendingFiles[targetId].splice(idx, 1);
-  renderWorkDiaryPendingFiles(targetId);
-}
-function saveWorkDiaryEntry(targetId) {
-  const category = document.getElementById(`${targetId}-category`)?.value?.trim() || getWorkDiaryCategories()[0] || 'Geral';
-  const text = document.getElementById(`${targetId}-text`)?.value?.trim() || '';
-  if (!text) return showToast('Digite um registro antes de salvar.');
-  const files = (workDiaryPendingFiles[targetId] || []).map(file => ({ ...file }));
-  appData.workDiaryEntries.unshift({ id:uid(), category, text, files, createdAt:Date.now(), updatedAt:Date.now(), open:false });
-  workDiaryPendingFiles[targetId] = [];
-  saveUserData();
-  if (document.getElementById(`${targetId}-text`)) document.getElementById(`${targetId}-text`).value = '';
-  renderNotes();
-  updateStatus();
-  showToast('Registro salvo no diário.');
-}
-function toggleWorkDiaryEntry(entryId) {
-  const entry = appData.workDiaryEntries.find(item => item.id === entryId); if (!entry) return;
-  entry.open = !entry.open;
-  saveUserData();
-  renderNotes();
-}
-function deleteWorkDiaryEntry(entryId) {
-  const entry = appData.workDiaryEntries.find(item => item.id === entryId);
-  if (!entry) return;
-  if (!confirm(`Excluir este registro de ${entry.category || 'diário'}?`)) return;
-  appData.workDiaryEntries = appData.workDiaryEntries.filter(item => item.id !== entryId);
-  saveUserData();
-  renderNotes();
-  updateStatus();
-  showToast('Registro removido.');
-}
-function downloadWorkDiaryFile(entryId, fileId) {
-  const entry = appData.workDiaryEntries.find(item => item.id === entryId);
-  const file = entry?.files?.find(item => item.id === fileId);
-  if (!file?.data) return showToast('Arquivo não encontrado.');
-  const a = document.createElement('a');
-  a.href = file.data;
-  a.download = file.name || 'arquivo';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-}
-function setWorkDiaryFilter(category) {
-  workDiaryFilter = category;
-  renderNotes();
-}
-function setWorkDiarySearch(value) {
-  workDiarySearch = String(value || '');
-  renderNotes();
-}
-function renderWorkDiaryCategoryDraft() {
-  const body = document.getElementById('modal-body');
-  if (!body) return;
-  body.innerHTML = `
-    <div class="row"><label class="lbl">Nova categoria</label>
-      <div class="row-top">
-        <input id="wd-new-category" class="input" placeholder="Ex.: Sprint 12, Incidente, Banco X">
-        <button class="btn" onclick="addWorkDiaryCategoryDraft()">Adicionar</button>
-      </div>
-    </div>
-    <div class="stack">
-      ${workDiaryCategoryDraft.map((cat, idx) => `
-        <div class="panel compact-panel">
-          <div class="row-top">
-            <input class="input" value="${esc(cat)}" oninput="updateWorkDiaryCategoryDraft(${idx}, this.value)">
-            <button class="btn xs danger" onclick="deleteWorkDiaryCategoryDraft(${idx})">Excluir</button>
-          </div>
-        </div>`).join('') || '<div class="empty">Nenhuma categoria cadastrada.</div>'}
-    </div>`;
-}
-function openWorkDiaryCategoriesModal() {
-  workDiaryCategoryDraft = [...getWorkDiaryCategories()];
-  openModal('Categorias do diário de trabalho', '', `<button class="btn primary" onclick="saveWorkDiaryCategories()">Salvar categorias</button>`);
-  renderWorkDiaryCategoryDraft();
-}
-function addWorkDiaryCategoryDraft() {
-  const input = document.getElementById('wd-new-category');
-  const value = String(input?.value || '').trim();
-  if (!value) return showToast('Digite um nome para a categoria.');
-  if (workDiaryCategoryDraft.some(cat => cat.toLowerCase() === value.toLowerCase())) return showToast('Essa categoria já existe.');
-  workDiaryCategoryDraft.push(value);
-  renderWorkDiaryCategoryDraft();
-}
-function updateWorkDiaryCategoryDraft(idx, value) {
-  workDiaryCategoryDraft[idx] = String(value || '');
-}
-function deleteWorkDiaryCategoryDraft(idx) {
-  workDiaryCategoryDraft.splice(idx, 1);
-  renderWorkDiaryCategoryDraft();
-}
-function saveWorkDiaryCategories() {
-  const previous = getWorkDiaryCategories();
-  const next = Array.from(new Set(workDiaryCategoryDraft.map(v => String(v || '').trim()).filter(Boolean)));
-  if (!next.length) next.push('Geral');
-  appData.workDiaryCategories = next;
-  const fallback = next[0];
-  appData.workDiaryEntries.forEach(entry => {
-    if (!next.includes(entry.category)) entry.category = fallback;
-  });
-  saveUserData();
-  closeModal();
-  renderNotes();
-  const changed = previous.join('|') !== next.join('|');
-  showToast(changed ? 'Categorias atualizadas.' : 'Categorias mantidas.');
-}
-function renderWorkDiaryEntries() {
-  const entries = getDiaryEntriesFiltered();
-  if (!entries.length) return '<div class="empty">Nenhum registro do diário encontrado.</div>';
-  return entries.map(entry => {
-    const preview = entry.text.length > 120 ? `${entry.text.slice(0, 120)}...` : entry.text;
-    return `
-      <div class="panel work-diary-entry" id="work-diary-${entry.id}">
-        <div class="row-top">
-          <div style="flex:1;min-width:0">
-            <div class="row-top" style="align-items:center">
-              <div class="work-diary-meta">
-                <span class="badge diary-category-badge">${esc(entry.category)}</span>
-                <span class="row-sub">${fmtDate(entry.updatedAt || entry.createdAt)}</span>
-              </div>
-              <div class="row-actions">
-                <button class="btn xs" onclick="toggleWorkDiaryEntry('${entry.id}')">${entry.open ? 'Recolher' : 'Abrir'}</button>
-                <button class="btn xs danger" onclick="deleteWorkDiaryEntry('${entry.id}')">Excluir</button>
-              </div>
-            </div>
-            <div class="row-text" style="margin-top:8px">${nl2br(entry.open ? entry.text : preview)}</div>
-            ${entry.files?.length ? `<div class="attachment-chip-list" style="margin-top:12px">${entry.files.map(file => `<button class="btn xs" onclick="downloadWorkDiaryFile('${entry.id}','${file.id}')">📎 ${esc(file.name)}</button>`).join('')}</div>` : ''}
-          </div>
-        </div>
-      </div>`;
-  }).join('');
-}
-
 function renderNotes() {
   const wrap = document.getElementById('section-notes');
-  const categories = getWorkDiaryCategories();
-  const entryCounts = Object.fromEntries(categories.map(cat => [cat, appData.workDiaryEntries.filter(entry => entry.category === cat).length]));
+  const noteCount = appData.generalNotes.length;
+  const categoryCount = appData.noteCategories.length;
+  const recordCount = appData.noteRecords.length;
+  const uncategorizedCount = appData.noteRecords.filter(record => !record.categoryId).length;
+  const categoryMap = new Map((appData.noteCategories || []).map(category => [category.id, category]));
   wrap.innerHTML = `
     <div class="headline">
-      <div><div class="title">Diário e notas</div><div class="subtitle">Diário de trabalho separado das notas livres, com categorias personalizadas por você</div></div>
-      <div class="row-actions">
-        <button class="btn" onclick="openWorkDiaryCategoriesModal()">Categorias</button>
-        <button class="btn primary" onclick="openGeneralNoteModal()">Nova nota livre</button>
+      <div><div class="title">Anotações</div><div class="subtitle">Notas editáveis, categorias independentes e registros classificados</div></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn" onclick="openNoteCategoryModal()">Nova categoria</button>
+        <button class="btn" onclick="openNoteRecordModal()">Novo registro</button>
+        <button class="btn primary" onclick="createInlineGeneralNote()">Nova anotação</button>
       </div>
     </div>
-    <div class="notes-split-layout">
+    <div class="kpis" style="margin-bottom:16px">
+      <div class="kpi"><div class="kpi-label">Anotações</div><div class="kpi-value">${noteCount}</div><div class="kpi-sub">editáveis após salvar</div></div>
+      <div class="kpi"><div class="kpi-label">Categorias</div><div class="kpi-value">${categoryCount}</div><div class="kpi-sub">sem sobrescrever as anteriores</div></div>
+      <div class="kpi"><div class="kpi-label">Registros</div><div class="kpi-value">${recordCount}</div><div class="kpi-sub">classificados por categoria</div></div>
+      <div class="kpi"><div class="kpi-label">Sem categoria</div><div class="kpi-value">${uncategorizedCount}</div><div class="kpi-sub">registros ainda não classificados</div></div>
+    </div>
+    <div class="notes-layout">
       <div class="stack">
-        ${renderWorkDiaryComposer('work-diary-main')}
         <div class="panel">
-          <div class="panel-title">Filtrar diário</div>
-          <div class="row"><input class="input" value="${esc(workDiarySearch)}" placeholder="Buscar nos registros do diário..." oninput="setWorkDiarySearch(this.value)"></div>
-          <div class="filter-chip-row">
-            <button class="goal-tab ${workDiaryFilter==='ALL'?'active':''}" onclick="setWorkDiaryFilter('ALL')">Todos (${appData.workDiaryEntries.length})</button>
-            ${categories.map(cat => `<button class="goal-tab ${workDiaryFilter===cat?'active':''}" onclick="setWorkDiaryFilter(${JSON.stringify(cat)})">${esc(cat)} (${entryCounts[cat] || 0})</button>`).join('')}
-          </div>
-        </div>
-        <div class="stack">
-          ${renderWorkDiaryEntries()}
+          <div class="panel-title">Anotações livres</div>
+          ${(appData.generalNotes || []).length ? appData.generalNotes.map(note => `
+            <div class="note-editor-card" id="general-note-${note.id}">
+              <div class="row-top">
+                <div>
+                  <div class="row-title">${esc(note.title || 'Anotação')}</div>
+                  <div class="row-sub">${fmtDate(note.updatedAt || note.createdAt)}</div>
+                </div>
+                <div class="row-actions">
+                  <button class="btn xs" onclick="saveInlineGeneralNote('${note.id}')">Salvar</button>
+                  <button class="btn xs danger" onclick="deleteGeneralNote('${note.id}')">Excluir</button>
+                </div>
+              </div>
+              <div class="row" style="margin-top:12px"><label class="lbl">Título</label><input id="gn-inline-title-${note.id}" class="input" value="${esc(note.title || '')}" placeholder="Título da anotação"></div>
+              <div class="row" style="margin-bottom:0"><label class="lbl">Conteúdo</label><textarea id="gn-inline-content-${note.id}" class="textarea note-inline-textarea" placeholder="Escreva sua anotação aqui...">${esc(note.content || '')}</textarea></div>
+            </div>
+          `).join('') : '<div class="empty">Nenhuma anotação geral cadastrada.</div>'}
         </div>
       </div>
       <div class="stack">
         <div class="panel">
-          <div class="row-top">
-            <div>
-              <div class="panel-title">Notas livres</div>
-              <div class="row-sub">Ideias, lembretes, estudos e textos sem vínculo com o diário.</div>
-            </div>
-            <button class="btn primary" onclick="openGeneralNoteModal()">Nova anotação</button>
+          <div class="panel-title">Categorias</div>
+          <div class="row-text" style="margin-top:0">As categorias são criadas uma vez e depois você escolhe uma delas ao criar um registro.</div>
+          <div class="stack" style="margin-top:12px">
+            ${(appData.noteCategories || []).length ? appData.noteCategories.map(category => `
+              <div class="row-item" id="note-category-${category.id}">
+                <div class="row-top">
+                  <div>
+                    <div class="row-title">${esc(category.name)}</div>
+                    <div class="row-sub">${appData.noteRecords.filter(record => record.categoryId === category.id).length} registro(s)</div>
+                  </div>
+                  <div class="row-actions">
+                    <button class="btn xs" onclick="openNoteCategoryModal('${category.id}')">Editar</button>
+                    <button class="btn xs danger" onclick="deleteNoteCategory('${category.id}')">Excluir</button>
+                  </div>
+                </div>
+              </div>
+            `).join('') : '<div class="empty">Nenhuma categoria criada ainda.</div>'}
           </div>
         </div>
-        ${appData.generalNotes.length ? appData.generalNotes.map(note => `
-          <div class="panel" id="general-note-${note.id}">
-            <div class="row-top">
-              <div><div class="row-title">${esc(note.title)}</div><div class="row-sub">${fmtDate(note.updatedAt || note.createdAt)}</div></div>
-              <div class="row-actions">
-                <button class="btn xs" onclick="openGeneralNoteModal('${note.id}')">Editar</button>
-                <button class="btn xs danger" onclick="deleteGeneralNote('${note.id}')">Excluir</button>
-              </div>
+        <div class="panel">
+          <div class="row-top" style="margin-bottom:12px">
+            <div>
+              <div class="panel-title" style="margin-bottom:4px">Registros</div>
+              <div class="row-sub">Cada registro é criado separadamente e pode ser classificado em uma categoria existente.</div>
             </div>
-            <div class="row-text">${nl2br(note.content || '')}</div>
+            <button class="btn xs" onclick="openNoteRecordModal()">Novo registro</button>
           </div>
-        `).join('') : '<div class="empty">Nenhuma anotação livre cadastrada.</div>'}
+          <div class="stack">
+            ${(appData.noteRecords || []).length ? appData.noteRecords.map(record => {
+              const category = categoryMap.get(record.categoryId);
+              return `
+                <div class="row-item" id="note-record-${record.id}">
+                  <div class="row-top">
+                    <div>
+                      <div class="row-title">${esc(record.title || 'Registro sem título')}</div>
+                      <div class="row-sub">${category ? esc(category.name) : 'Sem categoria'} · ${fmtDate(record.updatedAt || record.createdAt)}</div>
+                    </div>
+                    <div class="row-actions">
+                      <button class="btn xs" onclick="openNoteRecordModal('${record.id}')">Editar</button>
+                      <button class="btn xs danger" onclick="deleteNoteRecord('${record.id}')">Excluir</button>
+                    </div>
+                  </div>
+                  ${record.content ? `<div class="row-text">${nl2br(record.content)}</div>` : '<div class="empty" style="margin-top:12px">Sem conteúdo neste registro.</div>'}
+                </div>
+              `;
+            }).join('') : '<div class="empty">Nenhum registro criado ainda.</div>'}
+          </div>
+        </div>
       </div>
     </div>
   `;
-  workDiaryPendingFiles['work-diary-main'] ||= [];
-  renderWorkDiaryPendingFiles('work-diary-main');
+}
+function createInlineGeneralNote() {
+  const note = { id:uid(), title:'', content:'', createdAt:Date.now(), updatedAt:Date.now(), isDraft:true };
+  appData.generalNotes.unshift(note);
+  saveUserData();
+  renderNotes();
+  requestAnimationFrame(() => {
+    document.getElementById(`gn-inline-title-${note.id}`)?.focus();
+    focusSectionElement(`general-note-${note.id}`);
+  });
 }
 function openGeneralNoteModal(noteId='') {
   const note = noteId ? appData.generalNotes.find(n => n.id === noteId) : null;
@@ -1781,23 +1575,101 @@ function openGeneralNoteModal(noteId='') {
     <div class="row"><label class="lbl">Conteúdo</label><textarea id="gn-content" class="textarea" style="min-height:260px">${esc(note?.content || '')}</textarea></div>
   `, `<button class="btn primary" onclick="saveGeneralNote('${noteId}')">Salvar</button>`);
 }
+function saveInlineGeneralNote(noteId) {
+  const note = appData.generalNotes.find(n => n.id === noteId); if (!note) return;
+  const title = document.getElementById(`gn-inline-title-${noteId}`)?.value.trim() || '';
+  const content = document.getElementById(`gn-inline-content-${noteId}`)?.value || '';
+  if (!title && !content.trim()) return showToast('Preencha o título ou o conteúdo antes de salvar.');
+  note.title = title || 'Anotação sem título';
+  note.content = content;
+  note.updatedAt = Date.now();
+  delete note.isDraft;
+  saveUserData();
+  renderNotes();
+  renderDashboard();
+  updateStatus();
+  showToast('Anotação salva.');
+}
 function saveGeneralNote(noteId='') {
   const title = document.getElementById('gn-title').value.trim();
   const content = document.getElementById('gn-content').value;
-  if (!title) return;
+  if (!title && !content.trim()) return;
   if (noteId) {
     const note = appData.generalNotes.find(n => n.id === noteId); if (!note) return;
-    note.title = title; note.content = content; note.updatedAt = Date.now();
+    note.title = title || 'Anotação sem título'; note.content = content; note.updatedAt = Date.now(); delete note.isDraft;
   } else {
-    appData.generalNotes.unshift({ id:uid(), title, content, createdAt:Date.now(), updatedAt:Date.now() });
+    appData.generalNotes.unshift({ id:uid(), title: title || 'Anotação sem título', content, createdAt:Date.now(), updatedAt:Date.now() });
   }
-  saveUserData(); closeModal(); renderNotes(); updateStatus(); showToast(noteId ? 'Anotação atualizada.' : 'Anotação criada.');
+  saveUserData(); closeModal(); renderNotes(); renderDashboard(); updateStatus(); showToast(noteId ? 'Anotação atualizada.' : 'Anotação criada.');
 }
 function deleteGeneralNote(noteId) {
   const name = appData.generalNotes.find(n => n.id === noteId)?.title || 'esta anotação';
   if (!confirm(`Deseja mesmo excluir "${name}"?`)) return;
   appData.generalNotes = appData.generalNotes.filter(n => n.id !== noteId);
-  saveUserData(); renderNotes(); updateStatus(); showToast('Anotação removida.');
+  saveUserData(); renderNotes(); renderDashboard(); updateStatus(); showToast('Anotação removida.');
+}
+function openNoteCategoryModal(categoryId='') {
+  const category = categoryId ? appData.noteCategories.find(c => c.id === categoryId) : null;
+  openModal(category ? 'Editar categoria' : 'Nova categoria', `
+    <div class="row"><label class="lbl">Nome da categoria</label><input id="note-category-name" class="input" value="${esc(category?.name || '')}" placeholder="Ex.: LAB, ZXPLORER, FUTURE"></div>
+  `, `<button class="btn primary" onclick="saveNoteCategory('${categoryId}')">Salvar</button>`);
+}
+function saveNoteCategory(categoryId='') {
+  const name = document.getElementById('note-category-name').value.trim();
+  if (!name) return;
+  const duplicate = appData.noteCategories.find(category => category.name.trim().toLowerCase() === name.toLowerCase() && category.id !== categoryId);
+  if (duplicate) return showToast('Já existe uma categoria com esse nome.');
+  if (categoryId) {
+    const category = appData.noteCategories.find(c => c.id === categoryId); if (!category) return;
+    category.name = name;
+    category.updatedAt = Date.now();
+  } else {
+    appData.noteCategories.push({ id:uid(), name, createdAt:Date.now(), updatedAt:Date.now() });
+  }
+  saveUserData(); closeModal(); renderNotes(); updateStatus(); showToast(categoryId ? 'Categoria atualizada.' : 'Categoria criada.');
+}
+function deleteNoteCategory(categoryId) {
+  const category = appData.noteCategories.find(c => c.id === categoryId);
+  if (!category) return;
+  const linkedRecords = appData.noteRecords.filter(record => record.categoryId === categoryId).length;
+  const msg = linkedRecords
+    ? `A categoria "${category.name}" está ligada a ${linkedRecords} registro(s). Excluir mesmo assim? Os registros ficarão sem categoria.`
+    : `Deseja mesmo excluir "${category.name}"?`;
+  if (!confirm(msg)) return;
+  appData.noteCategories = appData.noteCategories.filter(c => c.id !== categoryId);
+  appData.noteRecords.forEach(record => { if (record.categoryId === categoryId) record.categoryId = ''; });
+  saveUserData(); renderNotes(); updateStatus(); showToast('Categoria removida.');
+}
+function openNoteRecordModal(recordId='') {
+  const record = recordId ? appData.noteRecords.find(r => r.id === recordId) : null;
+  const categoryOptions = [`<option value="">Sem categoria</option>`].concat(
+    (appData.noteCategories || []).map(category => `<option value="${category.id}" ${record?.categoryId === category.id ? 'selected' : ''}>${esc(category.name)}</option>`)
+  ).join('');
+  openModal(record ? 'Editar registro' : 'Novo registro', `
+    <div class="row"><label class="lbl">Título do registro</label><input id="note-record-title" class="input" value="${esc(record?.title || '')}" placeholder="Ex.: Ajuste no ambiente de LAB"></div>
+    <div class="row"><label class="lbl">Categoria</label><select id="note-record-category" class="select">${categoryOptions}</select></div>
+    <div class="row"><label class="lbl">Conteúdo</label><textarea id="note-record-content" class="textarea" style="min-height:240px" placeholder="Detalhes do registro">${esc(record?.content || '')}</textarea></div>
+  `, `<button class="btn primary" onclick="saveNoteRecord('${recordId}')">Salvar</button>`);
+}
+function saveNoteRecord(recordId='') {
+  const title = document.getElementById('note-record-title').value.trim();
+  const categoryId = document.getElementById('note-record-category').value;
+  const content = document.getElementById('note-record-content').value;
+  if (!title && !content.trim()) return;
+  const payload = { title: title || 'Registro sem título', categoryId, content, updatedAt:Date.now() };
+  if (recordId) {
+    const record = appData.noteRecords.find(r => r.id === recordId); if (!record) return;
+    Object.assign(record, payload);
+  } else {
+    appData.noteRecords.unshift({ id:uid(), createdAt:Date.now(), ...payload });
+  }
+  saveUserData(); closeModal(); renderNotes(); updateStatus(); showToast(recordId ? 'Registro atualizado.' : 'Registro criado.');
+}
+function deleteNoteRecord(recordId) {
+  const name = appData.noteRecords.find(record => record.id === recordId)?.title || 'este registro';
+  if (!confirm(`Deseja mesmo excluir "${name}"?`)) return;
+  appData.noteRecords = appData.noteRecords.filter(record => record.id !== recordId);
+  saveUserData(); renderNotes(); updateStatus(); showToast('Registro removido.');
 }
 
 function renderLinkedin() {
@@ -2261,12 +2133,15 @@ function handleSearch(query) {
   appData.certificates.forEach(cert => {
     if ((cert.name+' '+(cert.issuer||'')+' '+(cert.notes||'')+' '+(cert.status||'')).toLowerCase().includes(q)) results.push({ area:'Certificados e badges', title:cert.name, text:[cert.issuer, cert.status, cert.notes].filter(Boolean).join(' · ').slice(0,220), target:{ section:'certs', focusId:`cert-${cert.id}` } });
   });
-  appData.workDiaryEntries.forEach(entry => {
-    const files = (entry.files || []).map(file => file.name).join(' ');
-    if ((`${entry.category || ''} ${entry.text || ''} ${files}`).toLowerCase().includes(q)) results.push({ area:'Diário de trabalho', title:entry.category || 'Diário', text:(entry.text || '').slice(0,220), target:{ section:'notes', focusId:`work-diary-${entry.id}` } });
-  });
   appData.generalNotes.forEach(note => {
     if ((note.title+' '+note.content).toLowerCase().includes(q)) results.push({ area:'Anotações gerais', title:note.title, text:note.content.slice(0,220), target:{ section:'notes', focusId:`general-note-${note.id}` } });
+  });
+  appData.noteCategories.forEach(category => {
+    if ((category.name || '').toLowerCase().includes(q)) results.push({ area:'Categorias de anotações', title:category.name, text:`${appData.noteRecords.filter(record => record.categoryId === category.id).length} registro(s)`, target:{ section:'notes', focusId:`note-category-${category.id}` } });
+  });
+  appData.noteRecords.forEach(record => {
+    const category = appData.noteCategories.find(item => item.id === record.categoryId);
+    if ((record.title+' '+(record.content || '')+' '+(category?.name || '')).toLowerCase().includes(q)) results.push({ area:'Registros', title:record.title || 'Registro sem título', text:[category?.name || 'Sem categoria', (record.content || '')].join(' · ').slice(0,220), target:{ section:'notes', focusId:`note-record-${record.id}` } });
   });
   appData.tools.forEach(tool => {
     if ((tool.name+' '+(tool.category||'')+' '+(tool.instructions||'')+' '+(tool.downloadUrl||'')+' '+(tool.websiteUrl||'')).toLowerCase().includes(q)) {
@@ -2612,22 +2487,6 @@ window.toggleAuth      = toggleAuth;
 window.logout          = logout;
 window.toggleTheme     = toggleTheme;
 window.goSection       = goSection;
-window.openFontModal                = openFontModal;
-window.saveFontPreset               = saveFontPreset;
-window.openWorkDiaryCategoriesModal = openWorkDiaryCategoriesModal;
-window.addWorkDiaryCategoryDraft    = addWorkDiaryCategoryDraft;
-window.updateWorkDiaryCategoryDraft = updateWorkDiaryCategoryDraft;
-window.deleteWorkDiaryCategoryDraft = deleteWorkDiaryCategoryDraft;
-window.saveWorkDiaryCategories      = saveWorkDiaryCategories;
-window.triggerWorkDiaryFile         = triggerWorkDiaryFile;
-window.handleWorkDiaryFiles         = handleWorkDiaryFiles;
-window.removeWorkDiaryPendingFile   = removeWorkDiaryPendingFile;
-window.saveWorkDiaryEntry           = saveWorkDiaryEntry;
-window.toggleWorkDiaryEntry         = toggleWorkDiaryEntry;
-window.deleteWorkDiaryEntry         = deleteWorkDiaryEntry;
-window.downloadWorkDiaryFile        = downloadWorkDiaryFile;
-window.setWorkDiaryFilter           = setWorkDiaryFilter;
-window.setWorkDiarySearch           = setWorkDiarySearch;
 window.openImportCenter= openImportCenter;
 window.handleSearch    = handleSearch;
 window.closeModal      = closeModal;

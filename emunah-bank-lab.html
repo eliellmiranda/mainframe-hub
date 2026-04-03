@@ -167,16 +167,6 @@ textarea.ann:focus{border-color:var(--green);outline:none;color:var(--text)}
 .ann-preview a{color:var(--blue);text-decoration:underline;text-underline-offset:3px}
 .ann-preview a:hover{color:#93c5fd}
 .ann-empty{color:var(--text3);font-style:italic}
-.ann-files-toolbar{display:flex;gap:.5rem;flex-wrap:wrap;margin:.65rem 0 .45rem}
-.ann-file-btn{display:inline-flex;align-items:center;gap:.35rem;font-family:var(--mono);font-size:calc(.66rem + 2pt);color:var(--text2);background:transparent;border:1px dashed var(--border2);border-radius:var(--r);padding:.35rem .7rem;cursor:pointer;transition:all .15s}
-.ann-file-btn:hover{border-color:var(--green);color:var(--green)}
-.ann-files-list{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.55rem}
-.ann-file-chip{display:inline-flex;align-items:center;gap:.35rem;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:.24rem .55rem;font-family:var(--mono);font-size:calc(.62rem + 2pt);color:var(--text2);max-width:220px}
-.ann-file-chip span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ann-file-chip a{color:var(--teal);text-decoration:none}
-.ann-file-chip a:hover{text-decoration:underline}
-.ann-file-rm{cursor:pointer;color:var(--red);font-weight:bold;flex-shrink:0}
-.ann-file-rm:hover{color:#fca5a5}
 
 /* ── DIARY ── */
 .diary-composer{background:var(--bg1);border:1px solid var(--border);border-radius:var(--rl);padding:1.1rem;margin-bottom:1.2rem}
@@ -254,61 +244,6 @@ textarea.ann:focus{border-color:var(--green);outline:none;color:var(--text)}
 .cmd-copy-btn.copied{border-color:var(--green);color:var(--green)}
 .cmd-filter{display:flex;gap:.4rem;margin-bottom:1rem;flex-wrap:wrap}
 .cmd-empty{text-align:center;padding:2rem;color:var(--text3);font-style:italic;font-size:calc(.82rem + 2pt)}
-
-/* ── PROJECT TREE ── */
-.project-tree-wrap{margin-top:1.2rem}
-.project-tree-panel{background:var(--bg1);border:1px solid var(--border);border-radius:var(--rl);padding:1rem 1rem 1.05rem}
-.project-tree-toolbar{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.9rem}
-.project-tree-empty{text-align:center;padding:1.2rem;color:var(--text3);font-style:italic;border:1px dashed var(--border2);border-radius:var(--r)}
-.project-tree-list,.project-tree-list ul{list-style:none;margin:0;padding-left:0}
-.project-tree-list ul{margin-left:.95rem;padding-left:.95rem;border-left:1px dashed var(--border2)}
-.project-tree-node{margin:.28rem 0}
-.project-tree-row{display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;background:rgba(0,0,0,.14);border:1px solid var(--border);border-radius:var(--r);padding:.42rem .55rem}
-.project-tree-toggle{width:18px;text-align:center;color:var(--text3);cursor:pointer;user-select:none;font-family:var(--mono)}
-.project-tree-toggle.disabled{opacity:.35;cursor:default}
-.project-tree-icon{font-size:calc(.75rem + 2pt);flex-shrink:0}
-.project-tree-name{font-family:var(--mono);font-size:calc(.72rem + 2pt);color:var(--text);flex:1;min-width:120px;word-break:break-word}
-.project-tree-name.folder{color:var(--green)}
-.project-tree-name.file{color:var(--blue)}
-.project-tree-actions{display:flex;gap:.3rem;flex-wrap:wrap}
-.project-tree-btn{background:transparent;border:1px solid var(--border2);border-radius:var(--r);color:var(--text3);font-family:var(--mono);font-size:calc(.6rem + 2pt);padding:.24rem .5rem;cursor:pointer;transition:all .15s}
-.project-tree-btn:hover{background:var(--bg3);color:var(--text)}
-.project-tree-btn.add:hover{border-color:var(--green);color:var(--green)}
-.project-tree-btn.edit:hover{border-color:var(--blue);color:var(--blue)}
-.project-tree-btn.del:hover{border-color:var(--red);color:var(--red)}
-
-
-.project-tree-panel{margin-top:1rem;background:var(--bg1);border:1px solid var(--border);border-radius:var(--rl);padding:1rem}
-.project-tree-toolbar{display:flex;gap:.5rem;flex-wrap:wrap;justify-content:space-between;align-items:center;margin-bottom:.8rem}
-.project-tree-actions{display:flex;gap:.45rem;flex-wrap:wrap}
-.project-tree-list,.project-tree-children{list-style:none;margin:0;padding:0}
-.project-tree-node{margin:.28rem 0}
-.project-tree-row{display:flex;align-items:center;gap:.45rem;padding:.38rem .45rem;border:1px solid var(--border);border-radius:8px;background:var(--bg2)}
-.project-tree-icon{font-family:var(--mono);font-size:calc(.7rem + 2pt);color:var(--text3);min-width:18px}
-.project-tree-name{flex:1;min-width:0;word-break:break-word;font-size:calc(.76rem + 2pt)}
-.project-tree-controls{display:flex;gap:.3rem;flex-wrap:wrap}
-.project-tree-children{margin-left:1rem;padding-left:.7rem;border-left:1px dashed var(--border2);margin-top:.35rem}
-.project-tree-empty{padding:.9rem;border:1px dashed var(--border2);border-radius:8px;color:var(--text3);font-style:italic}
-
-.sidebar-tree-wrap{padding:.35rem .7rem .9rem;border-top:1px solid rgba(255,255,255,.02)}
-.sidebar-tree-head{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin:.2rem 0 .5rem}
-.sidebar-tree-title{font-family:var(--mono);font-size:calc(.62rem + 2pt);color:var(--text3);letter-spacing:.1em;text-transform:uppercase}
-.sidebar-tree-shortcut{font-family:var(--mono);font-size:calc(.56rem + 2pt);color:var(--blue)}
-.sidebar-tree-box{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:.45rem;max-height:260px;overflow:auto}
-.sidebar-tree-list,.sidebar-tree-children{list-style:none;margin:0;padding:0}
-.sidebar-tree-item{margin:.2rem 0}
-.sidebar-tree-row{display:flex;align-items:center;gap:.35rem;padding:.26rem .3rem;border-radius:6px}
-.sidebar-tree-row:hover{background:rgba(255,255,255,.03)}
-.sidebar-tree-toggle{width:14px;text-align:center;color:var(--text3);cursor:pointer;font-family:var(--mono);font-size:calc(.58rem + 2pt);user-select:none}
-.sidebar-tree-toggle.disabled{opacity:.35;cursor:default}
-.sidebar-tree-icon{font-size:calc(.62rem + 2pt);min-width:14px;color:var(--text2)}
-.sidebar-tree-name{flex:1;min-width:0;font-size:calc(.63rem + 2pt);color:var(--text);word-break:break-word;cursor:pointer}
-.sidebar-tree-name.folder{color:var(--green)}
-.sidebar-tree-name.file{color:var(--blue)}
-.sidebar-tree-actions{display:flex;gap:.2rem;flex-wrap:wrap}
-.sidebar-tree-btn{background:transparent;border:1px solid var(--border2);border-radius:5px;color:var(--text3);font-family:var(--mono);font-size:calc(.5rem + 2pt);padding:.12rem .3rem;cursor:pointer}
-.sidebar-tree-btn:hover{background:var(--bg3);color:var(--text)}
-.sidebar-tree-children{margin-left:.7rem;padding-left:.55rem;border-left:1px dashed var(--border2)}
 
 /* ── SETTINGS ── */
 #settings{position:fixed;top:50px;right:0;bottom:0;width:300px;background:var(--bg1);border-left:1px solid var(--border);z-index:100;padding:1.3rem;overflow-y:auto;transform:translateX(100%);transition:transform .25s}
@@ -391,7 +326,7 @@ textarea.ann:focus{border-color:var(--green);outline:none;color:var(--text)}
     <div class="h-logo">EMUNAH<span>.BANK.LAB</span></div>
     <div class="h-prog"><div class="prog-outer"><div class="prog-inner" id="gbar" style="width:0%"></div></div><span class="prog-lbl" id="glbl">0/0</span></div>
     <div class="h-right">
-      <span class="h-shortcut" title="Atalhos: Ctrl + ' abre o diário rápido · Ctrl + \\ abre a tela da árvore do projeto">Ctrl + ' · Ctrl + \\</span>
+      <span class="h-shortcut" title="Atalho para abrir o Diário rápido">Ctrl + '</span>
       <span class="h-user" id="huser"></span>
       <button class="h-btn" onclick="toggleSettings()">Config</button>
       <button class="h-btn" onclick="doLogout()">Sair</button>
@@ -584,9 +519,8 @@ const PH=[
 // TOOLS DATA (sidebar tool items)
 // ═══════════════════════════════════════════════════════════════
 const TOOLS=[
-  {id:'t-diary',icon:'D',title:'Diário',sub:"Ctrl + '"},
-  {id:'t-cmds',icon:'C',title:'Comandos',sub:'Zowe CLI / PowerShell'},
-  {id:'t-tree',icon:'A',title:'Árvore',sub:'Ctrl + \\'}
+  {id:'t-diary',icon:'D',title:'Diário',sub:'Ctrl + \''},
+  {id:'t-cmds',icon:'C',title:'Comandos',sub:'Zowe CLI / PowerShell'}
 ];
 
 // ═══════════════════════════════════════════════════════════════
@@ -594,9 +528,8 @@ const TOOLS=[
 // ═══════════════════════════════════════════════════════════════
 const K={
   USERS:'ebl_users',SESSION:'ebl_sess',REMEMBER:'ebl_rem',
-  prog:u=>`ebl_p_${u}`,ann:u=>`ebl_a_${u}`,annFiles:u=>`ebl_af_${u}`,
-  diary:u=>`ebl_diary_${u}`,cmds:u=>`ebl_cmds_${u}`,tree:u=>`ebl_tree_${u}`,
-  TREE_DEFAULT:'ebl_tree_default'
+  prog:u=>`ebl_p_${u}`,ann:u=>`ebl_a_${u}`,
+  diary:u=>`ebl_diary_${u}`,cmds:u=>`ebl_cmds_${u}`
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -664,63 +597,20 @@ function doLogout(){localStorage.removeItem(K.SESSION);location.reload();}
 // ═══════════════════════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════════════════════
-let CU='',PROG={},ANN={},ANNFILES={},DIARY=[],CMDS=[],PTREE=[],CPHASE='fx',CVIEW='phase';
+let CU='',PROG={},ANN={},DIARY=[],CMDS=[],CPHASE='fx',CVIEW='phase';
 let diaryPendingFiles=[];
 let cmdPendingFiles=[];
 
-function treeNode(name,type='folder',children=[]){return{id:Date.now().toString(36)+Math.random().toString(36).slice(2,7),name,type,children,open:true};}
-function defaultProjectTree(){
-  return [
-    treeNode('/lab','folder',[
-      treeNode('orchestrator','folder',[treeNode('lab.py','file'),treeNode('feedback.py','file'),treeNode('scaffold.py','file')]),
-      treeNode('catalog','folder',[treeNode('demandas','folder'),treeNode('erros','folder')]),
-      treeNode('hints','folder'),
-      treeNode('runbooks','folder'),
-      treeNode('logs','folder'),
-      treeNode('config','folder',[treeNode('app_config.yaml','file')]),
-      treeNode('reports','folder',[treeNode('runs','folder')]),
-      treeNode('automation','folder',[treeNode('inject','folder'),treeNode('baseline','folder'),treeNode('submit','folder'),treeNode('collect','folder'),treeNode('validate','folder')]),
-      treeNode('canal','folder',[treeNode('agente','folder',[treeNode('domain','folder',[treeNode('models','folder'),treeNode('layouts','folder')]),treeNode('services','folder'),treeNode('app','folder')])]),
-      treeNode('data','folder',[treeNode('staging','folder',[treeNode('clientes','folder'),treeNode('contas','folder')]),treeNode('baseline','folder'),treeNode('expected','folder'),treeNode('actual','folder'),treeNode('entrada','folder')])
-    ]),
-    treeNode('jcl','folder',[treeNode('EBJCLLD.jcl','file'),treeNode('EBJVALD.jcl','file'),treeNode('EBJPOST.jcl','file'),treeNode('EBJSALD.jcl','file'),treeNode('EBJEXTR.jcl','file'),treeNode('EBJCONC.jcl','file'),treeNode('EBJEOD.jcl','file')]),
-    treeNode('rexx','folder',[treeNode('EBCHKLAB.rexx','file'),treeNode('EBSUBJCL.rexx','file')]),
-    treeNode('data','folder',[treeNode('seed','folder',[treeNode('clientes.txt','file'),treeNode('contas.txt','file')]),treeNode('entrada','folder',[treeNode('lancamentos_d0.txt','file')])])
-  ];
-}
-function normalizeProjectTree(nodes){
-  const src=Array.isArray(nodes)?nodes:[];
-  return src.map(n=>({
-    id:n&&n.id?n.id:Date.now().toString(36)+Math.random().toString(36).slice(2,7),
-    name:String(n&&n.name||'novo item'),
-    type:n&&n.type==='file'?'file':'folder',
-    open:n&&typeof n.open==='boolean'?n.open:true,
-    children:normalizeProjectTree(n&&n.children)
-  }));
-}
-function getSavedDefaultProjectTree(){
-  try{
-    const raw=localStorage.getItem(K.TREE_DEFAULT);
-    return raw?normalizeProjectTree(JSON.parse(raw)):null;
-  }catch(e){return null;}
-}
-function getEffectiveDefaultProjectTree(){
-  return getSavedDefaultProjectTree() || defaultProjectTree();
-}
 function loadUD(u){
   PROG=JSON.parse(localStorage.getItem(K.prog(u))||'{}');
   ANN=JSON.parse(localStorage.getItem(K.ann(u))||'{}');
-  ANNFILES=JSON.parse(localStorage.getItem(K.annFiles(u))||'{}');
   DIARY=JSON.parse(localStorage.getItem(K.diary(u))||'[]');
   CMDS=JSON.parse(localStorage.getItem(K.cmds(u))||'[]');
-  PTREE=normalizeProjectTree(JSON.parse(localStorage.getItem(K.tree(u))||'null')||getEffectiveDefaultProjectTree());
 }
 function saveP(){localStorage.setItem(K.prog(CU),JSON.stringify(PROG));updateProg();}
 function saveA(sid,val){ANN[sid]=val;localStorage.setItem(K.ann(CU),JSON.stringify(ANN));}
-function saveAnnFiles(){localStorage.setItem(K.annFiles(CU),JSON.stringify(ANNFILES));updateProg();}
 function saveDiary(){localStorage.setItem(K.diary(CU),JSON.stringify(DIARY));}
 function saveCmds(){localStorage.setItem(K.cmds(CU),JSON.stringify(CMDS));}
-function saveTree(){localStorage.setItem(K.tree(CU),JSON.stringify(PTREE));}
 
 function startApp(u){
   CU=u;loadUD(u);
@@ -759,44 +649,6 @@ function highlightSidebar(){
   document.querySelectorAll('.pni').forEach(el=>el.classList.remove('active'));
   const active=document.getElementById(`n-${CPHASE}`);
   if(active)active.classList.add('active');
-}
-function renderSidebarProjectTree(){
-  return `
-    <div class="sidebar-tree-head">
-      <div class="sidebar-tree-title">Árvore do projeto</div>
-      <div class="sidebar-tree-shortcut">Ctrl + \\</div>
-    </div>
-    <div class="sidebar-tree-box" tabindex="0" aria-label="Árvore do projeto">
-      <div class="sidebar-tree-actions" style="margin-bottom:.45rem">
-        <button class="sidebar-tree-btn" onclick="event.stopPropagation();addRootTreeNode('folder')">+ pasta</button>
-        <button class="sidebar-tree-btn" onclick="event.stopPropagation();addRootTreeNode('file')">+ arquivo</button>
-      </div>
-      ${PTREE.length?`<ul class="sidebar-tree-list">${PTREE.map(node=>renderSidebarProjectTreeNode(node)).join('')}</ul>`:'<div class="project-tree-empty">Nenhum item na árvore ainda.</div>'}
-    </div>`;
-}
-function renderSidebarProjectTreeNode(node){
-  const hasChildren=Array.isArray(node.children)&&node.children.length>0;
-  const isOpen=node.open!==false;
-  return `<li class="sidebar-tree-item">
-    <div class="sidebar-tree-row">
-      <span class="sidebar-tree-toggle ${hasChildren?'':'disabled'}" onclick="event.stopPropagation();${hasChildren?`toggleTreeNode('${node.id}')`:''}">${hasChildren?(isOpen?'▾':'▸'):'•'}</span>
-      <span class="sidebar-tree-icon">${node.type==='folder'?'📁':'📄'}</span>
-      <span class="sidebar-tree-name ${node.type==='folder'?'folder':'file'}" onclick="event.stopPropagation();editTreeNode('${node.id}')">${esc(node.name)}</span>
-      <div class="sidebar-tree-actions">
-        ${node.type==='folder'?`<button class="sidebar-tree-btn" onclick="event.stopPropagation();addChildTreeNode('${node.id}','folder')">+p</button><button class="sidebar-tree-btn" onclick="event.stopPropagation();addChildTreeNode('${node.id}','file')">+a</button>`:''}
-        <button class="sidebar-tree-btn" onclick="event.stopPropagation();deleteTreeNode('${node.id}')">x</button>
-      </div>
-    </div>
-    ${hasChildren&&isOpen?`<ul class="sidebar-tree-children">${node.children.map(child=>renderSidebarProjectTreeNode(child)).join('')}</ul>`:''}
-  </li>`;
-}
-function openProjectTreeTool(){
-  CVIEW='tool';
-  CPHASE='t-tree';
-  renderTool('t-tree');
-  highlightSidebar();
-  const pc=document.getElementById('pc');
-  if(pc)pc.scrollIntoView({behavior:'smooth',block:'start'});
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -954,7 +806,7 @@ function renderCmdsPage(){
   let html=`
     <div class="ph-hdr">
       <div class="ph-num-row"><div class="ph-big" style="font-size:calc(1.4rem + 2pt);color:var(--blue)">C</div><div class="ph-title">Comandos — Zowe CLI / PowerShell</div></div>
-      <div class="ph-desc">Repositório de comandos úteis do dia a dia. A árvore do projeto agora tem uma tela própria no menu lateral.</div>
+      <div class="ph-desc">Repositório de comandos úteis do dia a dia. Salve, organize e copie rapidamente.</div>
     </div>
     <div class="cmd-composer">
       <div class="cmd-composer-row">
@@ -998,87 +850,6 @@ function renderCmdsPage(){
   document.getElementById('pc').innerHTML=html;
 }
 
-function renderProjectTreePanel(){
-  return `
-    <div class="project-tree-panel">
-      <div class="project-tree-toolbar">
-        <div>
-          <div class="panel-title" style="margin-bottom:.25rem">Árvore do projeto</div>
-          <div class="ph-desc" style="margin-top:0">Estrutura do projeto em uma tela própria no menu lateral. Você pode renomear, adicionar pasta/arquivo e excluir qualquer item.</div>
-        </div>
-        <div class="project-tree-actions">
-          <button class="btn btn-g" style="width:auto;padding:.42rem .85rem" onclick="addProjectRoot('folder')">+ Pasta raiz</button>
-          <button class="btn btn-g" style="width:auto;padding:.42rem .85rem" onclick="addProjectRoot('file')">+ Arquivo raiz</button>
-          <button class="btn btn-g" style="width:auto;padding:.42rem .85rem" onclick="resetProjectTree()">Restaurar árvore padrão</button>
-        </div>
-      </div>
-      ${PTREE.length?`<ul class="project-tree-list">${PTREE.map(renderProjectTreeNode).join('')}</ul>`:'<div class="project-tree-empty">Nenhum item na árvore ainda.</div>'}
-    </div>`;
-}
-function renderProjectTreeNode(node){
-  const kids=Array.isArray(node.children)?node.children:[];
-  return `<li class="project-tree-node">
-    <div class="project-tree-row">
-      <span class="project-tree-icon">${node.type==='folder'?'📁':'📄'}</span>
-      <span class="project-tree-name">${esc(node.name)}</span>
-      <div class="project-tree-controls">
-        <button class="btn btn-s" style="width:auto" onclick="renameProjectNode('${node.id}')">Renomear</button>
-        ${node.type==='folder'?`<button class="btn btn-s" style="width:auto" onclick="addProjectChild('${node.id}','folder')">+ Pasta</button><button class="btn btn-s" style="width:auto" onclick="addProjectChild('${node.id}','file')">+ Arquivo</button>`:''}
-        <button class="btn btn-d" style="width:auto" onclick="deleteProjectNode('${node.id}')">Excluir</button>
-      </div>
-    </div>
-    ${kids.length?`<ul class="project-tree-children">${kids.map(renderProjectTreeNode).join('')}</ul>`:''}
-  </li>`;
-}
-function walkProjectTree(nodes,targetId,parent){
-  for(let i=0;i<nodes.length;i++){
-    const node=nodes[i];
-    if(node.id===targetId)return {node:node,parent:parent,index:i};
-    const found=walkProjectTree(node.children||[],targetId,node);
-    if(found)return found;
-  }
-  return null;
-}
-function addProjectRoot(type){
-  const name=prompt(type==='folder'?'Nome da nova pasta raiz:':'Nome do novo arquivo raiz:');
-  if(!name||!name.trim())return;
-  PTREE.push({id:'pt-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),name:name.trim(),type:type==='file'?'file':'folder',children:[]});
-  savePTree();renderCmdsPage();
-}
-function addProjectChild(parentId,type){
-  const hit=walkProjectTree(PTREE,parentId,null);
-  if(!hit||!hit.node||hit.node.type!=='folder')return;
-  const name=prompt(type==='folder'?'Nome da nova pasta:':'Nome do novo arquivo:');
-  if(!name||!name.trim())return;
-  hit.node.children=hit.node.children||[];
-  hit.node.children.push({id:'pt-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),name:name.trim(),type:type==='file'?'file':'folder',children:[]});
-  savePTree();renderCmdsPage();
-}
-function renameProjectNode(nodeId){
-  const hit=walkProjectTree(PTREE,nodeId,null);
-  if(!hit||!hit.node)return;
-  const name=prompt('Novo nome:', hit.node.name || '');
-  if(!name||!name.trim())return;
-  hit.node.name=name.trim();
-  savePTree();renderCmdsPage();
-}
-function deleteProjectNode(nodeId){
-  const hit=walkProjectTree(PTREE,nodeId,null);
-  if(!hit||!hit.node)return;
-  if(!confirm('Excluir "'+hit.node.name+'" da árvore?'))return;
-  if(hit.parent){
-    hit.parent.children.splice(hit.index,1);
-  }else{
-    PTREE.splice(hit.index,1);
-  }
-  savePTree();renderCmdsPage();
-}
-function resetProjectTree(){
-  if(!confirm('Restaurar a árvore padrão do projeto?'))return;
-  PTREE=defaultProjectTree();
-  savePTree();renderCmdsPage();
-}
-
 function updateCmdToggle(){
   document.querySelectorAll('.cmd-type-btn').forEach(b=>{
     b.className='cmd-type-btn'+(b.textContent==='ZOWE'&&cmdType==='ZOWE'?' active-zowe':'')+(b.textContent==='PWSH'&&cmdType==='PS'?' active-ps':'');
@@ -1114,126 +885,12 @@ function toggleCmdCard(id){
   if(el)el.classList.toggle('hidden');
 }
 
-function renderProjectTreeSection(){
-  return `
-    <div class="project-tree-wrap">
-      <div class="project-tree-panel">
-        <div class="ph-num-row" style="margin-bottom:.35rem"><div class="ph-big" style="font-size:calc(1.15rem + 2pt);color:var(--green)">T</div><div class="ph-title" style="font-size:calc(.98rem + 2pt)">Árvore do projeto</div></div>
-        <div class="ph-desc" style="margin-top:0;margin-bottom:.8rem">Estrutura editável do projeto em uma tela própria no menu lateral. Você pode renomear, adicionar ou remover qualquer item.</div>
-        <div class="project-tree-toolbar">
-          <button class="btn btn-g" style="width:auto;padding:.42rem .85rem" onclick="addRootTreeNode('folder')">+ Pasta raiz</button>
-          <button class="btn btn-g" style="width:auto;padding:.42rem .85rem" onclick="addRootTreeNode('file')">+ Arquivo raiz</button>
-          <button class="btn btn-g" style="width:auto;padding:.42rem .85rem" onclick="saveCurrentTreeAsDefault()">Salvar atual como padrão</button>
-          <button class="btn btn-g" style="width:auto;padding:.42rem .85rem" onclick="resetProjectTree()">Restaurar árvore padrão</button>
-        </div>
-        ${PTREE.length?`<ul class="project-tree-list">${PTREE.map(node=>renderProjectTreeNode(node)).join('')}</ul>`:'<div class="project-tree-empty">Nenhum item na árvore ainda.</div>'}
-      </div>
-    </div>`;
-}
-function renderProjectTreeNode(node){
-  const hasChildren=Array.isArray(node.children)&&node.children.length>0;
-  const isOpen=node.open!==false;
-  return `<li class="project-tree-node">
-    <div class="project-tree-row">
-      <span class="project-tree-toggle ${hasChildren?'':'disabled'}" onclick="${hasChildren?`toggleTreeNode('${node.id}')`:''}">${hasChildren?(isOpen?'▾':'▸'):'•'}</span>
-      <span class="project-tree-icon">${node.type==='folder'?'📁':'📄'}</span>
-      <span class="project-tree-name ${node.type==='folder'?'folder':'file'}">${esc(node.name)}</span>
-      <div class="project-tree-actions">
-        <button class="project-tree-btn edit" onclick="editTreeNode('${node.id}')">renomear</button>
-        ${node.type==='folder'?`<button class="project-tree-btn add" onclick="addChildTreeNode('${node.id}','folder')">+ pasta</button><button class="project-tree-btn add" onclick="addChildTreeNode('${node.id}','file')">+ arquivo</button>`:''}
-        <button class="project-tree-btn del" onclick="deleteTreeNode('${node.id}')">excluir</button>
-      </div>
-    </div>
-    ${hasChildren&&isOpen?`<ul>${node.children.map(child=>renderProjectTreeNode(child)).join('')}</ul>`:''}
-  </li>`;
-}
-function walkTree(nodes,cb,parent=null){
-  for(let i=0;i<nodes.length;i++){
-    const res=cb(nodes[i],nodes,i,parent);
-    if(res===true)return true;
-    if(nodes[i].children&&walkTree(nodes[i].children,cb,nodes[i]))return true;
-  }
-  return false;
-}
-function findTreeNode(id){
-  let found=null;
-  walkTree(PTREE,(node,list,index,parent)=>{if(node.id===id){found={node,list,index,parent};return true;}});
-  return found;
-}
-function rerenderTree(){
-  saveTree();
-  buildSidebar();
-  highlightSidebar();
-  if(CVIEW==='tool'&&CPHASE==='t-tree'){
-    document.getElementById('pc').innerHTML=renderProjectTreeSection();
-  }else if(CVIEW==='tool'&&CPHASE==='t-cmds'){
-    renderCmdsPage();
-  }
-}
-function toggleTreeNode(id){
-  const hit=findTreeNode(id);
-  if(!hit)return;
-  hit.node.open=hit.node.open===false;
-  rerenderTree();
-}
-function editTreeNode(id){
-  const hit=findTreeNode(id);
-  if(!hit)return;
-  const next=prompt('Novo nome do item:',hit.node.name);
-  if(next===null)return;
-  const name=next.trim();
-  if(!name)return;
-  hit.node.name=name;
-  rerenderTree();
-}
-function addRootTreeNode(type){
-  const label=type==='folder'?'Nova pasta':'Novo arquivo';
-  const name=prompt(`Nome do ${type==='folder'?'diretório':'arquivo'} raiz:`,label);
-  if(name===null)return;
-  const clean=name.trim();
-  if(!clean)return;
-  PTREE.push(treeNode(clean,type,[]));
-  rerenderTree();
-}
-function addChildTreeNode(id,type){
-  const hit=findTreeNode(id);
-  if(!hit)return;
-  if(hit.node.type==='file')hit.node.type='folder';
-  hit.node.children ||= [];
-  hit.node.open=true;
-  const label=type==='folder'?'Nova pasta':'Novo arquivo';
-  const name=prompt(`Nome do novo ${type==='folder'?'filho':'arquivo'}:`,label);
-  if(name===null)return;
-  const clean=name.trim();
-  if(!clean)return;
-  hit.node.children.push(treeNode(clean,type,[]));
-  rerenderTree();
-}
-function deleteTreeNode(id){
-  const hit=findTreeNode(id);
-  if(!hit)return;
-  if(!confirm(`Excluir "${hit.node.name}" da árvore?`))return;
-  hit.list.splice(hit.index,1);
-  rerenderTree();
-}
-function saveCurrentTreeAsDefault(){
-  if(!confirm('Salvar a árvore atual como nova árvore padrão?'))return;
-  localStorage.setItem(K.TREE_DEFAULT,JSON.stringify(normalizeProjectTree(PTREE)));
-  alert('Árvore padrão salva com sucesso.');
-}
-function resetProjectTree(){
-  if(!confirm('Restaurar a árvore padrão do projeto?'))return;
-  PTREE=getEffectiveDefaultProjectTree();
-  rerenderTree();
-}
-
 // ═══════════════════════════════════════════════════════════════
 // TOOL ROUTER
 // ═══════════════════════════════════════════════════════════════
 function renderTool(tid){
   if(tid==='t-diary')renderDiaryPage();
   else if(tid==='t-cmds')renderCmdsPage();
-  else if(tid==='t-tree')document.getElementById('pc').innerHTML=renderProjectTreeSection();
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1259,12 +916,6 @@ document.addEventListener('keydown',e=>{
     const modal=document.getElementById('diary-modal');
     if(modal.classList.contains('open'))closeDiaryModal();
     else openDiaryModal();
-    return;
-  }
-  if(e.ctrlKey&&(e.key==='\\'||e.code==='Backslash')){
-    e.preventDefault();
-    openProjectTreeTool();
-    return;
   }
   if(e.key==='Escape'){
     const modal=document.getElementById('diary-modal');
@@ -1309,8 +960,6 @@ function showPhase(pid){
       ab.addEventListener('click',e=>{e.stopPropagation();toggleAnnPreview(s.id);});
       applyAnnPreviewState(s.id);
     }
-    renderAnnFiles(s.id);
-    renderAnnFileList(s.id);
   });
 }
 function badgeHtml(b){const m={exist:['sb-exist','JÁ EXISTE'],fix:['sb-fix','CORRIGIR'],miss:['sb-miss','IMPLEMENTAR'],new:['sb-new','ACHADO NOVO']};const[c,l]=m[b]||m.miss;return`<span class="sbadge ${c}">${l}</span>`;}
@@ -1348,13 +997,8 @@ function renderStep(s){
             <div class="ann-actions">
               <button type="button" class="ann-btn" id="at-${s.id}">Mostrar links clicáveis</button>
             </div>
-            <div class="ann-hint">Cole URLs completas ou use o formato <code>[texto](https://exemplo.com)</code>. Agora este item também aceita anexos.</div>
+            <div class="ann-hint">Cole URLs completas ou use o formato <code>[texto](https://exemplo.com)</code>.</div>
             <textarea class="ann" id="an-${s.id}" placeholder="Notas, dúvidas, erros encontrados neste item...">${esc(ANN[s.id]||'')}</textarea>
-            <div class="ann-files-toolbar">
-              <button type="button" class="ann-file-btn" onclick="triggerAnnFile('${s.id}')">+ Anexo</button>
-              <input type="file" id="anf-${s.id}" class="hidden" multiple onchange="handleAnnFiles('${s.id}',this)">
-            </div>
-            <div class="ann-files-list" id="afl-${s.id}"></div>
             <div class="ann-preview hidden" id="ap-${s.id}"></div>
           </div>
         </aside>
@@ -1388,41 +1032,6 @@ function applyAnnPreviewState(id){
   refreshAnnPreview(id,an?an.value:(ANN[id]||''));
 }
 function toggleAnnPreview(id){APV[id]=!APV[id];applyAnnPreviewState(id);}
-function getAnnFiles(id){return Array.isArray(ANNFILES[id])?ANNFILES[id]:[];}
-function triggerAnnFile(id){document.getElementById(`anf-${id}`)?.click();}
-function handleAnnFiles(id,input){
-  const files=Array.from(input.files||[]);
-  if(!files.length)return;
-  if(!Array.isArray(ANNFILES[id]))ANNFILES[id]=[];
-  files.forEach(f=>{
-    const reader=new FileReader();
-    reader.onload=e=>{
-      if(!Array.isArray(ANNFILES[id]))ANNFILES[id]=[];
-      ANNFILES[id].push({name:f.name,size:f.size,data:e.target.result,ts:new Date().toISOString()});
-      saveAnnFiles();
-      renderAnnFileList(id);
-      const el=document.getElementById(`as-${id}`);
-      if(el){el.classList.add('show');setTimeout(()=>el.classList.remove('show'),1800);}
-    };
-    reader.readAsDataURL(f);
-  });
-  input.value='';
-}
-function renderAnnFileList(id){
-  const box=document.getElementById(`afl-${id}`);
-  if(!box)return;
-  const files=getAnnFiles(id);
-  if(!files.length){box.innerHTML='';return;}
-  box.innerHTML=files.map((f,idx)=>`<div class="ann-file-chip"><a href="${f.data}" download="${esc(f.name)}">${esc(f.name)}</a><span class="ann-file-rm" onclick="rmAnnFile('${id}',${idx})">&times;</span></div>`).join('');
-}
-function rmAnnFile(id,idx){
-  const files=getAnnFiles(id);
-  files.splice(idx,1);
-  ANNFILES[id]=files;
-  if(!files.length)delete ANNFILES[id];
-  saveAnnFiles();
-  renderAnnFileList(id);
-}
 function toggleDone(id){
   PROG[id]=!PROG[id];
   const ck=document.getElementById(`ck-${id}`),sc=document.getElementById(`sc-${id}`);
@@ -1444,22 +1053,21 @@ function updateProg(){
     const mb=document.getElementById(`mb-${ph.id}`);if(mb)mb.style.width=p+'%';
   });
   const ac=Object.values(ANN).filter(v=>v&&v.trim()).length;
-  const af=Object.values(ANNFILES).reduce((a,list)=>a+(Array.isArray(list)?list.length:0),0);
   const cp=document.getElementById('cprog'),ca=document.getElementById('cann');
   const cd=document.getElementById('cdiary'),cc=document.getElementById('ccmds');
   if(cp)cp.textContent=`${done}/${all.length} (${pct}%)`;
-  if(ca)ca.textContent=`${ac} anotações · ${af} anexos`;
+  if(ca)ca.textContent=`${ac} anotações`;
   if(cd)cd.textContent=`${DIARY.length} registros`;
   if(cc)cc.textContent=`${CMDS.length} comandos`;
 }
 let SO=false;
 function toggleSettings(){SO=!SO;document.getElementById('settings').classList.toggle('open',SO);}
 function clearProg(){if(!confirm('Limpar todo o progresso? Irreversível.'))return;PROG={};saveP();if(CVIEW==='phase')showPhase(CPHASE);}
-function clearAnn(){if(!confirm('Limpar anotações e anexos destes itens? Irreversível.'))return;ANN={};ANNFILES={};localStorage.setItem(K.ann(CU),'{}');localStorage.setItem(K.annFiles(CU),'{}');if(CVIEW==='phase')showPhase(CPHASE);updateProg();}
+function clearAnn(){if(!confirm('Limpar anotações? Irreversível.'))return;ANN={};localStorage.setItem(K.ann(CU),'{}');if(CVIEW==='phase')showPhase(CPHASE);updateProg();}
 function clearDiary(){if(!confirm('Limpar diário? Irreversível.'))return;DIARY=[];saveDiary();if(CVIEW==='tool'&&CPHASE==='t-diary')renderTool('t-diary');updateProg();}
 function clearCmds(){if(!confirm('Limpar comandos? Irreversível.'))return;CMDS=[];saveCmds();if(CVIEW==='tool'&&CPHASE==='t-cmds')renderTool('t-cmds');updateProg();}
 function exportData(){
-  const d={user:CU,exportedAt:new Date().toISOString(),progress:PROG,annotations:ANN,annotationFiles:ANNFILES,diary:DIARY,commands:CMDS,projectTree:PTREE};
+  const d={user:CU,exportedAt:new Date().toISOString(),progress:PROG,annotations:ANN,diary:DIARY,commands:CMDS};
   const b=new Blob([JSON.stringify(d,null,2)],{type:'application/json'});
   const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=`emunah-bank-lab-${CU}-${Date.now()}.json`;a.click();URL.revokeObjectURL(u);
 }
@@ -1471,11 +1079,9 @@ function importData(){
         const d=JSON.parse(ev.target.result);
         if(d.progress)PROG=d.progress;
         if(d.annotations)ANN=d.annotations;
-        if(d.annotationFiles)ANNFILES=d.annotationFiles;
         if(d.diary)DIARY=d.diary;
         if(d.commands)CMDS=d.commands;
-        if(d.projectTree)PTREE=normalizeProjectTree(d.projectTree);
-        saveP();localStorage.setItem(K.ann(CU),JSON.stringify(ANN));localStorage.setItem(K.annFiles(CU),JSON.stringify(ANNFILES));saveDiary();saveCmds();saveTree();
+        saveP();localStorage.setItem(K.ann(CU),JSON.stringify(ANN));saveDiary();saveCmds();
         if(CVIEW==='phase')showPhase(CPHASE);else renderTool(CPHASE);
         alert('Importado.');
       }catch{alert('Arquivo inválido.');}
