@@ -2477,6 +2477,14 @@ window.togglePracticeIndex            = togglePracticeIndex;
 window.togglePracticeMinimized        = togglePracticeMinimized;
 window.toggleSubmoduleDone            = toggleSubmoduleDone;
 window.uploadAttachmentsModal         = uploadAttachmentsModal;
+window.createInlineGeneralNote        = createInlineGeneralNote;
+window.saveInlineGeneralNote          = saveInlineGeneralNote;
+window.openNoteCategoryModal          = openNoteCategoryModal;
+window.saveNoteCategory               = saveNoteCategory;
+window.deleteNoteCategory             = deleteNoteCategory;
+window.openNoteRecordModal            = openNoteRecordModal;
+window.saveNoteRecord                 = saveNoteRecord;
+window.deleteNoteRecord               = deleteNoteRecord;
 
 // Expose functions called via onclick in HTML to global scope
 window.doLogin         = doLogin;
@@ -2495,12 +2503,4 @@ window.nextVerse       = nextVerse;
 window.toggleMobileMenu = toggleMobileMenu;
 window.closeMobileMenu = closeMobileMenu;
 window.toggleLabPlan   = toggleLabPlan;
-window.createInlineGeneralNote        = createInlineGeneralNote;
-window.saveInlineGeneralNote          = saveInlineGeneralNote;
-window.openNoteCategoryModal          = openNoteCategoryModal;
-window.saveNoteCategory               = saveNoteCategory;
-window.deleteNoteCategory             = deleteNoteCategory;
-window.openNoteRecordModal            = openNoteRecordModal;
-window.saveNoteRecord                 = saveNoteRecord;
-window.deleteNoteRecord               = deleteNoteRecord;
 });
