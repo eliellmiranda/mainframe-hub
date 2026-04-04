@@ -398,7 +398,7 @@ textarea.ann:focus{border-color:var(--green);outline:none;color:var(--text)}
 // ═══════════════════════════════════════════════════════════════
 const PH=[
 {id:'fx',num:'!',title:'Correções Imediatas',sub:'Prioridade antes de tudo',alert:true,
- desc:'Três problemas bloqueiam qualquer execução de ponta a ponta. Corrija antes de avançar nas fases do orquestrador.',
+ desc:'Há bloqueios de dados, JCL e alocação que impedem a execução ponta a ponta. Corrija estes itens antes de avançar nas fases do orquestrador.',
  steps:[
   {id:'fxs1',num:'C.1',title:'Corrigir contas.txt',sub:'Layout quebrado — todas as contas rejeitadas',tags:['DATA'],badge:'fix',
    desc:'O arquivo contas.txt tem o layout deslocado. CNT-STATUS (pos 19) está com valor inválido. EBCLLOAD vai rejeitar todas as 20 contas.',
@@ -420,7 +420,17 @@ const PH=[
    done:'EBJEXTR executa EBEXTR01 e gera ARQ.EXTRATO.SEQ.'},
   {id:'fxs5',num:'C.5',title:'Alocar datasets novos identificados',sub:'Não estavam no mapa original',tags:['JCL'],badge:'new',
    codes:[{l:'Novos datasets — alocar via IDCAMS',c:'ARQ.CONCIL.SEQ      → saida de EBCONC01 (120 bytes)\nARQ.LANCTO.VALID.SEQ → movimentos validos (120 bytes)\nARQ.SALDO.SEQ        → entrada para EBSALD01 (80 bytes)\nARQ.EXTRATO.SEQ      → saida de EBEXTR01 (132 bytes)\nARQ.SALDO.OUT.SEQ    → saida de EBSALD01 (120 bytes)'}],
-   done:'LISTCAT de cada dataset retorna sem erro.'}
+   done:'LISTCAT de cada dataset retorna sem erro.'},
+  {id:'fxs6',num:'C.6',title:'Achados adicionais — bugs que ainda estão nos arquivos do projeto',sub:'Higiene de JCL e locking em VSAM de escrita',tags:['JCL'],badge:'fix',
+   desc:'Além dos itens já mapeados, ainda existem problemas de DISP e DDs desnecessários nos JCLs DEV. Eles não afetam só a clareza do fluxo: em alguns casos impedem a escrita real no zXplore.',
+   warn:'Se DISP=SHR permanecer em arquivos VSAM abertos para escrita, o job pode falhar ou não atualizar os datasets como esperado.',
+   codes:[
+    {l:'A) DISP=SHR em VSAM de escrita nos JCLs DEV — trocar para DISP=OLD',c:'JCL      DD       Dataset                  Programa   Escreve?  DISP atual  Correção\nEBJCLLD  CLIENTE  ARQ.CLIENTE.KSDS        EBCLLOAD   Sim       SHR ❌       OLD ✅\nEBJCLLD  CONTA    ARQ.CONTA.KSDS          EBCLLOAD   Sim       SHR ❌       OLD ✅\nEBJPOST  CONTA    ARQ.CONTA.KSDS          EBPOST01   Sim       SHR ❌       OLD ✅\nEBJVALD  VALIDOS  ARQ.LANCTO.ESDS         EBVALI01   Sim       SHR ❌       OLD ✅\n\nTodos precisam de DISP=OLD para que a escrita funcione corretamente no zXplore.'},
+    {l:'B) EBJPOST.jcl (DEV) — DD CLIENTE desnecessário',c:'O EBJPOST.jcl declara:\n//CLIENTE DD DSN=<HQL>.EMUNAH.ARQ.CLIENTE.KSDS,...\n\nPorém o programa EBPOST01 não possui SELECT/ASSIGN para CLIENTE.\nEsse DD é inerte: não costuma gerar erro, mas é lixo operacional no JCL e deve ser removido para higiene e legibilidade.'},
+    {l:'C) EBJCONC.jcl — DISP=MOD no CONCOUT',c:'O CONCOUT usa DISP=MOD para acumular conciliações, o que faz sentido após a primeira execução.\n\nRisco: se o dataset ainda não existir, DISP=MOD tenta criá-lo sem DCB adequado e a alocação pode falhar.\n\nOpções seguras:\n1) Primeira execução com DISP=(NEW,CATLG,DELETE) + DCB/SPACE explícitos; ou\n2) Pré-alocar ARQ.CONCIL.SEQ antes do job e só então usar DISP=MOD nas execuções seguintes.'},
+    {l:'Resumo de ações — ordem de execução recomendada',c:'1. Gerar novo lancamentos_d0.txt com contas reais do seed (00000001–00000020, agência 0001)\n2. Corrigir DISP=SHR → DISP=OLD em EBJCLLD, EBJPOST e EBJVALD\n3. Adicionar DD SALDOUT em EBJSALD.jcl\n4. Substituir EBJEXTR.jcl pelo JCL funcional com EBEXTR01\n5. Reescrever EBJEOD.jcl com identidade e fluxo de EOD (pelo menos conciliação + flag de fechamento)\n6. Alocar datasets sequenciais — pré-alocar via JCL/IEFBR14 ou criar inline com tratamento de reexecução\n7. Remover o DD CLIENTE do EBJPOST.jcl'}
+   ],
+   done:'Os JCLs DEV estão higienizados: VSAM de escrita com DISP=OLD, DD inútil removido e CONCOUT com estratégia segura de primeira execução.'}
 ]},
 {id:'f0',num:0,title:'Fundação',sub:'Contratos antes do código',
  desc:'Prepare o ambiente-base antes de qualquer execução: estrutura USS, datasets remotos, schema DB2 e configuração central.',
