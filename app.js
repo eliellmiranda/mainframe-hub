@@ -9,7 +9,15 @@ const SESSION_KEY = 'mfhub.session.v4';
 const REMEMBER_KEY = 'mfhub.remember.v1';
 const SEED_VERSION = 20260330;
 const STREAK_KEY = 'mfhub.streak.v1';
-function getStreakData() { return readLS(STREAK_KEY, { lastDate:'', count:0, longest:0 }); }
+const CLOUD_TABLE = 'mfhub_user_state';
+const CLOUD_SYNC_DEBOUNCE_MS = 700;
+let currentAuthIdentity = null;
+let cloudSyncTimer = null;
+let cloudSyncInFlight = false;
+let cloudSyncQueued = false;
+let lastCloudError = '';
+function getStreakStorageKey() { return currentUser ? `${STREAK_KEY}.${currentUser}` : STREAK_KEY; }
+function getStreakData() { return readLS(getStreakStorageKey(), { lastDate:'', count:0, longest:0 }); }
 function updateStreak() {
   const today = new Date().toISOString().slice(0,10);
   const s = getStreakData();
@@ -18,7 +26,8 @@ function updateStreak() {
   const newCount = s.lastDate === yesterday ? s.count + 1 : 1;
   const newLongest = Math.max(newCount, s.longest || 0);
   const updated = { lastDate:today, count:newCount, longest:newLongest };
-  writeLS(STREAK_KEY, updated);
+  writeLS(getStreakStorageKey(), updated);
+  scheduleCloudSync('streak');
   return updated;
 }
 
@@ -78,8 +87,6 @@ function baseData() {
     linkedinPosts: [],
     certificates: [],
     generalNotes: [],
-    noteCategories: [],
-    noteRecords: [],
     tools: [],
     dailyGoals: {},
     lab: { url:'', planUrl:'emunah-bank-lab.html', title:'EMUNAH BANK LAB' },
@@ -95,8 +102,6 @@ function ensureDefaults() {
   appData.linkedinPosts ||= [];
   appData.certificates ||= [];
   appData.generalNotes ||= [];
-  appData.noteCategories ||= [];
-  appData.noteRecords ||= [];
   appData.tools ||= [];
   appData.dailyGoals ||= {};
   appData.lab ||= { url:'', planUrl:'emunah-bank-lab.html', title:'EMUNAH BANK LAB' };
@@ -126,10 +131,14 @@ function loadUserData() {
   appData = Object.assign(baseData(), readLS(userDataKey(currentUser), null) || {});
   ensureDefaults();
 }
-function saveUserData() { writeLS(userDataKey(currentUser), appData); }
-function setTheme(theme) {
+function saveUserData(options={}) {
+  writeLS(userDataKey(currentUser), appData);
+  if (!options.skipSync) scheduleCloudSync('data');
+}
+function setTheme(theme, options={}) {
   document.documentElement.dataset.theme = theme;
   if (currentUser) writeLS(getThemeKey(currentUser), theme);
+  if (!options.skipSync) scheduleCloudSync('theme');
 }
 function toggleTheme() {
   const current = document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
@@ -138,7 +147,159 @@ function toggleTheme() {
 }
 function applySavedTheme() {
   const theme = currentUser ? readLS(getThemeKey(currentUser), 'dark') : 'dark';
-  setTheme(theme || 'dark');
+  setTheme(theme || 'dark', { skipSync:true });
+}
+function ensureCloudStatusElement() {
+  let el = document.getElementById('cloud-sync-status');
+  if (el) return el;
+  const topbar = document.querySelector('.topbar');
+  if (!topbar) return null;
+  el = document.createElement('span');
+  el.id = 'cloud-sync-status';
+  el.className = 'badge';
+  el.textContent = 'Nuvem local';
+  topbar.insertBefore(el, document.getElementById('clock'));
+  return el;
+}
+function setCloudStatus(state='local', text='Nuvem local') {
+  const el = ensureCloudStatusElement();
+  if (!el) return;
+  el.dataset.state = state;
+  el.textContent = text;
+  el.style.borderColor = 'var(--border)';
+  el.style.color = 'var(--text-soft)';
+  if (state === 'syncing') {
+    el.style.borderColor = 'var(--warn)';
+    el.style.color = 'var(--warn)';
+  } else if (state === 'synced') {
+    el.style.borderColor = 'color-mix(in oklab, var(--accent) 35%, var(--border))';
+    el.style.color = 'var(--accent)';
+  } else if (state === 'error') {
+    el.style.borderColor = 'var(--danger)';
+    el.style.color = 'var(--danger)';
+  }
+}
+function canUseCloudSync() {
+  return !!(SUPABASE_ENABLED && supabaseClient && currentAuthIdentity?.id);
+}
+function payloadHasUserContent(payload) {
+  const p = Object.assign(baseData(), payload || {});
+  return Boolean(
+    (p.courses || []).length ||
+    (p.docs || []).length ||
+    (p.codeSpaces || []).length ||
+    (p.exerciseSpaces || []).length ||
+    (p.interviewSpaces || []).length ||
+    (p.linkedinPosts || []).length ||
+    (p.certificates || []).length ||
+    (p.generalNotes || []).length ||
+    (p.tools || []).length ||
+    Object.values(p.dailyGoals || {}).some(list => Array.isArray(list) && list.length) ||
+    (p.lab?.url)
+  );
+}
+function buildCloudRow() {
+  return {
+    user_id: currentAuthIdentity.id,
+    username: currentAuthIdentity.storageUser,
+    email: currentAuthIdentity.email,
+    payload: appData,
+    theme: document.documentElement.dataset.theme === 'light' ? 'light' : 'dark',
+    streak: getStreakData()
+  };
+}
+async function fetchCloudRow() {
+  if (!canUseCloudSync()) return null;
+  const { data, error } = await supabaseClient
+    .from(CLOUD_TABLE)
+    .select('payload, theme, streak, updated_at')
+    .eq('user_id', currentAuthIdentity.id)
+    .maybeSingle();
+  if (error) throw error;
+  return data || null;
+}
+async function pushCloudState(reason='manual') {
+  if (!canUseCloudSync()) {
+    setCloudStatus('local', 'Nuvem indisponível');
+    return false;
+  }
+  setCloudStatus('syncing', reason === 'bootstrap' ? 'Nuvem iniciando…' : 'Nuvem salvando…');
+  const { error } = await supabaseClient
+    .from(CLOUD_TABLE)
+    .upsert(buildCloudRow(), { onConflict:'user_id' });
+  if (error) throw error;
+  lastCloudError = '';
+  setCloudStatus('synced', 'Nuvem ✓');
+  return true;
+}
+function scheduleCloudSync(reason='change') {
+  if (!currentUser) return;
+  if (!canUseCloudSync()) {
+    setCloudStatus('local', 'Nuvem local');
+    return;
+  }
+  clearTimeout(cloudSyncTimer);
+  setCloudStatus('syncing', 'Nuvem salvando…');
+  cloudSyncTimer = setTimeout(() => { flushCloudSync(reason); }, CLOUD_SYNC_DEBOUNCE_MS);
+}
+async function flushCloudSync(reason='manual') {
+  if (!canUseCloudSync()) return false;
+  clearTimeout(cloudSyncTimer);
+  cloudSyncTimer = null;
+  if (cloudSyncInFlight) {
+    cloudSyncQueued = true;
+    return false;
+  }
+  cloudSyncInFlight = true;
+  try {
+    await pushCloudState(reason);
+    return true;
+  } catch (error) {
+    console.error('MFHUB cloud sync failed:', error);
+    lastCloudError = error?.message || 'Falha ao sincronizar com a nuvem.';
+    setCloudStatus('error', 'Nuvem falha');
+    return false;
+  } finally {
+    cloudSyncInFlight = false;
+    if (cloudSyncQueued) {
+      cloudSyncQueued = false;
+      scheduleCloudSync('queued');
+    }
+  }
+}
+async function bootstrapCloudState() {
+  if (!currentUser) return;
+  ensureCloudStatusElement();
+  if (!canUseCloudSync()) {
+    setCloudStatus('local', SUPABASE_ENABLED ? 'Nuvem sem sessão' : 'Nuvem indisponível');
+    return;
+  }
+  try {
+    setCloudStatus('syncing', 'Nuvem carregando…');
+    const remote = await fetchCloudRow();
+    const localHadContent = payloadHasUserContent(appData);
+    if (!remote) {
+      await pushCloudState('bootstrap');
+      return;
+    }
+    if (!payloadHasUserContent(remote.payload) && localHadContent) {
+      await pushCloudState('bootstrap');
+      return;
+    }
+    appData = Object.assign(baseData(), remote.payload || {});
+    ensureDefaults();
+    writeLS(userDataKey(currentUser), appData);
+    if (remote.theme) setTheme(remote.theme, { skipSync:true });
+    if (remote.streak) writeLS(getStreakStorageKey(), remote.streak);
+    ensureSeedData();
+    ensureDailyGoalsSeeded();
+    renderAll();
+    setCloudStatus('synced', 'Nuvem ✓');
+  } catch (error) {
+    console.error('MFHUB cloud bootstrap failed:', error);
+    lastCloudError = error?.message || 'Falha ao carregar os dados da nuvem.';
+    setCloudStatus('error', 'Nuvem falha');
+  }
 }
 
 function saveRememberedLogin(identifier) {
@@ -241,6 +402,7 @@ async function doLogin() {
   if (error) return setFieldText('login-error', error.message || 'Não foi possível entrar.');
   if (remember) saveRememberedLogin(email); else clearRememberedLogin();
   const identity = getAuthIdentity(data.user);
+  currentAuthIdentity = identity;
   writeLS(SESSION_KEY, { user:identity.storageUser, displayName:identity.displayName, email:identity.email, provider:'supabase' });
   cleanupAuthUrl();
   startApp(identity.storageUser, identity.displayName);
@@ -313,6 +475,7 @@ async function doRegister() {
   setFieldText('register-help', `Conta criada para <strong>${esc(email)}</strong>. Verifique sua caixa de entrada e spam.`, true);
   if (data?.session?.user) {
     const identity = getAuthIdentity(data.session.user);
+    currentAuthIdentity = identity;
     writeLS(SESSION_KEY, { user:identity.storageUser, displayName:identity.displayName, email:identity.email, provider:'supabase' });
     startApp(identity.storageUser, identity.displayName);
     return;
@@ -357,8 +520,10 @@ async function resetPassword() {
   showToast('Senha redefinida.');
 }
 async function logout() {
+  try { await flushCloudSync('logout'); } catch (e) {}
   removeLS(SESSION_KEY);
   currentUser = null;
+  currentAuthIdentity = null;
   appData = null;
   document.documentElement.removeAttribute('data-auth');
   if (SUPABASE_ENABLED) {
@@ -381,6 +546,7 @@ async function tryRestoreSession() {
   }
   if (!data?.session?.user) return false;
   const identity = getAuthIdentity(data.session.user);
+  currentAuthIdentity = identity;
   writeLS(SESSION_KEY, { user:identity.storageUser, displayName:identity.displayName, email:identity.email, provider:'supabase' });
   startApp(identity.storageUser, identity.displayName);
   return true;
@@ -388,6 +554,8 @@ async function tryRestoreSession() {
 function bindSupabaseAuthEvents() {
   if (!SUPABASE_ENABLED) return;
   supabaseClient.auth.onAuthStateChange((event, session) => {
+    if (session?.user) currentAuthIdentity = getAuthIdentity(session.user);
+    if (event === 'SIGNED_OUT') currentAuthIdentity = null;
     if (event === 'PASSWORD_RECOVERY') {
       document.getElementById('recovery-email').value = session?.user?.email || '';
       showLoginScreen('recovery');
@@ -395,7 +563,7 @@ function bindSupabaseAuthEvents() {
     }
   });
 }
-function startApp(user, displayName = user) {
+async function startApp(user, displayName = user) {
   // Esconde a tela de login IMEDIATAMENTE antes de qualquer outra operação
   document.documentElement.dataset.auth = '1';
   document.getElementById('login-screen').style.display = 'none';
@@ -409,12 +577,15 @@ function startApp(user, displayName = user) {
   document.getElementById('sidebar-user').textContent = String(displayName || user).toUpperCase() + '@MFHUB';
   document.getElementById('app').style.display = 'block';
   startClock();
+  ensureCloudStatusElement();
+  setCloudStatus(canUseCloudSync() ? 'syncing' : 'local', canUseCloudSync() ? 'Nuvem carregando…' : 'Nuvem local');
   // Restore section from URL hash (browser back/forward support), fallback to saved last section
   const hashSection = location.hash.slice(1);
   const initialSection = (hashSection && document.getElementById('section-' + hashSection))
     ? hashSection
     : (appData.meta.lastSection || 'dashboard');
   goSection(initialSection, !hashSection);  // don't push if hash was already in URL
+  await bootstrapCloudState();
 }
 function setMissingSupabaseHelp() {
   if (SUPABASE_ENABLED) return;
@@ -762,12 +933,10 @@ function updateStatus() {
     linkedin: appData.linkedinPosts.length,
     certs: appData.certificates.length,
     notes: appData.generalNotes.length,
-    noteCategories: appData.noteCategories.length,
-    noteRecords: appData.noteRecords.length,
     tools: appData.tools.length,
     goals: Object.values(appData.dailyGoals || {}).reduce((a,list)=>a+(Array.isArray(list)?list.length:0),0),
   };
-  document.getElementById('status-stats').textContent = `${totals.courses} cursos · ${totals.docs} docs · ${totals.code} códigos · ${totals.ex + totals.iv} questões · ${totals.linkedin} posts · ${totals.certs} badges · ${totals.tools} ferramentas · ${totals.notes} notas · ${totals.noteCategories} categorias · ${totals.noteRecords} registros · ${totals.goals} metas`;
+  document.getElementById('status-stats').textContent = `${totals.courses} cursos · ${totals.docs} docs · ${totals.code} códigos · ${totals.ex + totals.iv} questões · ${totals.linkedin} posts · ${totals.certs} badges · ${totals.tools} ferramentas · ${totals.notes} notas · ${totals.goals} metas`;
 }
 
 function renderDashboard() {
@@ -1459,114 +1628,28 @@ function deleteSubspace(kind, spaceId, subId) {
 }
 
 
-
 function renderNotes() {
   const wrap = document.getElementById('section-notes');
-  const noteCount = appData.generalNotes.length;
-  const categoryCount = appData.noteCategories.length;
-  const recordCount = appData.noteRecords.length;
-  const uncategorizedCount = appData.noteRecords.filter(record => !record.categoryId).length;
-  const categoryMap = new Map((appData.noteCategories || []).map(category => [category.id, category]));
   wrap.innerHTML = `
     <div class="headline">
-      <div><div class="title">Anotações</div><div class="subtitle">Notas editáveis, categorias independentes e registros classificados</div></div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap">
-        <button class="btn" onclick="openNoteCategoryModal()">Nova categoria</button>
-        <button class="btn" onclick="openNoteRecordModal()">Novo registro</button>
-        <button class="btn primary" onclick="createInlineGeneralNote()">Nova anotação</button>
-      </div>
+      <div><div class="title">Anotações gerais</div><div class="subtitle">Notas livres para estudos, ideias, lembretes e planos</div></div>
+      <button class="btn primary" onclick="openGeneralNoteModal()">Nova anotação</button>
     </div>
-    <div class="kpis" style="margin-bottom:16px">
-      <div class="kpi"><div class="kpi-label">Anotações</div><div class="kpi-value">${noteCount}</div><div class="kpi-sub">editáveis após salvar</div></div>
-      <div class="kpi"><div class="kpi-label">Categorias</div><div class="kpi-value">${categoryCount}</div><div class="kpi-sub">sem sobrescrever as anteriores</div></div>
-      <div class="kpi"><div class="kpi-label">Registros</div><div class="kpi-value">${recordCount}</div><div class="kpi-sub">classificados por categoria</div></div>
-      <div class="kpi"><div class="kpi-label">Sem categoria</div><div class="kpi-value">${uncategorizedCount}</div><div class="kpi-sub">registros ainda não classificados</div></div>
-    </div>
-    <div class="notes-layout">
-      <div class="stack">
-        <div class="panel">
-          <div class="panel-title">Anotações livres</div>
-          ${(appData.generalNotes || []).length ? appData.generalNotes.map(note => `
-            <div class="note-editor-card" id="general-note-${note.id}">
-              <div class="row-top">
-                <div>
-                  <div class="row-title">${esc(note.title || 'Anotação')}</div>
-                  <div class="row-sub">${fmtDate(note.updatedAt || note.createdAt)}</div>
-                </div>
-                <div class="row-actions">
-                  <button class="btn xs" onclick="saveInlineGeneralNote('${note.id}')">Salvar</button>
-                  <button class="btn xs danger" onclick="deleteGeneralNote('${note.id}')">Excluir</button>
-                </div>
-              </div>
-              <div class="row" style="margin-top:12px"><label class="lbl">Título</label><input id="gn-inline-title-${note.id}" class="input" value="${esc(note.title || '')}" placeholder="Título da anotação"></div>
-              <div class="row" style="margin-bottom:0"><label class="lbl">Conteúdo</label><textarea id="gn-inline-content-${note.id}" class="textarea note-inline-textarea" placeholder="Escreva sua anotação aqui...">${esc(note.content || '')}</textarea></div>
+    <div class="stack">
+      ${appData.generalNotes.length ? appData.generalNotes.map(note => `
+        <div class="panel" id="general-note-${note.id}">
+          <div class="row-top">
+            <div><div class="row-title">${esc(note.title)}</div><div class="row-sub">${fmtDate(note.updatedAt || note.createdAt)}</div></div>
+            <div class="row-actions">
+              <button class="btn xs" onclick="openGeneralNoteModal('${note.id}')">Editar</button>
+              <button class="btn xs danger" onclick="deleteGeneralNote('${note.id}')">Excluir</button>
             </div>
-          `).join('') : '<div class="empty">Nenhuma anotação geral cadastrada.</div>'}
-        </div>
-      </div>
-      <div class="stack">
-        <div class="panel">
-          <div class="panel-title">Categorias</div>
-          <div class="row-text" style="margin-top:0">As categorias são criadas uma vez e depois você escolhe uma delas ao criar um registro.</div>
-          <div class="stack" style="margin-top:12px">
-            ${(appData.noteCategories || []).length ? appData.noteCategories.map(category => `
-              <div class="row-item" id="note-category-${category.id}">
-                <div class="row-top">
-                  <div>
-                    <div class="row-title">${esc(category.name)}</div>
-                    <div class="row-sub">${appData.noteRecords.filter(record => record.categoryId === category.id).length} registro(s)</div>
-                  </div>
-                  <div class="row-actions">
-                    <button class="btn xs" onclick="openNoteCategoryModal('${category.id}')">Editar</button>
-                    <button class="btn xs danger" onclick="deleteNoteCategory('${category.id}')">Excluir</button>
-                  </div>
-                </div>
-              </div>
-            `).join('') : '<div class="empty">Nenhuma categoria criada ainda.</div>'}
           </div>
+          <div class="row-text">${nl2br(note.content || '')}</div>
         </div>
-        <div class="panel">
-          <div class="row-top" style="margin-bottom:12px">
-            <div>
-              <div class="panel-title" style="margin-bottom:4px">Registros</div>
-              <div class="row-sub">Cada registro é criado separadamente e pode ser classificado em uma categoria existente.</div>
-            </div>
-            <button class="btn xs" onclick="openNoteRecordModal()">Novo registro</button>
-          </div>
-          <div class="stack">
-            ${(appData.noteRecords || []).length ? appData.noteRecords.map(record => {
-              const category = categoryMap.get(record.categoryId);
-              return `
-                <div class="row-item" id="note-record-${record.id}">
-                  <div class="row-top">
-                    <div>
-                      <div class="row-title">${esc(record.title || 'Registro sem título')}</div>
-                      <div class="row-sub">${category ? esc(category.name) : 'Sem categoria'} · ${fmtDate(record.updatedAt || record.createdAt)}</div>
-                    </div>
-                    <div class="row-actions">
-                      <button class="btn xs" onclick="openNoteRecordModal('${record.id}')">Editar</button>
-                      <button class="btn xs danger" onclick="deleteNoteRecord('${record.id}')">Excluir</button>
-                    </div>
-                  </div>
-                  ${record.content ? `<div class="row-text">${nl2br(record.content)}</div>` : '<div class="empty" style="margin-top:12px">Sem conteúdo neste registro.</div>'}
-                </div>
-              `;
-            }).join('') : '<div class="empty">Nenhum registro criado ainda.</div>'}
-          </div>
-        </div>
-      </div>
+      `).join('') : '<div class="empty">Nenhuma anotação geral cadastrada.</div>'}
     </div>
   `;
-}
-function createInlineGeneralNote() {
-  const note = { id:uid(), title:'', content:'', createdAt:Date.now(), updatedAt:Date.now(), isDraft:true };
-  appData.generalNotes.unshift(note);
-  saveUserData();
-  renderNotes();
-  requestAnimationFrame(() => {
-    document.getElementById(`gn-inline-title-${note.id}`)?.focus();
-    focusSectionElement(`general-note-${note.id}`);
-  });
 }
 function openGeneralNoteModal(noteId='') {
   const note = noteId ? appData.generalNotes.find(n => n.id === noteId) : null;
@@ -1575,101 +1658,23 @@ function openGeneralNoteModal(noteId='') {
     <div class="row"><label class="lbl">Conteúdo</label><textarea id="gn-content" class="textarea" style="min-height:260px">${esc(note?.content || '')}</textarea></div>
   `, `<button class="btn primary" onclick="saveGeneralNote('${noteId}')">Salvar</button>`);
 }
-function saveInlineGeneralNote(noteId) {
-  const note = appData.generalNotes.find(n => n.id === noteId); if (!note) return;
-  const title = document.getElementById(`gn-inline-title-${noteId}`)?.value.trim() || '';
-  const content = document.getElementById(`gn-inline-content-${noteId}`)?.value || '';
-  if (!title && !content.trim()) return showToast('Preencha o título ou o conteúdo antes de salvar.');
-  note.title = title || 'Anotação sem título';
-  note.content = content;
-  note.updatedAt = Date.now();
-  delete note.isDraft;
-  saveUserData();
-  renderNotes();
-  renderDashboard();
-  updateStatus();
-  showToast('Anotação salva.');
-}
 function saveGeneralNote(noteId='') {
   const title = document.getElementById('gn-title').value.trim();
   const content = document.getElementById('gn-content').value;
-  if (!title && !content.trim()) return;
+  if (!title) return;
   if (noteId) {
     const note = appData.generalNotes.find(n => n.id === noteId); if (!note) return;
-    note.title = title || 'Anotação sem título'; note.content = content; note.updatedAt = Date.now(); delete note.isDraft;
+    note.title = title; note.content = content; note.updatedAt = Date.now();
   } else {
-    appData.generalNotes.unshift({ id:uid(), title: title || 'Anotação sem título', content, createdAt:Date.now(), updatedAt:Date.now() });
+    appData.generalNotes.unshift({ id:uid(), title, content, createdAt:Date.now(), updatedAt:Date.now() });
   }
-  saveUserData(); closeModal(); renderNotes(); renderDashboard(); updateStatus(); showToast(noteId ? 'Anotação atualizada.' : 'Anotação criada.');
+  saveUserData(); closeModal(); renderNotes(); updateStatus(); showToast(noteId ? 'Anotação atualizada.' : 'Anotação criada.');
 }
 function deleteGeneralNote(noteId) {
   const name = appData.generalNotes.find(n => n.id === noteId)?.title || 'esta anotação';
   if (!confirm(`Deseja mesmo excluir "${name}"?`)) return;
   appData.generalNotes = appData.generalNotes.filter(n => n.id !== noteId);
-  saveUserData(); renderNotes(); renderDashboard(); updateStatus(); showToast('Anotação removida.');
-}
-function openNoteCategoryModal(categoryId='') {
-  const category = categoryId ? appData.noteCategories.find(c => c.id === categoryId) : null;
-  openModal(category ? 'Editar categoria' : 'Nova categoria', `
-    <div class="row"><label class="lbl">Nome da categoria</label><input id="note-category-name" class="input" value="${esc(category?.name || '')}" placeholder="Ex.: LAB, ZXPLORER, FUTURE"></div>
-  `, `<button class="btn primary" onclick="saveNoteCategory('${categoryId}')">Salvar</button>`);
-}
-function saveNoteCategory(categoryId='') {
-  const name = document.getElementById('note-category-name').value.trim();
-  if (!name) return;
-  const duplicate = appData.noteCategories.find(category => category.name.trim().toLowerCase() === name.toLowerCase() && category.id !== categoryId);
-  if (duplicate) return showToast('Já existe uma categoria com esse nome.');
-  if (categoryId) {
-    const category = appData.noteCategories.find(c => c.id === categoryId); if (!category) return;
-    category.name = name;
-    category.updatedAt = Date.now();
-  } else {
-    appData.noteCategories.push({ id:uid(), name, createdAt:Date.now(), updatedAt:Date.now() });
-  }
-  saveUserData(); closeModal(); renderNotes(); updateStatus(); showToast(categoryId ? 'Categoria atualizada.' : 'Categoria criada.');
-}
-function deleteNoteCategory(categoryId) {
-  const category = appData.noteCategories.find(c => c.id === categoryId);
-  if (!category) return;
-  const linkedRecords = appData.noteRecords.filter(record => record.categoryId === categoryId).length;
-  const msg = linkedRecords
-    ? `A categoria "${category.name}" está ligada a ${linkedRecords} registro(s). Excluir mesmo assim? Os registros ficarão sem categoria.`
-    : `Deseja mesmo excluir "${category.name}"?`;
-  if (!confirm(msg)) return;
-  appData.noteCategories = appData.noteCategories.filter(c => c.id !== categoryId);
-  appData.noteRecords.forEach(record => { if (record.categoryId === categoryId) record.categoryId = ''; });
-  saveUserData(); renderNotes(); updateStatus(); showToast('Categoria removida.');
-}
-function openNoteRecordModal(recordId='') {
-  const record = recordId ? appData.noteRecords.find(r => r.id === recordId) : null;
-  const categoryOptions = [`<option value="">Sem categoria</option>`].concat(
-    (appData.noteCategories || []).map(category => `<option value="${category.id}" ${record?.categoryId === category.id ? 'selected' : ''}>${esc(category.name)}</option>`)
-  ).join('');
-  openModal(record ? 'Editar registro' : 'Novo registro', `
-    <div class="row"><label class="lbl">Título do registro</label><input id="note-record-title" class="input" value="${esc(record?.title || '')}" placeholder="Ex.: Ajuste no ambiente de LAB"></div>
-    <div class="row"><label class="lbl">Categoria</label><select id="note-record-category" class="select">${categoryOptions}</select></div>
-    <div class="row"><label class="lbl">Conteúdo</label><textarea id="note-record-content" class="textarea" style="min-height:240px" placeholder="Detalhes do registro">${esc(record?.content || '')}</textarea></div>
-  `, `<button class="btn primary" onclick="saveNoteRecord('${recordId}')">Salvar</button>`);
-}
-function saveNoteRecord(recordId='') {
-  const title = document.getElementById('note-record-title').value.trim();
-  const categoryId = document.getElementById('note-record-category').value;
-  const content = document.getElementById('note-record-content').value;
-  if (!title && !content.trim()) return;
-  const payload = { title: title || 'Registro sem título', categoryId, content, updatedAt:Date.now() };
-  if (recordId) {
-    const record = appData.noteRecords.find(r => r.id === recordId); if (!record) return;
-    Object.assign(record, payload);
-  } else {
-    appData.noteRecords.unshift({ id:uid(), createdAt:Date.now(), ...payload });
-  }
-  saveUserData(); closeModal(); renderNotes(); updateStatus(); showToast(recordId ? 'Registro atualizado.' : 'Registro criado.');
-}
-function deleteNoteRecord(recordId) {
-  const name = appData.noteRecords.find(record => record.id === recordId)?.title || 'este registro';
-  if (!confirm(`Deseja mesmo excluir "${name}"?`)) return;
-  appData.noteRecords = appData.noteRecords.filter(record => record.id !== recordId);
-  saveUserData(); renderNotes(); updateStatus(); showToast('Registro removido.');
+  saveUserData(); renderNotes(); updateStatus(); showToast('Anotação removida.');
 }
 
 function renderLinkedin() {
@@ -2136,13 +2141,6 @@ function handleSearch(query) {
   appData.generalNotes.forEach(note => {
     if ((note.title+' '+note.content).toLowerCase().includes(q)) results.push({ area:'Anotações gerais', title:note.title, text:note.content.slice(0,220), target:{ section:'notes', focusId:`general-note-${note.id}` } });
   });
-  appData.noteCategories.forEach(category => {
-    if ((category.name || '').toLowerCase().includes(q)) results.push({ area:'Categorias de anotações', title:category.name, text:`${appData.noteRecords.filter(record => record.categoryId === category.id).length} registro(s)`, target:{ section:'notes', focusId:`note-category-${category.id}` } });
-  });
-  appData.noteRecords.forEach(record => {
-    const category = appData.noteCategories.find(item => item.id === record.categoryId);
-    if ((record.title+' '+(record.content || '')+' '+(category?.name || '')).toLowerCase().includes(q)) results.push({ area:'Registros', title:record.title || 'Registro sem título', text:[category?.name || 'Sem categoria', (record.content || '')].join(' · ').slice(0,220), target:{ section:'notes', focusId:`note-record-${record.id}` } });
-  });
   appData.tools.forEach(tool => {
     if ((tool.name+' '+(tool.category||'')+' '+(tool.instructions||'')+' '+(tool.downloadUrl||'')+' '+(tool.websiteUrl||'')).toLowerCase().includes(q)) {
       results.push({ area:'Ferramentas', title:tool.name, text:[tool.category, tool.downloadUrl, tool.websiteUrl].filter(Boolean).join(' · ').slice(0,220), target:{ section:'tools', focusId:`tool-${tool.id}` } });
@@ -2361,6 +2359,9 @@ document.addEventListener('keydown', e => {
 bindSupabaseAuthEvents();
 setMissingSupabaseHelp();
 loadRememberedLogin();
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) flushCloudSync('visibility');
+});
 
 if (isRecoveryFlow()) {
   showLoginScreen('recovery');
@@ -2477,14 +2478,6 @@ window.togglePracticeIndex            = togglePracticeIndex;
 window.togglePracticeMinimized        = togglePracticeMinimized;
 window.toggleSubmoduleDone            = toggleSubmoduleDone;
 window.uploadAttachmentsModal         = uploadAttachmentsModal;
-window.createInlineGeneralNote        = createInlineGeneralNote;
-window.saveInlineGeneralNote          = saveInlineGeneralNote;
-window.openNoteCategoryModal          = openNoteCategoryModal;
-window.saveNoteCategory               = saveNoteCategory;
-window.deleteNoteCategory             = deleteNoteCategory;
-window.openNoteRecordModal            = openNoteRecordModal;
-window.saveNoteRecord                 = saveNoteRecord;
-window.deleteNoteRecord               = deleteNoteRecord;
 
 // Expose functions called via onclick in HTML to global scope
 window.doLogin         = doLogin;
