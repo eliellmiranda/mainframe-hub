@@ -9,8 +9,16 @@ const SESSION_KEY = 'mfhub.session.v4';
 const REMEMBER_KEY = 'mfhub.remember.v1';
 const SEED_VERSION = 20260330;
 const STREAK_KEY = 'mfhub.streak.v1';
-const CLOUD_TABLE = 'mfhub_user_state';
+const CLOUD_RPC_GET = 'mfhub_get_state';
+const CLOUD_RPC_PUT = 'mfhub_put_state';
 const CLOUD_SYNC_DEBOUNCE_MS = 700;
+const FONT_STYLE_KEY = 'mfhub.fontstyle.v1';
+const FONT_OPTIONS = [
+  { value:'share-tech', label:'Share Tech Mono' },
+  { value:'ibm', label:'IBM Plex Mono' },
+  { value:'vt323', label:'VT323 CRT' },
+  { value:'silkscreen', label:'Silkscreen' }
+];
 let currentAuthIdentity = null;
 let cloudSyncTimer = null;
 let cloudSyncInFlight = false;
@@ -73,6 +81,8 @@ function fmtDate(v) { return v ? new Date(v).toLocaleString('pt-BR') : ''; }
 function showToast(msg) { const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show'); clearTimeout(showToast.t); showToast.t=setTimeout(()=>el.classList.remove('show'),2200); }
 function userDataKey(user) { return `mfhub.data.${user}.v4`; }
 function getThemeKey(user) { return `mfhub.theme.${user||'guest'}.v4`; }
+function getFontKey(user) { return `mfhub.font.${user||'guest'}.v4`; }
+function normalizeFontStyle(fontStyle) { return FONT_OPTIONS.some(opt => opt.value === fontStyle) ? fontStyle : 'share-tech'; }
 function getTodayGoalKey() {
   const keys = ['domingo','segunda','terca','quarta','quinta','sexta','sabado'];
   return keys[new Date().getDay()];
@@ -149,6 +159,45 @@ function applySavedTheme() {
   const theme = currentUser ? readLS(getThemeKey(currentUser), 'dark') : 'dark';
   setTheme(theme || 'dark', { skipSync:true });
 }
+function getCurrentFontStyle() {
+  return normalizeFontStyle(document.documentElement.dataset.font || (currentUser ? readLS(getFontKey(currentUser), 'share-tech') : 'share-tech'));
+}
+function updateFontSelectorValue() {
+  const el = document.getElementById('font-style-select');
+  if (el) el.value = getCurrentFontStyle();
+}
+function setFontStyle(fontStyle, options={}) {
+  const normalized = normalizeFontStyle(fontStyle);
+  document.documentElement.dataset.font = normalized;
+  if (currentUser) writeLS(getFontKey(currentUser), normalized);
+  updateFontSelectorValue();
+  if (!options.skipSync) scheduleCloudSync('font');
+}
+function applySavedFontStyle() {
+  const fontStyle = currentUser ? readLS(getFontKey(currentUser), 'share-tech') : 'share-tech';
+  setFontStyle(fontStyle, { skipSync:true });
+}
+function ensureFontSelectorElement() {
+  let el = document.getElementById('font-style-select');
+  if (el) return el;
+  const topbar = document.querySelector('.topbar');
+  if (!topbar) return null;
+  el = document.createElement('select');
+  el.id = 'font-style-select';
+  el.className = 'select topbar-font-select';
+  el.setAttribute('aria-label', 'Estilo de fonte');
+  FONT_OPTIONS.forEach(opt => {
+    const option = document.createElement('option');
+    option.value = opt.value;
+    option.textContent = 'Fonte: ' + opt.label;
+    el.appendChild(option);
+  });
+  el.addEventListener('change', () => setFontStyle(el.value));
+  const anchor = ensureCloudStatusElement() || document.getElementById('clock');
+  topbar.insertBefore(el, anchor);
+  updateFontSelectorValue();
+  return el;
+}
 function ensureCloudStatusElement() {
   let el = document.getElementById('cloud-sync-status');
   if (el) return el;
@@ -166,6 +215,7 @@ function setCloudStatus(state='local', text='Nuvem local') {
   if (!el) return;
   el.dataset.state = state;
   el.textContent = text;
+  el.title = lastCloudError || text;
   el.style.borderColor = 'var(--border)';
   el.style.color = 'var(--text-soft)';
   if (state === 'syncing') {
@@ -198,24 +248,19 @@ function payloadHasUserContent(payload) {
     (p.lab?.url)
   );
 }
-function buildCloudRow() {
+function buildCloudArgs() {
   return {
-    user_id: currentAuthIdentity.id,
-    username: currentAuthIdentity.storageUser,
-    email: currentAuthIdentity.email,
-    payload: appData,
-    theme: document.documentElement.dataset.theme === 'light' ? 'light' : 'dark',
-    streak: getStreakData()
+    p_payload: appData,
+    p_theme: document.documentElement.dataset.theme === 'light' ? 'light' : 'dark',
+    p_font_style: getCurrentFontStyle(),
+    p_streak: getStreakData()
   };
 }
 async function fetchCloudRow() {
   if (!canUseCloudSync()) return null;
-  const { data, error } = await supabaseClient
-    .from(CLOUD_TABLE)
-    .select('payload, theme, streak, updated_at')
-    .eq('user_id', currentAuthIdentity.id)
-    .maybeSingle();
+  const { data, error } = await supabaseClient.rpc(CLOUD_RPC_GET);
   if (error) throw error;
+  if (Array.isArray(data)) return data[0] || null;
   return data || null;
 }
 async function pushCloudState(reason='manual') {
@@ -224,9 +269,7 @@ async function pushCloudState(reason='manual') {
     return false;
   }
   setCloudStatus('syncing', reason === 'bootstrap' ? 'Nuvem iniciando…' : 'Nuvem salvando…');
-  const { error } = await supabaseClient
-    .from(CLOUD_TABLE)
-    .upsert(buildCloudRow(), { onConflict:'user_id' });
+  const { error } = await supabaseClient.rpc(CLOUD_RPC_PUT, buildCloudArgs());
   if (error) throw error;
   lastCloudError = '';
   setCloudStatus('synced', 'Nuvem ✓');
@@ -258,6 +301,7 @@ async function flushCloudSync(reason='manual') {
     console.error('MFHUB cloud sync failed:', error);
     lastCloudError = error?.message || 'Falha ao sincronizar com a nuvem.';
     setCloudStatus('error', 'Nuvem falha');
+    showToast('Falha na nuvem: ' + lastCloudError);
     return false;
   } finally {
     cloudSyncInFlight = false;
@@ -290,6 +334,7 @@ async function bootstrapCloudState() {
     ensureDefaults();
     writeLS(userDataKey(currentUser), appData);
     if (remote.theme) setTheme(remote.theme, { skipSync:true });
+    if (remote.font_style) setFontStyle(remote.font_style, { skipSync:true });
     if (remote.streak) writeLS(getStreakStorageKey(), remote.streak);
     ensureSeedData();
     ensureDailyGoalsSeeded();
@@ -299,6 +344,7 @@ async function bootstrapCloudState() {
     console.error('MFHUB cloud bootstrap failed:', error);
     lastCloudError = error?.message || 'Falha ao carregar os dados da nuvem.';
     setCloudStatus('error', 'Nuvem falha');
+    showToast('Falha na nuvem: ' + lastCloudError);
   }
 }
 
@@ -571,12 +617,14 @@ async function startApp(user, displayName = user) {
   currentUser = user;
   loadUserData();
   applySavedTheme();
+  applySavedFontStyle();
   ensureSeedData();
   ensureDailyGoalsSeeded();
   updateStreak();
   document.getElementById('sidebar-user').textContent = String(displayName || user).toUpperCase() + '@MFHUB';
   document.getElementById('app').style.display = 'block';
   startClock();
+  ensureFontSelectorElement();
   ensureCloudStatusElement();
   setCloudStatus(canUseCloudSync() ? 'syncing' : 'local', canUseCloudSync() ? 'Nuvem carregando…' : 'Nuvem local');
   // Restore section from URL hash (browser back/forward support), fallback to saved last section
@@ -2344,7 +2392,7 @@ function closeModal() { document.getElementById('modal-wrap').classList.remove('
 document.getElementById('modal-wrap').addEventListener('click', e => { if (e.target.id === 'modal-wrap') closeModal(); });
 
 function renderAll() {
-  renderDashboard(); renderGoals(); renderNotes(); renderCourses(); renderDocs(); renderCode(); renderExercises(); renderInterviews(); renderLinkedin(); renderCerts(); renderTools(); renderLab(); updateStatus();
+  renderDashboard(); renderGoals(); renderNotes(); renderCourses(); renderDocs(); renderCode(); renderExercises(); renderInterviews(); renderLinkedin(); renderCerts(); renderTools(); renderLab(); updateStatus(); updateFontSelectorValue();
 }
 
 document.addEventListener('keydown', e => {
@@ -2487,6 +2535,7 @@ window.resetPassword   = resetPassword;
 window.toggleAuth      = toggleAuth;
 window.logout          = logout;
 window.toggleTheme     = toggleTheme;
+window.setFontStyle    = setFontStyle;
 window.goSection       = goSection;
 window.openImportCenter= openImportCenter;
 window.handleSearch    = handleSearch;
