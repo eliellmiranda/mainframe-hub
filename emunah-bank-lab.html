@@ -271,6 +271,18 @@ textarea.ann:focus{border-color:var(--green);outline:none;color:var(--text)}
 .diary-modal-close{cursor:pointer;color:var(--text3);font-size:calc(.9rem + 2pt);padding:2px 6px;border-radius:var(--r);transition:all .15s}
 .diary-modal-close:hover{color:var(--red);background:rgba(248,113,113,.08)}
 
+
+.pipeline-wrap{display:grid;gap:14px}
+.pipeline-card{background:var(--bg1);border:1px solid var(--border);border-radius:var(--rl);padding:1rem}
+.pipeline-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+.pipeline-step{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:.9rem .85rem;display:grid;gap:.35rem;position:relative}
+.pipeline-step::after{content:'→';position:absolute;right:-12px;top:50%;transform:translateY(-50%);color:var(--text3);font-family:var(--mono)}
+.pipeline-step:last-child::after{display:none}
+.pipeline-step-title{font-family:var(--mono);font-size:calc(.72rem + 2pt);color:var(--green);font-weight:600}
+.pipeline-step-sub{font-size:calc(.72rem + 2pt);color:var(--text2);line-height:1.5}
+.pipeline-step-tag{font-family:var(--mono);font-size:calc(.58rem + 2pt);color:var(--text3);text-transform:uppercase;letter-spacing:.08em}
+.pipeline-note{font-size:calc(.78rem + 2pt);color:var(--text2);line-height:1.65}
+
 @media(max-width:720px){
   #app{grid-template-columns:1fr;grid-template-rows:50px auto 1fr}
   #sidebar{grid-row:2;height:auto;max-height:160px;display:flex;overflow-x:auto;padding:.4rem;gap:.35rem;border-right:none;border-bottom:1px solid var(--border)}
@@ -555,7 +567,8 @@ const PH=[
 // ═══════════════════════════════════════════════════════════════
 const TOOLS=[
   {id:'t-diary',icon:'D',title:'Diário',sub:'Ctrl + \''},
-  {id:'t-cmds',icon:'C',title:'Comandos',sub:'Zowe CLI / PowerShell'}
+  {id:'t-cmds',icon:'C',title:'Comandos',sub:'Zowe CLI / PowerShell'},
+  {id:'t-pipeline',icon:'P',title:'Pipeline',sub:'Fluxo batch visual'}
 ];
 
 // ═══════════════════════════════════════════════════════════════
@@ -1098,12 +1111,44 @@ function toggleCmdCard(id){
   if(el)el.classList.toggle('hidden');
 }
 
+
+function renderPipelinePage(){
+  const steps=[
+    {title:'EBJCLLD',sub:'Carga de cliente e conta',tag:'seed'},
+    {title:'EBJVALD',sub:'Validação dos lançamentos',tag:'movimento'},
+    {title:'EBJPOST',sub:'Postagem em conta + auditoria',tag:'core'},
+    {title:'EBJSALD',sub:'Consolidação de saldos',tag:'saldo'},
+    {title:'EBJEXTR',sub:'Geração de extrato',tag:'saída'},
+    {title:'EBJCONC',sub:'Conciliação e divergências',tag:'controle'},
+    {title:'EBJEOD',sub:'Fechamento EOD',tag:'fechamento'}
+  ];
+  const html=`
+    <div class="ph-hdr">
+      <div class="ph-num-row"><div class="ph-big" style="font-size:calc(1.4rem + 2pt);color:var(--blue)">P</div><div class="ph-title">Pipeline operacional</div></div>
+      <div class="ph-desc">Visualização rápida da cadeia batch do laboratório, com a ordem recomendada de execução e os pontos onde normalmente vale checar spool, datasets e evidências.</div>
+    </div>
+    <div class="pipeline-wrap">
+      <div class="pipeline-card">
+        <div class="panel-title">Fluxo principal</div>
+        <div class="pipeline-row">
+          ${steps.map((step,idx)=>`<div class="pipeline-step"><div class="pipeline-step-tag">${idx+1}. ${step.tag}</div><div class="pipeline-step-title">${step.title}</div><div class="pipeline-step-sub">${step.sub}</div></div>`).join('')}
+        </div>
+      </div>
+      <div class="pipeline-card">
+        <div class="panel-title">Checklist rápido</div>
+        <div class="pipeline-note">1) Corrigir seeds e JCLs críticos em <strong>Correções Imediatas</strong>. 2) Publicar arquivos locais no host via Zowe. 3) Rodar a cadeia na ordem mostrada acima. 4) Validar spool, datasets de saída e anotações do item corrente.</div>
+      </div>
+    </div>`;
+  document.getElementById('pc').innerHTML=html;
+}
+
 // ═══════════════════════════════════════════════════════════════
 // TOOL ROUTER
 // ═══════════════════════════════════════════════════════════════
 function renderTool(tid){
   if(tid==='t-diary')renderDiaryPage();
   else if(tid==='t-cmds')renderCmdsPage();
+  else if(tid==='t-pipeline')renderPipelinePage();
 }
 
 // ═══════════════════════════════════════════════════════════════

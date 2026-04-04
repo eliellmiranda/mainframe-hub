@@ -992,6 +992,7 @@ function renderGoals() {
   const todaySummary = getGoalSummary(getGoalDay(todayKey));
   const suggestions = getGoalSuggestions(selectedDay).slice(0, 4);
   const overdue = getOverdueGoalsForToday();
+  const streak = getStreakData();
   section.innerHTML = `
     <div class="headline">
       <div><div class="title">Metas diárias</div><div class="subtitle">Sistema personalizável com tarefas marcáveis e sugestões baseadas no conteúdo do site</div></div>
@@ -1009,6 +1010,7 @@ function renderGoals() {
       <div class="kpi"><div class="kpi-label">Concluídas</div><div class="kpi-value">${summary.done}</div><div class="kpi-sub">marcadas ou completas</div></div>
       <div class="kpi"><div class="kpi-label">Progresso do dia</div><div class="kpi-value">${summary.pct}%</div><div class="kpi-sub">das metas do dia</div></div>
       <div class="kpi"><div class="kpi-label">Hoje</div><div class="kpi-value">${todaySummary.pct}%</div><div class="kpi-sub">andamento do dia atual</div></div>
+      <div class="kpi" style="border-color:var(--warn)"><div class="kpi-label">Sequência</div><div class="kpi-value" style="color:var(--warn)">🔥 ${streak.count}</div><div class="kpi-sub">dias seguidos · recorde ${streak.longest}</div></div>
     </div>
     <div class="goal-grid">
       <div class="stack">
@@ -2593,6 +2595,687 @@ document.addEventListener('keydown', e => {
     else doLogin();
   }
 });
+
+
+
+// ═══════════════════════════════════════════════════════════════
+// ADVANCED SAFE ENHANCEMENTS LAYER
+// ═══════════════════════════════════════════════════════════════
+currentDetail.manualNodeId ||= null;
+const ADV_PROFILE_DEFAULTS = {
+  photoData:'', photoName:'', displayName:'', tagline:'', bio:'', location:'', links:'',
+  favorites:['dashboard','goals','manuals','lab']
+};
+const ADV_DASHBOARD_WIDGETS = ['profile','today','streak','sync','history','exports','shortcuts','admin'];
+const ADV_MAX_REVISIONS = 18;
+let advCloudMeta = { lastSyncAt:'', lastSyncReason:'', pendingReasons:[], payloadBytes:0 };
+
+function advClone(value){ return JSON.parse(JSON.stringify(value)); }
+function advFmtDt(value){ return value ? new Date(value).toLocaleString('pt-BR') : '—'; }
+function advBytes(bytes){
+  const n = Number(bytes) || 0;
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(2)} MB`;
+}
+function advDownloadJson(filename, payload){
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type:'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+function getProfileDisplayName(){
+  return String(appData?.profile?.displayName || currentAuthIdentity?.displayName || currentUser || 'USER').trim();
+}
+function ensureManualStructure(manual){
+  if (!manual) return null;
+  manual.nodes ||= [];
+  if (!manual.nodes.length) {
+    manual.nodes.push({
+      id: uid(),
+      parentId: null,
+      title: 'Visão geral',
+      content: String(manual.content || ''),
+      attachments: Array.isArray(manual.attachments) ? manual.attachments : [],
+      createdAt: manual.createdAt || Date.now(),
+    });
+  }
+  manual.nodes.forEach(node => {
+    node.id ||= uid();
+    node.parentId = node.parentId || null;
+    node.title = String(node.title || 'Seção');
+    node.content = String(node.content || '');
+    node.attachments ||= [];
+    node.createdAt ||= Date.now();
+  });
+  manual.content = '';
+  manual.attachments = [];
+  return manual;
+}
+function getManualNode(manualId, nodeId=''){
+  const manual = appData.manuals.find(m => m.id === manualId);
+  if (!manual) return null;
+  ensureManualStructure(manual);
+  return manual.nodes.find(node => node.id === nodeId) || manual.nodes[0] || null;
+}
+function serializeAppDataForRevision(){
+  const snapshot = advClone(appData || baseData());
+  delete snapshot.history;
+  return snapshot;
+}
+function recordRevision(reason='Atualização'){ 
+  if (!currentUser || !appData) return;
+  appData.history ||= [];
+  const snapshot = serializeAppDataForRevision();
+  const serialized = JSON.stringify(snapshot);
+  const signature = `${serialized.length}:${serialized.slice(0, 180)}`;
+  const latest = appData.history[0];
+  if (latest && latest.signature === signature) return;
+  appData.history.unshift({
+    id: uid(),
+    ts: new Date().toISOString(),
+    reason,
+    section: currentSection,
+    signature,
+    snapshot
+  });
+  if (appData.history.length > ADV_MAX_REVISIONS) appData.history.length = ADV_MAX_REVISIONS;
+}
+function applyRevisionSnapshot(snapshot, reason='Restauração'){ 
+  const preservedHistory = advClone(appData?.history || []);
+  const restored = Object.assign(baseData(), advClone(snapshot || {}));
+  restored.history = preservedHistory;
+  appData = restored;
+  ensureDefaults();
+  saveUserData({ skipRevision:true, reason });
+  recordRevision(reason);
+  writeLS(userDataKey(currentUser), appData);
+  renderAll();
+  showToast('Versão restaurada com sucesso.');
+}
+function openHistoryModal(){
+  const revisions = appData?.history || [];
+  openModal('Histórico de versões', `
+    <div class="panel" style="margin-bottom:12px"><div class="panel-title">Desfazer e restaurar</div><div class="row-text">O sistema guarda até ${ADV_MAX_REVISIONS} versões locais do estado do site para permitir restauração rápida sem depender do backup inteiro.</div></div>
+    <div class="stack">
+      ${revisions.length ? revisions.map((rev, idx) => `
+        <div class="panel">
+          <div class="row-top">
+            <div>
+              <div class="row-title">${esc(rev.reason || 'Alteração')}</div>
+              <div class="row-sub">${advFmtDt(rev.ts)} · seção ${esc(rev.section || '—')} · versão ${idx + 1}</div>
+            </div>
+            <div class="row-actions">
+              <button class="btn xs" onclick="restoreRevision('${rev.id}')">Restaurar</button>
+              <button class="btn xs" onclick="exportRevision('${rev.id}')">Exportar</button>
+            </div>
+          </div>
+        </div>`).join('') : '<div class="empty">Nenhuma versão gravada ainda.</div>'}
+    </div>
+  `, `<button class="btn" onclick="undoLastChange()">Desfazer última mudança</button>`);
+}
+function restoreRevision(revisionId){
+  const rev = (appData?.history || []).find(item => item.id === revisionId);
+  if (!rev) return showToast('Versão não encontrada.');
+  closeModal();
+  applyRevisionSnapshot(rev.snapshot, `Restaurou versão de ${advFmtDt(rev.ts)}`);
+}
+function exportRevision(revisionId){
+  const rev = (appData?.history || []).find(item => item.id === revisionId);
+  if (!rev) return;
+  advDownloadJson(`mfhub-revisao-${revisionId}.json`, rev);
+  showToast('Versão exportada.');
+}
+function undoLastChange(){
+  const revisions = appData?.history || [];
+  if (revisions.length < 2) return showToast('Ainda não há versão anterior para desfazer.');
+  closeModal();
+  applyRevisionSnapshot(revisions[1].snapshot, 'Desfazer última mudança');
+}
+function ensureTopbarActions(){
+  const topbar = document.querySelector('.topbar');
+  if (!topbar) return;
+  let wrap = document.getElementById('topbar-extra-actions');
+  if (!wrap) {
+    wrap = document.createElement('div');
+    wrap.id = 'topbar-extra-actions';
+    wrap.className = 'topbar-extra-actions';
+    wrap.innerHTML = `
+      <button class="btn small" type="button" onclick="openProfileModal()">Perfil</button>
+      <button class="btn small" type="button" onclick="openHistoryModal()">Histórico</button>
+      <button class="btn small" type="button" onclick="openExportCenter()">Exportar</button>
+      <button class="btn small" type="button" onclick="flushCloudSync('manual')">Sync agora</button>
+      <button class="btn small" type="button" onclick="openAdminModeModal()">Admin</button>`;
+    const anchor = document.getElementById('font-style-select') || document.getElementById('cloud-sync-status') || document.getElementById('clock');
+    topbar.insertBefore(wrap, anchor);
+  }
+  const syncBadge = document.getElementById('cloud-sync-status');
+  if (syncBadge && syncBadge.dataset.bound !== '1') {
+    syncBadge.dataset.bound = '1';
+    syncBadge.style.cursor = 'pointer';
+    syncBadge.addEventListener('click', openCloudStatusModal);
+  }
+}
+function renderSidebarIdentityExtra(){
+  const sideHead = document.querySelector('.side-head');
+  if (!sideHead) return;
+  let meta = document.getElementById('sidebar-user-meta');
+  if (!meta) {
+    meta = document.createElement('div');
+    meta.id = 'sidebar-user-meta';
+    meta.className = 'side-user-meta';
+    const row = document.querySelector('.side-profile-row');
+    if (row) row.appendChild(meta);
+    else sideHead.appendChild(meta);
+  }
+  const displayName = getProfileDisplayName();
+  const tagline = String(appData?.profile?.tagline || '');
+  const location = String(appData?.profile?.location || '');
+  const email = String(currentAuthIdentity?.email || '');
+  const sidebarUser = document.getElementById('sidebar-user');
+  const profileLink = document.querySelector('.profile-link');
+  if (sidebarUser) sidebarUser.textContent = displayName.toUpperCase();
+  if (profileLink) profileLink.textContent = 'Abrir perfil';
+  meta.innerHTML = [tagline, location, email].filter(Boolean).map(item => `<div>${esc(item)}</div>`).join('');
+}
+function saveProfileModal(){
+  const file = document.getElementById('profile-photo-file')?.files?.[0] || null;
+  const applyFields = (photoData='', photoName='') => {
+    appData.profile ||= advClone(ADV_PROFILE_DEFAULTS);
+    appData.profile.displayName = document.getElementById('profile-display-name')?.value.trim() || '';
+    appData.profile.tagline = document.getElementById('profile-tagline')?.value.trim() || '';
+    appData.profile.location = document.getElementById('profile-location')?.value.trim() || '';
+    appData.profile.bio = document.getElementById('profile-bio')?.value.trim() || '';
+    appData.profile.links = document.getElementById('profile-links')?.value.trim() || '';
+    appData.profile.favorites = Array.from(document.querySelectorAll('[data-profile-fav]:checked')).map(el => el.value);
+    if (photoData) {
+      appData.profile.photoData = photoData;
+      appData.profile.photoName = photoName || 'perfil';
+    }
+    saveUserData({ reason:'Atualizou perfil' });
+    renderSidebarIdentity();
+    closeModal();
+    showToast('Perfil atualizado.');
+  };
+  if (!file) return applyFields();
+  const reader = new FileReader();
+  reader.onload = e => applyFields(String(e.target?.result || ''), file.name || 'perfil');
+  reader.readAsDataURL(file);
+}
+function openProfileModal(){
+  appData.profile ||= advClone(ADV_PROFILE_DEFAULTS);
+  const profile = Object.assign({}, ADV_PROFILE_DEFAULTS, appData.profile || {});
+  const favoriteOptions = [
+    ['dashboard','Dashboard'], ['goals','Metas'], ['manuals','Manuais'], ['tools','Ferramentas'], ['lab','Lab'], ['courses','Cursos']
+  ];
+  openModal('Perfil do usuário', `
+    <div class="cols-2">
+      <div class="panel">
+        <div class="panel-title">Identidade</div>
+        <div class="row"><label class="lbl">Foto</label><input id="profile-photo-file" class="input" type="file" accept="image/*"></div>
+        ${profile.photoData ? `<div class="row"><img src="${esc(profile.photoData)}" alt="Prévia" style="width:96px;height:96px;border-radius:50%;object-fit:cover;border:1px solid var(--border)"></div>` : ''}
+        <div class="row"><label class="lbl">Nome de exibição</label><input id="profile-display-name" class="input" value="${esc(profile.displayName)}" placeholder="Ex.: Eliel Miranda"></div>
+        <div class="row"><label class="lbl">Título</label><input id="profile-tagline" class="input" value="${esc(profile.tagline)}" placeholder="Ex.: Analista Mainframe"></div>
+        <div class="row"><label class="lbl">Local</label><input id="profile-location" class="input" value="${esc(profile.location)}" placeholder="Cidade / contexto"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Resumo</div>
+        <div class="row"><label class="lbl">Bio curta</label><textarea id="profile-bio" class="textarea">${esc(profile.bio)}</textarea></div>
+        <div class="row"><label class="lbl">Links</label><textarea id="profile-links" class="textarea" placeholder="Um por linha">${esc(profile.links)}</textarea></div>
+        <div class="row"><label class="lbl">Atalhos favoritos</label>
+          <div class="profile-fav-grid">
+            ${favoriteOptions.map(([value,label]) => `<label><input type="checkbox" data-profile-fav value="${value}" ${profile.favorites.includes(value) ? 'checked' : ''}> ${label}</label>`).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+  `, `<button class="btn" onclick="clearProfilePhoto()">Remover foto</button><button class="btn primary" onclick="saveProfileModal()">Salvar perfil</button>`);
+}
+openProfilePhotoModal = openProfileModal;
+const _advClearProfilePhoto = clearProfilePhoto;
+clearProfilePhoto = function(){ _advClearProfilePhoto(); appData.profile.displayName ||= ''; renderSidebarIdentity(); };
+const _oldBaseData = baseData;
+baseData = function(){
+  const data = _oldBaseData();
+  data.profile = Object.assign({}, ADV_PROFILE_DEFAULTS, data.profile || {});
+  data.history = Array.isArray(data.history) ? data.history : [];
+  data.meta = Object.assign({ dashboardWidgets: ADV_DASHBOARD_WIDGETS.slice() }, data.meta || {});
+  return data;
+};
+const _oldEnsureDefaults = ensureDefaults;
+ensureDefaults = function(){
+  _oldEnsureDefaults();
+  currentDetail.manualNodeId ||= null;
+  appData.history = Array.isArray(appData.history) ? appData.history : [];
+  appData.profile = Object.assign({}, ADV_PROFILE_DEFAULTS, appData.profile || {});
+  if (!Array.isArray(appData.meta.dashboardWidgets) || !appData.meta.dashboardWidgets.length) appData.meta.dashboardWidgets = ADV_DASHBOARD_WIDGETS.slice();
+  appData.manuals.forEach(ensureManualStructure);
+};
+const _oldSaveUserData = saveUserData;
+saveUserData = function(options={}){
+  if (!options.skipRevision && appData && currentUser) recordRevision(options.reason || `Atualização em ${currentSection}`);
+  _oldSaveUserData(options);
+};
+const _oldRenderSidebarIdentity = renderSidebarIdentity;
+renderSidebarIdentity = function(){
+  _oldRenderSidebarIdentity();
+  renderSidebarIdentityExtra();
+};
+const _oldScheduleCloudSync = scheduleCloudSync;
+scheduleCloudSync = function(reason='change'){
+  advCloudMeta.pendingReasons.push(reason);
+  _oldScheduleCloudSync(reason);
+};
+const _oldPushCloudState = pushCloudState;
+pushCloudState = async function(reason='manual'){
+  try { advCloudMeta.payloadBytes = new Blob([JSON.stringify(appData || {})]).size; } catch(e) { advCloudMeta.payloadBytes = 0; }
+  const ok = await _oldPushCloudState(reason);
+  if (ok) {
+    advCloudMeta.lastSyncAt = new Date().toISOString();
+    advCloudMeta.lastSyncReason = reason;
+    advCloudMeta.pendingReasons = [];
+  }
+  return ok;
+};
+const _oldBootstrapCloudState = bootstrapCloudState;
+bootstrapCloudState = async function(){
+  const result = await _oldBootstrapCloudState();
+  if (!lastCloudError && canUseCloudSync()) advCloudMeta.lastSyncReason ||= 'bootstrap';
+  return result;
+};
+function openCloudStatusModal(){
+  const pending = Array.from(new Set(advCloudMeta.pendingReasons)).join(', ') || 'nenhuma';
+  openModal('Diagnóstico da nuvem', `
+    <div class="stack">
+      <div class="panel"><div class="panel-title">Sincronização</div>
+        <div class="stat-row"><span class="sk">Status</span><span class="sv">${esc(document.getElementById('cloud-sync-status')?.textContent || '—')}</span></div>
+        <div class="stat-row"><span class="sk">Último sync</span><span class="sv">${esc(advFmtDt(advCloudMeta.lastSyncAt))}</span></div>
+        <div class="stat-row"><span class="sk">Motivo</span><span class="sv">${esc(advCloudMeta.lastSyncReason || '—')}</span></div>
+        <div class="stat-row"><span class="sk">Fila pendente</span><span class="sv">${esc(pending)}</span></div>
+        <div class="stat-row"><span class="sk">Payload</span><span class="sv">${esc(advBytes(advCloudMeta.payloadBytes || new Blob([JSON.stringify(appData || {})]).size))}</span></div>
+      </div>
+      <div class="panel"><div class="panel-title">Erros</div><div class="row-text">${lastCloudError ? esc(lastCloudError) : 'Nenhum erro recente.'}</div></div>
+    </div>
+  `, `<button class="btn" onclick="openAdminModeModal()">Modo admin</button><button class="btn primary" onclick="flushCloudSync('manual')">Sincronizar agora</button>`);
+}
+function openAdminModeModal(){
+  const payloadBytes = new Blob([JSON.stringify(appData || {})]).size;
+  const totals = {
+    manualsNodes: (appData.manuals || []).reduce((acc, manual) => acc + (ensureManualStructure(manual)?.nodes?.length || 0), 0),
+    revisions: (appData.history || []).length,
+    attachments: (appData.docs || []).reduce((acc, doc) => acc + (doc.attachments || []).length, 0) + (appData.manuals || []).reduce((acc, manual) => acc + (ensureManualStructure(manual).nodes || []).reduce((sum, node) => sum + (node.attachments || []).length, 0), 0)
+  };
+  openModal('Modo admin técnico', `
+    <div class="stack">
+      <div class="panel"><div class="panel-title">Sessão</div>
+        <div class="stat-row"><span class="sk">Usuário</span><span class="sv">${esc(currentUser || '—')}</span></div>
+        <div class="stat-row"><span class="sk">Auth ID</span><span class="sv">${esc(currentAuthIdentity?.id || '—')}</span></div>
+        <div class="stat-row"><span class="sk">Email</span><span class="sv">${esc(currentAuthIdentity?.email || '—')}</span></div>
+        <div class="stat-row"><span class="sk">Seção atual</span><span class="sv">${esc(currentSection || 'dashboard')}</span></div>
+      </div>
+      <div class="panel"><div class="panel-title">Estado do app</div>
+        <div class="stat-row"><span class="sk">Payload</span><span class="sv">${esc(advBytes(payloadBytes))}</span></div>
+        <div class="stat-row"><span class="sk">Revisões</span><span class="sv">${totals.revisions}</span></div>
+        <div class="stat-row"><span class="sk">Nós de manuais</span><span class="sv">${totals.manualsNodes}</span></div>
+        <div class="stat-row"><span class="sk">Anexos</span><span class="sv">${totals.attachments}</span></div>
+        <div class="stat-row"><span class="sk">Tema / fonte</span><span class="sv">${esc((document.documentElement.dataset.theme || 'dark') + ' / ' + getCurrentFontStyle())}</span></div>
+      </div>
+      <div class="panel"><div class="panel-title">Nuvem</div>
+        <div class="row-text">${lastCloudError ? esc(lastCloudError) : 'Nenhum erro recente. Último sync em ' + esc(advFmtDt(advCloudMeta.lastSyncAt)) + '.'}</div>
+      </div>
+    </div>
+  `, `<button class="btn" onclick="openCloudStatusModal()">Detalhes da nuvem</button><button class="btn primary" onclick="flushCloudSync('manual')">Sincronizar agora</button>`);
+}
+function openExportCenter(){
+  const sections = [
+    ['all', 'Backup completo'], ['goals', 'Metas diárias'], ['notes', 'Anotações'], ['courses', 'Cursos'], ['docs', 'Documentação'], ['code', 'Código'],
+    ['exercises', 'Exercícios'], ['interviews', 'Entrevistas'], ['linkedin', 'LinkedIn'], ['certs', 'Certificados'], ['tools', 'Ferramentas'], ['manuals', 'Manuais'], ['profile', 'Perfil']
+  ];
+  openModal('Exportar por seção', `
+    <div class="stack">${sections.map(([key, label]) => `<div class="row-item"><div class="row-top"><div><div class="row-title">${esc(label)}</div><div class="row-sub">Arquivo JSON separado para essa área.</div></div><button class="btn xs" onclick="exportSectionData('${key}')">Exportar</button></div></div>`).join('')}</div>
+  `);
+}
+function exportSectionData(sectionKey='all'){
+  if (sectionKey === 'all') return exportAllData();
+  const sectionMap = {
+    goals: { dailyGoals: appData.dailyGoals, streak: getStreakData() },
+    notes: { generalNotes: appData.generalNotes },
+    courses: { courses: appData.courses },
+    docs: { docs: appData.docs },
+    code: { codeSpaces: appData.codeSpaces },
+    exercises: { exerciseSpaces: appData.exerciseSpaces },
+    interviews: { interviewSpaces: appData.interviewSpaces },
+    linkedin: { linkedinPosts: appData.linkedinPosts },
+    certs: { certificates: appData.certificates },
+    tools: { tools: appData.tools },
+    manuals: { manuals: appData.manuals },
+    profile: { profile: appData.profile }
+  };
+  const payload = { exportedAt: new Date().toISOString(), exportedBy: currentUser, section: sectionKey, data: sectionMap[sectionKey] || {} };
+  advDownloadJson(`mfhub-${sectionKey}-${new Date().toISOString().slice(0,10)}.json`, payload);
+  showToast(`Seção ${sectionKey} exportada.`);
+}
+function openDashboardPrefsModal(){
+  const selected = new Set(appData.meta.dashboardWidgets || ADV_DASHBOARD_WIDGETS);
+  openModal('Personalizar dashboard', `
+    <div class="panel"><div class="panel-title">Widgets rápidos</div>
+      <div class="profile-fav-grid">${ADV_DASHBOARD_WIDGETS.map(id => `<label><input type="checkbox" data-dash-widget value="${id}" ${selected.has(id) ? 'checked' : ''}> ${esc(id)}</label>`).join('')}</div>
+    </div>
+  `, `<button class="btn primary" onclick="saveDashboardPrefs()">Salvar preferências</button>`);
+}
+function saveDashboardPrefs(){
+  const selected = Array.from(document.querySelectorAll('[data-dash-widget]:checked')).map(el => el.value);
+  appData.meta.dashboardWidgets = selected.length ? selected : ADV_DASHBOARD_WIDGETS.slice();
+  saveUserData({ reason:'Atualizou dashboard' });
+  closeModal();
+  renderDashboard();
+  showToast('Dashboard atualizado.');
+}
+function renderDashboardExtras(){
+  const section = document.getElementById('section-dashboard');
+  if (!section) return;
+  const widgets = appData.meta.dashboardWidgets || ADV_DASHBOARD_WIDGETS;
+  let headlineActions = section.querySelector('.headline > div:last-child');
+  if (headlineActions && !section.querySelector('.dashboard-extra-buttons')) {
+    const extra = document.createElement('div');
+    extra.className = 'dashboard-extra-buttons';
+    extra.innerHTML = `
+      <button class="btn" onclick="openDashboardPrefsModal()">Personalizar dashboard</button>
+      <button class="btn" onclick="openHistoryModal()">Histórico</button>
+      <button class="btn" onclick="openExportCenter()">Exportar seção</button>
+      <button class="btn" onclick="openAdminModeModal()">Modo admin</button>`;
+    headlineActions.appendChild(extra);
+  }
+  let host = document.getElementById('dashboard-extra-zone');
+  if (!host) {
+    host = document.createElement('div');
+    host.id = 'dashboard-extra-zone';
+    host.className = 'dashboard-extra-zone';
+    section.appendChild(host);
+  }
+  const shortcutButtons = (appData.profile.favorites || []).map(sectionId => `<button class="btn xs" onclick="goSection('${esc(sectionId)}')">${esc(sectionId)}</button>`).join('') || '<span class="muted">Nenhum atalho favorito.</span>';
+  const widgetHtml = {
+    profile: `<div class="panel"><div class="panel-title">Perfil</div><div class="row-title">${esc(getProfileDisplayName())}</div><div class="row-sub">${esc(appData.profile.tagline || 'Sem título')}</div><div class="row-text">${nl2br(appData.profile.bio || 'Adicione uma bio curta no perfil para deixar o dashboard mais seu.')}</div><div style="margin-top:10px"><button class="btn xs" onclick="openProfileModal()">Editar perfil</button></div></div>`,
+    today: `<div class="panel"><div class="panel-title">Metas de hoje</div><div class="row-text">${getGoalSummary(getGoalDay(getTodayGoalKey())).done} concluída(s) em ${getGoalSummary(getGoalDay(getTodayGoalKey())).total || 0} meta(s).</div><div style="margin-top:10px"><button class="btn xs" onclick="goSection('goals')">Abrir metas</button></div></div>`,
+    streak: `<div class="panel"><div class="panel-title">Sequência</div><div class="row-title">🔥 ${getStreakData().count}</div><div class="row-sub">recorde ${getStreakData().longest} dia(s)</div></div>`,
+    sync: `<div class="panel"><div class="panel-title">Nuvem</div><div class="row-title">${esc(document.getElementById('cloud-sync-status')?.textContent || 'Nuvem local')}</div><div class="row-sub">último sync ${esc(advFmtDt(advCloudMeta.lastSyncAt))}</div><div style="margin-top:10px"><button class="btn xs" onclick="openCloudStatusModal()">Diagnóstico</button></div></div>`,
+    history: `<div class="panel"><div class="panel-title">Versões</div><div class="row-title">${(appData.history || []).length}</div><div class="row-sub">histórico local de alterações</div><div style="margin-top:10px"><button class="btn xs" onclick="openHistoryModal()">Abrir histórico</button></div></div>`,
+    exports: `<div class="panel"><div class="panel-title">Exportação</div><div class="row-text">Exporte só a parte que quiser: metas, cursos, docs, ferramentas, manuais ou perfil.</div><div style="margin-top:10px"><button class="btn xs" onclick="openExportCenter()">Abrir exportação</button></div></div>`,
+    shortcuts: `<div class="panel"><div class="panel-title">Atalhos favoritos</div><div class="dashboard-shortcuts">${shortcutButtons}</div></div>`,
+    admin: `<div class="panel"><div class="panel-title">Admin técnico</div><div class="row-text">Painel com payload, usuário, nuvem, revisões e diagnósticos.</div><div style="margin-top:10px"><button class="btn xs" onclick="openAdminModeModal()">Abrir admin</button></div></div>`
+  };
+  host.innerHTML = widgets.map(id => widgetHtml[id]).filter(Boolean).join('');
+}
+const _oldRenderDashboard = renderDashboard;
+renderDashboard = function(){
+  _oldRenderDashboard();
+  renderDashboardExtras();
+};
+const _oldUpdateStatus = updateStatus;
+updateStatus = function(){
+  _oldUpdateStatus();
+  const el = document.getElementById('status-stats');
+  if (el) el.textContent += ` · ${(appData.history || []).length} revisões`;
+};
+const _oldRenderAll = renderAll;
+renderAll = function(){
+  _oldRenderAll();
+  ensureTopbarActions();
+  renderSidebarIdentity();
+};
+const _oldResolveAttachmentHolder = resolveAttachmentHolder;
+resolveAttachmentHolder = function(type, id1, id2='', id3=''){
+  if (type === 'manual-node') return getManualNode(id1, id2);
+  return _oldResolveAttachmentHolder(type, id1, id2, id3);
+};
+function renderManualTreeNodes(manual, parentId=null, depth=0){
+  const nodes = (manual.nodes || []).filter(node => (node.parentId || null) === parentId).sort((a,b) => String(a.title).localeCompare(String(b.title), 'pt-BR'));
+  return nodes.map(node => `
+    <div class="manual-tree-node ${currentDetail.manualNodeId === node.id ? 'active' : ''}" id="manual-node-${node.id}" style="margin-left:${depth * 14}px" onclick="openManualNode('${manual.id}','${node.id}')">
+      <span>${depth ? '└' : '•'}</span>
+      <span>${esc(node.title)}</span>
+      <span class="manual-node-count">${(node.attachments || []).length}</span>
+    </div>
+    ${renderManualTreeNodes(manual, node.id, depth + 1)}
+  `).join('');
+}
+renderManuals = function(){
+  const wrap = document.getElementById('section-manuals');
+  const manual = appData.manuals.find(m => m.id === currentDetail.manualId);
+  if (!manual) {
+    wrap.innerHTML = `
+      <div class="headline">
+        <div><div class="title">Manuais</div><div class="subtitle">Categorias com árvore de seções, texto livre e anexos por nó</div></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" onclick="openImportCenter('backup')">Importar</button><button class="btn primary" onclick="openManualModal()">Nova categoria</button></div>
+      </div>
+      <div class="manual-grid">
+        ${appData.manuals.map(m => { ensureManualStructure(m); return `<div class="card clickable" id="manual-card-${m.id}" onclick="openManual('${m.id}')"><div class="card-actions"><button class="btn xs" onclick="event.stopPropagation();openManualModal('${m.id}')">Editar</button><button class="btn xs danger" onclick="event.stopPropagation();deleteManual('${m.id}')">Excluir</button></div><div class="card-icon">📚</div><div class="card-title">${esc(m.name)}</div><div class="manual-card-meta">${esc(m.desc||'Sem descrição')}<br>${(m.nodes || []).length} nó(s)</div></div>`; }).join('')}
+        <div class="card new clickable" onclick="openManualModal()"><div><div style="font-size:30px;text-align:center">+</div><div>Nova categoria</div></div></div>
+      </div>
+    `;
+    return;
+  }
+  ensureManualStructure(manual);
+  const selectedNode = getManualNode(manual.id, currentDetail.manualNodeId) || manual.nodes[0];
+  currentDetail.manualNodeId = selectedNode?.id || null;
+  wrap.innerHTML = `
+    <div class="back" onclick="backToManualList()">← Voltar</div>
+    <div class="headline">
+      <div><div class="title">${esc(manual.name)}</div><div class="subtitle">${esc(manual.desc || 'Manual')}</div></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn" onclick="openManualModal('${manual.id}')">Editar categoria</button>
+        <button class="btn" onclick="openManualNodeModal('${manual.id}','')">Nova seção raiz</button>
+        <button class="btn primary" onclick="saveManualNodeContent('${manual.id}','${selectedNode.id}')">Salvar seção</button>
+      </div>
+    </div>
+    <div class="manual-tree-layout">
+      <div class="panel">
+        <div class="panel-title">Árvore do manual</div>
+        <div class="manual-tree">${renderManualTreeNodes(manual)}</div>
+      </div>
+      <div class="stack">
+        <div class="panel">
+          <div class="row-top">
+            <div>
+              <div class="panel-title">Seção atual</div>
+              <div class="row-title">${esc(selectedNode.title)}</div>
+              <div class="row-sub">${(selectedNode.attachments || []).length} anexo(s)</div>
+            </div>
+            <div class="row-actions">
+              <button class="btn xs" onclick="openManualNodeModal('${manual.id}','${selectedNode.id}')">Subseção</button>
+              <button class="btn xs" onclick="openManualNodeModal('${manual.id}','${selectedNode.parentId || ''}','${selectedNode.id}')">Editar</button>
+              <button class="btn xs danger" onclick="deleteManualNode('${manual.id}','${selectedNode.id}')">Excluir</button>
+            </div>
+          </div>
+          <textarea id="manual-node-editor" class="textarea" style="min-height:360px;margin-top:12px">${esc(selectedNode.content || '')}</textarea>
+        </div>
+        <div class="panel">
+          <div class="panel-title">Anexos da seção</div>
+          <div style="margin-bottom:10px"><button class="btn xs" onclick="uploadAttachmentsModal('manual-node','${manual.id}','${selectedNode.id}')">Adicionar arquivo</button></div>
+          ${renderAttachments(selectedNode.attachments || [], 'manual-node', manual.id, selectedNode.id)}
+        </div>
+      </div>
+    </div>
+  `;
+};
+openManual = function(id){
+  currentDetail.manualId = id;
+  const manual = appData.manuals.find(m => m.id === id);
+  ensureManualStructure(manual);
+  currentDetail.manualNodeId = manual?.nodes?.[0]?.id || null;
+  renderManuals();
+};
+backToManualList = function(){
+  currentDetail.manualId = null;
+  currentDetail.manualNodeId = null;
+  renderManuals();
+};
+function openManualNode(manualId, nodeId){
+  currentDetail.manualId = manualId;
+  currentDetail.manualNodeId = nodeId;
+  renderManuals();
+  focusSectionElement(`manual-node-${nodeId}`);
+}
+function openManualNodeModal(manualId, parentId='', nodeId=''){
+  const node = nodeId ? getManualNode(manualId, nodeId) : null;
+  openModal(node ? 'Editar seção do manual' : 'Nova seção do manual', `
+    <div class="row"><label class="lbl">Título da seção</label><input id="manual-node-title" class="input" value="${esc(node?.title || '')}"></div>
+    <div class="row"><label class="lbl">Texto inicial (opcional)</label><textarea id="manual-node-content" class="textarea">${esc(node?.content || '')}</textarea></div>
+  `, `<button class="btn primary" onclick="saveManualNode('${manualId}','${parentId}','${nodeId}')">Salvar</button>`);
+}
+function saveManualNode(manualId, parentId='', nodeId=''){
+  const manual = appData.manuals.find(m => m.id === manualId); if (!manual) return;
+  ensureManualStructure(manual);
+  const title = document.getElementById('manual-node-title').value.trim();
+  const content = document.getElementById('manual-node-content').value;
+  if (!title) return showToast('Dê um título para a seção.');
+  if (nodeId) {
+    const node = getManualNode(manualId, nodeId); if (!node) return;
+    node.title = title; node.content = content;
+  } else {
+    manual.nodes.push({ id: uid(), parentId: parentId || null, title, content, attachments: [], createdAt: Date.now() });
+    currentDetail.manualNodeId = manual.nodes[manual.nodes.length - 1].id;
+  }
+  saveUserData({ reason:'Atualizou manual' });
+  closeModal();
+  renderManuals();
+  showToast('Seção do manual salva.');
+}
+function deleteManualNode(manualId, nodeId){
+  const manual = appData.manuals.find(m => m.id === manualId); if (!manual) return;
+  const node = getManualNode(manualId, nodeId);
+  if (!confirm(`Deseja mesmo excluir a seção "${(node && node.title) ? node.title : 'selecionada'}" e as subseções abaixo dela?`)) return;
+  ensureManualStructure(manual);
+  if (manual.nodes.length === 1) return showToast('Cada manual precisa manter ao menos uma seção.');
+  const idsToRemove = new Set([nodeId]);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    manual.nodes.forEach(node => {
+      if (!idsToRemove.has(node.id) && idsToRemove.has(node.parentId)) { idsToRemove.add(node.id); changed = true; }
+    });
+  }
+  manual.nodes = manual.nodes.filter(node => !idsToRemove.has(node.id));
+  currentDetail.manualNodeId = manual.nodes[0]?.id || null;
+  saveUserData({ reason:'Removeu seção do manual' });
+  renderManuals();
+  showToast('Seção removida.');
+}
+function saveManualNodeContent(manualId, nodeId){
+  const node = getManualNode(manualId, nodeId); if (!node) return;
+  node.content = document.getElementById('manual-node-editor').value;
+  saveUserData({ reason:'Salvou seção do manual' });
+  showToast('Seção salva.');
+}
+const _oldHandleSearch = handleSearch;
+function renderSearchResultsPage(rawQuery){
+  const results = currentDetail.searchResults || [];
+  const html = `
+    <div class="headline"><div><div class="title">Busca</div><div class="subtitle">Resultados para "${esc(rawQuery)}"</div></div></div>
+    <div class="search-results">
+      ${results.length ? results.map((r,idx)=>`<div class="panel click-search-result" onclick="openSearchResult(${idx})"><div class="panel-title">${esc(r.area)}</div><div class="row-title">${esc(r.title)}</div><div class="row-text">${nl2br(r.text)}</div><div class="row-sub" style="margin-top:10px;color:var(--warn)">Abrir resultado</div></div>`).join('') : '<div class="empty">Nenhum resultado encontrado.</div>'}
+    </div>`;
+  document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+  const dash = document.getElementById('section-dashboard');
+  dash.classList.add('active');
+  dash.innerHTML = html;
+  document.getElementById('topbar-path').textContent = 'BUSCA';
+  document.getElementById('status-section').textContent = 'BUSCA';
+}
+handleSearch = function(query){
+  _oldHandleSearch(query);
+  const rawQuery = (query || '').trim();
+  const q = rawQuery.toLowerCase();
+  if (!q) return;
+  const extras = [];
+  appData.manuals.forEach(manual => {
+    ensureManualStructure(manual);
+    if ((manual.name + ' ' + (manual.desc || '')).toLowerCase().includes(q)) extras.push({ area:'Manuais', title:manual.name, text:manual.desc || 'Categoria de manual', target:{ section:'manuals', manualId:manual.id, nodeId:manual.nodes[0]?.id, focusId:`manual-card-${manual.id}` } });
+    (manual.nodes || []).forEach(node => {
+      const nodeText = [node.title, node.content, ...(node.attachments || []).map(file => file.name)].join(' ').toLowerCase();
+      if (nodeText.includes(q)) extras.push({ area:'Manual / seção', title:`${manual.name} > ${node.title}`, text:(node.content || (node.attachments || []).map(file => file.name).join(', ')).slice(0, 220), target:{ section:'manuals', manualId:manual.id, nodeId:node.id, focusId:`manual-node-${node.id}` } });
+    });
+  });
+  const profileText = [appData.profile.displayName, appData.profile.tagline, appData.profile.bio, appData.profile.location, appData.profile.links].join(' ').toLowerCase();
+  if (profileText.includes(q)) extras.push({ area:'Perfil', title:getProfileDisplayName(), text:[appData.profile.tagline, appData.profile.location].filter(Boolean).join(' · ') || 'Abrir perfil', target:{ section:'profile' } });
+  const labText = [appData.lab?.title, appData.lab?.url, appData.lab?.planUrl].join(' ').toLowerCase();
+  if (labText.includes(q)) extras.push({ area:'Lab', title:appData.lab?.title || 'EMUNAH BANK LAB', text:[appData.lab?.url, appData.lab?.planUrl].filter(Boolean).join(' · '), target:{ section:'lab' } });
+  if (extras.length) {
+    currentDetail.searchResults = [...(currentDetail.searchResults || []), ...extras];
+    renderSearchResultsPage(rawQuery);
+  }
+};
+const _oldOpenSearchResult = openSearchResult;
+openSearchResult = function(index){
+  const result = (currentDetail.searchResults || [])[index];
+  const t = result?.target || {};
+  if (t.section === 'manuals') {
+    currentDetail.manualId = t.manualId || null;
+    currentDetail.manualNodeId = t.nodeId || null;
+    goSection('manuals');
+    focusSectionElement(t.focusId || '');
+    return;
+  }
+  if (t.section === 'profile') {
+    openProfileModal();
+    return;
+  }
+  if (t.section === 'admin') {
+    openAdminModeModal();
+    return;
+  }
+  return _oldOpenSearchResult(index);
+};
+const _oldExportAllData = exportAllData;
+exportAllData = function(){
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    exportedBy: currentUser,
+    version: 'mfhub.v4',
+    data: appData,
+    streak: getStreakData(),
+    cloud: { lastSyncAt: advCloudMeta.lastSyncAt, lastSyncReason: advCloudMeta.lastSyncReason }
+  };
+  advDownloadJson(`mfhub-backup-${new Date().toISOString().slice(0,10)}.json`, payload);
+  showToast('Backup exportado com sucesso.');
+};
+const _oldImportContent = importContent;
+importContent = function(){
+  const file = document.getElementById('imp-file')?.files?.[0];
+  if (!file) return _oldImportContent();
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const parsed = JSON.parse(String(e.target?.result || '{}'));
+      if (parsed && parsed.version === 'mfhub.v4' && parsed.streak) {
+        const merged = mergeStreakData(getStreakData(), parsed.streak);
+        writeLS(getStreakStorageKey(), merged);
+      }
+    } catch(err) {}
+    _oldImportContent();
+  };
+  reader.readAsText(file, 'utf-8');
+};
+window.openProfileModal = openProfileModal;
+window.openCloudStatusModal = openCloudStatusModal;
+window.openHistoryModal = openHistoryModal;
+window.restoreRevision = restoreRevision;
+window.exportRevision = exportRevision;
+window.undoLastChange = undoLastChange;
+window.openExportCenter = openExportCenter;
+window.exportSectionData = exportSectionData;
+window.openAdminModeModal = openAdminModeModal;
+window.openDashboardPrefsModal = openDashboardPrefsModal;
+window.saveDashboardPrefs = saveDashboardPrefs;
+window.openManualNode = openManualNode;
+window.openManualNodeModal = openManualNodeModal;
+window.saveManualNode = saveManualNode;
+window.deleteManualNode = deleteManualNode;
+window.saveManualNodeContent = saveManualNodeContent;
+window.saveProfileModal = saveProfileModal;
 
 bindSupabaseAuthEvents();
 setMissingSupabaseHelp();
