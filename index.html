@@ -149,7 +149,10 @@
 <div id="app">
   <aside class="sidebar">
     <div class="side-head">
-      <button class="side-logo side-logo-link" type="button" onclick="goSection('dashboard')" title="Ir para o Dashboard">MFHUB</button>
+      <div class="side-brand-wrap">
+        <button class="side-logo side-logo-link" type="button" onclick="goSection('dashboard')" title="Ir para o Dashboard">MFHUB</button>
+        <div class="side-logo-sub">Mainframe Hub</div>
+      </div>
       <div class="side-profile-center">
         <button class="profile-avatar" id="profile-avatar-btn" type="button" onclick="openProfileModal()" title="Abrir perfil">
           <img id="profile-avatar-image" alt="Foto de perfil" hidden>
@@ -157,8 +160,8 @@
         </button>
         <div class="side-profile-info">
           <div class="side-user" id="sidebar-user">USER</div>
-          <div class="side-user-email" id="sidebar-user-email"></div>
           <div class="side-user-meta" id="sidebar-user-meta"></div>
+          <button class="btn small profile-view-btn" type="button" onclick="openProfileModal()">👤 Ver perfil</button>
         </div>
       </div>
     </div>

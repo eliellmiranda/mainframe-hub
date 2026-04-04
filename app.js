@@ -240,11 +240,14 @@ function renderSidebarIdentity() {
   const avatarImg = document.getElementById('profile-avatar-image');
   const avatarFallback = document.getElementById('profile-avatar-fallback');
   const photo = String(appData?.profile?.photoData || '');
+  const photoPosition = String(appData?.profile?.photoPosition || 'center center');
   if (avatarBtn) {
     avatarBtn.style.backgroundImage = 'none';
-    avatarBtn.setAttribute('aria-label', photo ? 'Abrir perfil' : 'Abrir perfil');
+    avatarBtn.setAttribute('aria-label', 'Abrir perfil');
+    avatarBtn.style.setProperty('--profile-photo-position', photoPosition);
   }
   if (avatarImg) {
+    avatarImg.style.objectPosition = photoPosition;
     if (photo) {
       avatarImg.src = photo;
       avatarImg.hidden = false;
@@ -2618,7 +2621,7 @@ document.addEventListener('keydown', e => {
 // ═══════════════════════════════════════════════════════════════
 currentDetail.manualNodeId ||= null;
 const ADV_PROFILE_DEFAULTS = {
-  photoData:'', photoName:'', displayName:'', tagline:'', bio:'', location:'', links:'',
+  photoData:'', photoName:'', photoPosition:'center center', displayName:'', tagline:'', bio:'', location:'', links:'',
   favorites:['dashboard','goals','manuals','lab']
 };
 const ADV_DASHBOARD_WIDGETS = ['today','streak'];
@@ -2763,11 +2766,8 @@ function ensureTopbarActions(){
 }
 function renderSidebarIdentityExtra(){
   const displayName = getProfileDisplayName();
-  const email = String(currentAuthIdentity?.email || '');
   const sidebarUser = document.getElementById('sidebar-user');
-  const sidebarEmail = document.getElementById('sidebar-user-email');
   if (sidebarUser) sidebarUser.textContent = displayName.toUpperCase();
-  if (sidebarEmail) sidebarEmail.textContent = email;
   let meta = document.getElementById('sidebar-user-meta');
   if (meta) {
     const tagline = String(appData?.profile?.tagline || '');
@@ -2780,6 +2780,7 @@ function saveProfileModal(){
   const applyFields = (photoData='', photoName='') => {
     appData.profile ||= advClone(ADV_PROFILE_DEFAULTS);
     appData.profile.displayName = document.getElementById('profile-display-name')?.value.trim() || '';
+    appData.profile.photoPosition = document.getElementById('profile-photo-position')?.value || 'center center';
     appData.profile.tagline = document.getElementById('profile-tagline')?.value.trim() || '';
     appData.profile.location = document.getElementById('profile-location')?.value.trim() || '';
     appData.profile.bio = document.getElementById('profile-bio')?.value.trim() || '';
@@ -2810,7 +2811,10 @@ function openProfileModal(){
       <div class="panel">
         <div class="panel-title">Identidade</div>
         <div class="row"><label class="lbl">Foto</label><input id="profile-photo-file" class="input" type="file" accept="image/*"></div>
-        ${profile.photoData ? `<div class="row"><img src="${esc(profile.photoData)}" alt="Prévia" style="width:96px;height:96px;border-radius:50%;object-fit:cover;border:1px solid var(--border)"></div>` : ''}
+        ${profile.photoData ? `<div class="row"><img src="${esc(profile.photoData)}" alt="Prévia" style="width:96px;height:96px;border-radius:50%;object-fit:cover;object-position:${esc(profile.photoPosition || 'center center')};border:1px solid var(--border)"></div>` : ''}
+        <div class="row"><label class="lbl">Posição da foto</label><select id="profile-photo-position" class="select">
+          ${[['center top','Topo'],['center center','Centro'],['center bottom','Base']].map(([value,label]) => `<option value="${value}" ${String(profile.photoPosition || 'center center') === value ? 'selected' : ''}>${label}</option>`).join('')}
+        </select></div>
         <div class="row"><label class="lbl">Nome de exibição</label><input id="profile-display-name" class="input" value="${esc(profile.displayName)}" placeholder="Ex.: Eliel Miranda"></div>
         <div class="row"><label class="lbl">Título</label><input id="profile-tagline" class="input" value="${esc(profile.tagline)}" placeholder="Ex.: Analista Mainframe"></div>
         <div class="row"><label class="lbl">Local</label><input id="profile-location" class="input" value="${esc(profile.location)}" placeholder="Cidade / contexto"></div>
