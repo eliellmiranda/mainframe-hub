@@ -225,7 +225,7 @@ function hydrateFontSelectorElement(el) {
 function ensureFontSelectorElement() {
   let el = document.getElementById('font-style-select');
   if (el) return hydrateFontSelectorElement(el);
-  const topbar = document.querySelector('.topbar');
+  const topbar = document.getElementById('topbar-meta-group') || document.querySelector('.topbar');
   if (!topbar) return null;
   el = document.createElement('select');
   el.id = 'font-style-select';
@@ -290,7 +290,7 @@ function clearProfilePhoto() {
 function ensureCloudStatusElement() {
   let el = document.getElementById('cloud-sync-status');
   if (el) return el;
-  const topbar = document.querySelector('.topbar');
+  const topbar = document.getElementById('topbar-meta-group') || document.querySelector('.topbar');
   if (!topbar) return null;
   el = document.createElement('span');
   el.id = 'cloud-sync-status';
@@ -302,8 +302,9 @@ function ensureCloudStatusElement() {
 function setCloudStatus(state='local', text='Nuvem local') {
   const el = ensureCloudStatusElement();
   if (!el) return;
+  const icons = { local:'☁', syncing:'⟳', synced:'☁', error:'⚠' };
   el.dataset.state = state;
-  el.textContent = text;
+  el.textContent = `${icons[state] || '☁'} ${text}`;
   el.title = lastCloudError || text;
   el.style.borderColor = 'var(--border)';
   el.style.color = 'var(--text-soft)';
@@ -2968,37 +2969,8 @@ function saveDashboardPrefs(){
   showToast('Dashboard atualizado.');
 }
 function renderDashboardExtras(){
-  const section = document.getElementById('section-dashboard');
-  if (!section) return;
-  const widgets = appData.meta.dashboardWidgets || ADV_DASHBOARD_WIDGETS;
-  let headlineActions = section.querySelector('.headline > div:last-child');
-  if (headlineActions && !section.querySelector('.dashboard-extra-buttons')) {
-    const extra = document.createElement('div');
-    extra.className = 'dashboard-extra-buttons';
-    extra.innerHTML = `
-      <button class="btn" onclick="openDashboardPrefsModal()">Personalizar dashboard</button>
-      <button class="btn" onclick="openExportCenter()">Exportar seção</button>`;
-    headlineActions.appendChild(extra);
-  }
-  let host = document.getElementById('dashboard-extra-zone');
-  if (!host) {
-    host = document.createElement('div');
-    host.id = 'dashboard-extra-zone';
-    host.className = 'dashboard-extra-zone';
-    section.appendChild(host);
-  }
-  const shortcutButtons = (appData.profile.favorites || []).map(sectionId => `<button class="btn xs" onclick="goSection('${esc(sectionId)}')">${esc(sectionId)}</button>`).join('') || '<span class="muted">Nenhum atalho favorito.</span>';
-  const widgetHtml = {
-    profile: `<div class="panel"><div class="panel-title">Perfil</div><div class="row-title">${esc(getProfileDisplayName())}</div><div class="row-sub">${esc(appData.profile.tagline || 'Sem título')}</div><div class="row-text">${nl2br(appData.profile.bio || 'Adicione uma bio curta no perfil para deixar o dashboard mais seu.')}</div><div style="margin-top:10px"><button class="btn xs" onclick="openProfileModal()">Editar perfil</button></div></div>`,
-    today: `<div class="panel"><div class="panel-title">Metas de hoje</div><div class="row-text">${getGoalSummary(getGoalDay(getTodayGoalKey())).done} concluída(s) em ${getGoalSummary(getGoalDay(getTodayGoalKey())).total || 0} meta(s).</div><div style="margin-top:10px"><button class="btn xs" onclick="goSection('goals')">Abrir metas</button></div></div>`,
-    streak: `<div class="panel"><div class="panel-title">Sequência</div><div class="row-title">🔥 ${getStreakData().count}</div><div class="row-sub">recorde ${getStreakData().longest} dia(s)</div></div>`,
-    sync: `<div class="panel"><div class="panel-title">Nuvem</div><div class="row-title">${esc(document.getElementById('cloud-sync-status')?.textContent || 'Nuvem local')}</div><div class="row-sub">último sync ${esc(advFmtDt(advCloudMeta.lastSyncAt))}</div><div style="margin-top:10px"><button class="btn xs" onclick="openCloudStatusModal()">Diagnóstico</button></div></div>`,
-    history: `<div class="panel"><div class="panel-title">Versões</div><div class="row-title">${(appData.history || []).length}</div><div class="row-sub">histórico local de alterações</div><div style="margin-top:10px"><button class="btn xs" onclick="openHistoryModal()">Abrir histórico</button></div></div>`,
-    exports: `<div class="panel"><div class="panel-title">Exportação</div><div class="row-text">Exporte só a parte que quiser: metas, cursos, docs, ferramentas, manuais ou perfil.</div><div style="margin-top:10px"><button class="btn xs" onclick="openExportCenter()">Abrir exportação</button></div></div>`,
-    shortcuts: `<div class="panel"><div class="panel-title">Atalhos favoritos</div><div class="dashboard-shortcuts">${shortcutButtons}</div></div>`,
-    admin: `<div class="panel"><div class="panel-title">Admin técnico</div><div class="row-text">Painel com payload, usuário, nuvem, revisões e diagnósticos.</div><div style="margin-top:10px"><button class="btn xs" onclick="openAdminModeModal()">Abrir admin</button></div></div>`
-  };
-  host.innerHTML = widgets.map(id => widgetHtml[id]).filter(Boolean).join('');
+  const host = document.getElementById('dashboard-extra-zone');
+  if (host) host.remove();
 }
 const _oldRenderDashboard = renderDashboard;
 renderDashboard = function(){
