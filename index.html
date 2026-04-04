@@ -16,8 +16,15 @@
 ">
 <meta http-equiv="X-Content-Type-Options" content="nosniff">
 <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+<meta name="description" content="MFHUB — Sistema de gerenciamento de carreira em Mainframe. Organize cursos, metas, exercícios e certificados.">
+<meta name="theme-color" content="#071008">
+<meta property="og:title" content="MFHUB — Career Mainframe System">
+<meta property="og:description" content="Sistema completo para organizar sua carreira em Mainframe: cursos, metas diárias, exercícios e portfólio.">
+<meta property="og:type" content="website">
 <title>MFHUB — Career Mainframe System</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Ctext y=%2752%27 font-size=%2752%27%3E%F0%9F%A6%96%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Share+Tech+Mono&family=VT323&family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 <style>
@@ -25,13 +32,36 @@
 /* app começa ESCONDIDO — JS o mostra após confirmar sessão                  */
 #login-screen { display:none; }
 #app { display:none; }
+#loading-screen {
+  position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;
+  background:var(--bg,#071008);color:var(--accent,#2fd179);font-family:"IBM Plex Mono",monospace;
+  flex-direction:column;gap:16px;
+}
+#loading-screen .spinner {
+  width:32px;height:32px;border:3px solid rgba(47,209,121,.2);border-top-color:#2fd179;
+  border-radius:50%;animation:spin .8s linear infinite;
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+#loading-screen .load-text { font-size:14px;letter-spacing:.12em;text-transform:uppercase;opacity:.7; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js"></script>
 <script src="app.js" defer></script>
 </head>
 <body>
-<div id="toast" class="toast"></div>
+<noscript>
+  <div style="padding:40px;text-align:center;color:#2fd179;font-family:monospace;background:#071008;min-height:100vh;display:flex;align-items:center;justify-content:center">
+    <div>
+      <h1 style="font-size:48px;margin-bottom:16px">MFHUB</h1>
+      <p style="font-size:16px;color:#9fb7a4">Este site requer JavaScript habilitado para funcionar.</p>
+    </div>
+  </div>
+</noscript>
+<div id="loading-screen">
+  <div class="spinner"></div>
+  <div class="load-text">Inicializando MFHUB...</div>
+</div>
+<div id="toast" class="toast" role="alert" aria-live="polite"></div>
 
 <div id="login-screen">
   <div class="terminal-shell">
@@ -60,8 +90,8 @@
           </script>
 
           <div id="login-form">
-            <div class="row"><label class="lbl">E-mail</label><input id="login-user" class="input" type="email" placeholder="voce@exemplo.com" autocomplete="email"></div>
-            <div class="row"><label class="lbl">Senha</label><input id="login-pass" class="input" type="password" placeholder="PASSWORD"></div>
+            <div class="row"><label class="lbl" for="login-user">E-mail</label><input id="login-user" class="input" type="email" placeholder="voce@exemplo.com" autocomplete="email" aria-required="true"></div>
+            <div class="row"><label class="lbl" for="login-pass">Senha</label><input id="login-pass" class="input" type="password" placeholder="PASSWORD" aria-required="true"></div>
             <div class="row" style="margin-top:-4px"><label style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text-soft);cursor:pointer"><input id="login-remember" type="checkbox"> Lembrar senha neste dispositivo</label></div>
             <div id="login-error" class="err"></div>
             <button class="btn primary full" id="btn-login" onclick="doLogin()">Entrar</button>
@@ -131,7 +161,7 @@
         </div>
       </div>
     </div>
-    <div class="side-nav">
+    <div class="side-nav" role="navigation" aria-label="Menu principal">
       <div class="side-sec">Lab</div>
       <div class="nav-item" onclick="window.open('https://eliellmiranda.github.io/mainframe-hub/emunah-bank-lab.html','_blank')">⬡ EMUNAH BANK LAB</div>
       <div class="side-sec">Sistema</div>
@@ -162,7 +192,7 @@
       <button class="btn small mobile-menu-btn" id="mobile-menu-btn" onclick="toggleMobileMenu()" aria-label="Menu" style="display:none">☰</button>
       <div class="path" id="topbar-path">Dashboard</div>
       <div class="spacer"></div>
-      <input id="global-search" class="input searchbar" placeholder="Buscar no site..." oninput="handleSearch(this.value)">
+      <input id="global-search" class="input searchbar" placeholder="Buscar no site..." oninput="handleSearch(this.value)" aria-label="Buscar no site">
       <div class="topbar-primary-actions">
         <button class="btn small" onclick="openImportCenter()">Importar conteúdo</button>
         <div class="topbar-backup-group">
@@ -193,9 +223,9 @@
   <div class="statusbar"><span id="status-section">Dashboard</span><span id="status-stats">Ready</span></div>
 </div>
 
-<div id="modal-wrap" class="modal-wrap">
+<div id="modal-wrap" class="modal-wrap" role="dialog" aria-modal="true" aria-labelledby="modal-title">
   <div class="modal">
-    <div class="modal-head"><strong id="modal-title">Modal</strong><button class="btn small" onclick="closeModal()">Fechar</button></div>
+    <div class="modal-head"><strong id="modal-title">Modal</strong><button class="btn small" onclick="closeModal()" aria-label="Fechar modal">Fechar</button></div>
     <div id="modal-body" class="modal-body"></div>
     <div id="modal-foot" class="modal-foot"></div>
   </div>

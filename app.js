@@ -542,6 +542,8 @@ function showLoginScreen(mode='login') {
   document.documentElement.removeAttribute('data-auth');
   const ls = document.getElementById('login-screen');
   const app = document.getElementById('app');
+  const loading = document.getElementById('loading-screen');
+  if (loading) loading.remove();
   if (ls)  { ls.style.display  = 'flex'; }
   if (app) { app.style.display = 'none'; }
   toggleAuth(mode);
@@ -692,7 +694,7 @@ async function logout() {
   appData = null;
   document.documentElement.removeAttribute('data-auth');
   if (SUPABASE_ENABLED) {
-    try { await supabaseClient.auth.signOut(); } catch (e) {}
+    try { await supabaseClient.auth.signOut(); } catch (e) { console.warn('Logout remoto falhou:', e.message); }
   }
   location.reload();
 }
@@ -731,6 +733,8 @@ function bindSupabaseAuthEvents() {
 async function startApp(user, displayName = user) {
   // Esconde a tela de login IMEDIATAMENTE antes de qualquer outra operação
   document.documentElement.dataset.auth = '1';
+  const loading = document.getElementById('loading-screen');
+  if (loading) loading.remove();
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   currentUser = user;
