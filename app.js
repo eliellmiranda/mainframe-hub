@@ -237,13 +237,23 @@ function ensureFontSelectorElement() {
 }
 function renderSidebarIdentity() {
   const avatarBtn = document.getElementById('profile-avatar-btn');
+  const avatarImg = document.getElementById('profile-avatar-image');
   const avatarFallback = document.getElementById('profile-avatar-fallback');
+  const photo = String(appData?.profile?.photoData || '');
   if (avatarBtn) {
-    const photo = String(appData?.profile?.photoData || '');
-    avatarBtn.style.backgroundImage = photo ? `url(${photo})` : 'none';
-    avatarBtn.setAttribute('aria-label', photo ? 'Trocar foto de perfil' : 'Adicionar foto de perfil');
+    avatarBtn.style.backgroundImage = 'none';
+    avatarBtn.setAttribute('aria-label', photo ? 'Abrir perfil' : 'Abrir perfil');
   }
-  if (avatarFallback) avatarFallback.style.display = appData?.profile?.photoData ? 'none' : 'block';
+  if (avatarImg) {
+    if (photo) {
+      avatarImg.src = photo;
+      avatarImg.hidden = false;
+    } else {
+      avatarImg.removeAttribute('src');
+      avatarImg.hidden = true;
+    }
+  }
+  if (avatarFallback) avatarFallback.style.display = photo ? 'none' : 'block';
 }
 function openProfilePhotoModal() {
   openModal('Foto de perfil', `
@@ -1105,26 +1115,26 @@ function renderDashboard() {
   const todayKey = getTodayGoalKey();
   const todayGoals = getGoalDay(todayKey);
   const todaySummary = getGoalSummary(todayGoals);
+  const kpiCards = [
+    { icon:'📂', label:'Cursos', value:appData.courses.length, sub:'com módulos, submódulos e vídeos' },
+    { icon:'📋', label:'Docs', value:appData.docs.length, sub:'editor + anexos' },
+    { icon:'💻', label:'Exemplos', value:appData.codeSpaces.reduce((a,s)=>a+(s.subspaces?.length||0),0), sub:'subespaços de código' },
+    { icon:'🧰', label:'Ferramentas', value:appData.tools.length, sub:'links + instruções' },
+    { icon:'📚', label:'Manuais', value:appData.manuals.length, sub:'categorias com texto e anexos' },
+    { icon:'🏅', label:'Certificados', value:appData.certificates.length, sub:'com imagem opcional' },
+    { icon:'📈', label:'Progresso médio', value:`${courseAvg}%`, sub:'dos cursos' },
+    { icon:'🔥', label:'Sequência', value:getStreakData().count, sub:`dias seguidos · recorde ${getStreakData().longest}`, warn:true }
+  ];
   document.getElementById('section-dashboard').innerHTML = `
     <div class="headline">
       <div><div class="title">Dashboard</div><div class="subtitle">Visão geral, busca, terminal de login, cursos com vídeos e área de ferramentas</div></div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <div class="dashboard-toolbar">
         <button class="btn" onclick="toggleTheme()">🌓 Tema</button>
         <button class="btn" onclick="goSection('goals')">🎯 Metas</button>
-        <button class="btn primary" onclick="openImportCenter()">Importar conteúdo</button>
-        <button class="btn" onclick="openImportCenter('backup')">⬆ Importar backup</button>
-        <button class="btn" onclick="exportAllData()">⬇ Exportar backup</button>
       </div>
     </div>
     <div class="kpis">
-      <div class="kpi"><div class="kpi-label">Cursos</div><div class="kpi-value">${appData.courses.length}</div><div class="kpi-sub">com módulos, submódulos e vídeos</div></div>
-      <div class="kpi"><div class="kpi-label">Docs</div><div class="kpi-value">${appData.docs.length}</div><div class="kpi-sub">editor + anexos</div></div>
-      <div class="kpi"><div class="kpi-label">Exemplos</div><div class="kpi-value">${appData.codeSpaces.reduce((a,s)=>a+(s.subspaces?.length||0),0)}</div><div class="kpi-sub">subespaços de código</div></div>
-      <div class="kpi"><div class="kpi-label">Ferramentas</div><div class="kpi-value">${appData.tools.length}</div><div class="kpi-sub">links + instruções</div></div>
-      <div class="kpi"><div class="kpi-label">Manuais</div><div class="kpi-value">${appData.manuals.length}</div><div class="kpi-sub">categorias com texto e anexos</div></div>
-      <div class="kpi"><div class="kpi-label">Certificados</div><div class="kpi-value">${appData.certificates.length}</div><div class="kpi-sub">com imagem opcional</div></div>
-      <div class="kpi"><div class="kpi-label">Progresso médio</div><div class="kpi-value">${courseAvg}%</div><div class="kpi-sub">dos cursos</div></div>
-      <div class="kpi" style="border-color:var(--warn)"><div class="kpi-label">Sequência</div><div class="kpi-value" style="color:var(--warn)">${getStreakData().count}🔥</div><div class="kpi-sub">dias seguidos · recorde ${getStreakData().longest}</div></div>
+      ${kpiCards.map(item => `<div class="kpi" ${item.warn ? 'style="border-color:var(--warn)"' : ''}><div class="kpi-head"><div class="kpi-label">${esc(item.label)}</div><div class="kpi-icon">${item.icon}</div></div><div class="kpi-value" ${item.warn ? 'style="color:var(--warn)"' : ''}>${esc(String(item.value))}</div><div class="kpi-sub">${esc(item.sub)}</div></div>`).join('')}
     </div>
     <div class="panel" style="margin-bottom:16px;border-left:4px solid var(--accent);background:linear-gradient(135deg,var(--surface),var(--surface-2))">
       <div style="display:flex;align-items:flex-start;gap:14px">
@@ -2746,7 +2756,6 @@ function ensureTopbarActions(){
     wrap.innerHTML = `
       <button class="btn small" type="button" onclick="openProfileModal()">Perfil</button>
       <button class="btn small" type="button" onclick="openHistoryModal()">Histórico</button>
-      <button class="btn small" type="button" onclick="openExportCenter()">Exportar</button>
       <button class="btn small" type="button" onclick="flushCloudSync('manual')">Sync agora</button>
       <button class="btn small" type="button" onclick="openAdminModeModal()">Admin</button>`;
     const anchor = document.getElementById('font-style-select') || document.getElementById('cloud-sync-status') || document.getElementById('clock');
@@ -2767,8 +2776,8 @@ function renderSidebarIdentityExtra(){
     meta = document.createElement('div');
     meta.id = 'sidebar-user-meta';
     meta.className = 'side-user-meta';
-    const row = document.querySelector('.side-profile-row');
-    if (row) row.appendChild(meta);
+    const profileMain = document.getElementById('side-profile-main');
+    if (profileMain) profileMain.appendChild(meta);
     else sideHead.appendChild(meta);
   }
   const displayName = getProfileDisplayName();
@@ -2778,7 +2787,10 @@ function renderSidebarIdentityExtra(){
   const sidebarUser = document.getElementById('sidebar-user');
   const profileLink = document.querySelector('.profile-link');
   if (sidebarUser) sidebarUser.textContent = displayName.toUpperCase();
-  if (profileLink) profileLink.textContent = 'Abrir perfil';
+  if (profileLink) {
+    profileLink.textContent = 'Abrir perfil';
+    profileLink.onclick = openProfileModal;
+  }
   meta.innerHTML = [tagline, location, email].filter(Boolean).map(item => `<div>${esc(item)}</div>`).join('');
 }
 function saveProfileModal(){
@@ -2984,9 +2996,7 @@ function renderDashboardExtras(){
     extra.className = 'dashboard-extra-buttons';
     extra.innerHTML = `
       <button class="btn" onclick="openDashboardPrefsModal()">Personalizar dashboard</button>
-      <button class="btn" onclick="openHistoryModal()">Histórico</button>
-      <button class="btn" onclick="openExportCenter()">Exportar seção</button>
-      <button class="btn" onclick="openAdminModeModal()">Modo admin</button>`;
+      <button class="btn" onclick="openExportCenter()">Exportar seção</button>`;
     headlineActions.appendChild(extra);
   }
   let host = document.getElementById('dashboard-extra-zone');

@@ -121,12 +121,13 @@
     <div class="side-head">
       <button class="side-logo side-logo-link" type="button" onclick="goSection('dashboard')" title="Ir para o Dashboard">MFHUB</button>
       <div class="side-profile-row">
-        <button class="profile-avatar" id="profile-avatar-btn" type="button" onclick="openProfilePhotoModal()" title="Adicionar ou trocar foto de perfil">
+        <button class="profile-avatar" id="profile-avatar-btn" type="button" onclick="openProfileModal()" title="Abrir perfil">
+          <img id="profile-avatar-image" alt="Foto de perfil" hidden>
           <span id="profile-avatar-fallback">👤</span>
         </button>
-        <div>
+        <div class="side-profile-main" id="side-profile-main">
           <div class="side-user" id="sidebar-user">USER@MFHUB</div>
-          <button class="profile-link" type="button" onclick="openProfilePhotoModal()">Alterar foto</button>
+          <button class="profile-link" type="button" onclick="openProfileModal()">Abrir perfil</button>
         </div>
       </div>
     </div>
@@ -162,8 +163,13 @@
       <div class="path" id="topbar-path">Dashboard</div>
       <div class="spacer"></div>
       <input id="global-search" class="input searchbar" placeholder="Buscar no site..." oninput="handleSearch(this.value)">
-      <button class="btn small" onclick="openImportCenter()">Importar conteúdo</button>
-      <button class="btn small" onclick="openImportCenter('backup')">Importar backup</button>
+      <div class="topbar-primary-actions">
+        <button class="btn small" onclick="openImportCenter()">Importar conteúdo</button>
+        <div class="topbar-backup-group">
+          <button class="btn small" onclick="openImportCenter('backup')">Importar backup</button>
+          <button class="btn small" onclick="exportAllData()">Exportar backup</button>
+        </div>
+      </div>
       <select id="font-style-select" class="select topbar-font-select" aria-label="Estilo de fonte"></select>
       <span id="cloud-sync-status" class="badge">Nuvem local</span>
       <div class="clock" id="clock"></div>
