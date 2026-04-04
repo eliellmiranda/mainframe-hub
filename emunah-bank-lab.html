@@ -67,6 +67,11 @@ select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%
 .prog-lbl{font-family:var(--mono);font-size:calc(.68rem + 2pt);color:var(--text3);white-space:nowrap}
 .h-right{display:flex;align-items:center;gap:.75rem;margin-left:auto}
 .h-user{font-family:var(--mono);font-size:calc(.7rem + 2pt);color:var(--text3)}
+.h-sync{font-family:var(--mono);font-size:calc(.58rem + 2pt);padding:.18rem .45rem;border-radius:999px;border:1px solid var(--border2);letter-spacing:.08em;text-transform:uppercase}
+.sync-idle{color:var(--text3);border-color:var(--border2)}
+.sync-syncing{color:var(--amber);border-color:rgba(251,191,36,.35);background:rgba(251,191,36,.08)}
+.sync-online{color:var(--green);border-color:rgba(74,222,128,.32);background:rgba(74,222,128,.08)}
+.sync-offline{color:var(--red);border-color:rgba(248,113,113,.3);background:rgba(248,113,113,.08)}
 .h-btn{background:transparent;border:1px solid var(--border2);border-radius:var(--r);color:var(--text2);font-family:var(--mono);font-size:calc(.68rem + 2pt);padding:.3rem .65rem;cursor:pointer;transition:all .15s}
 .h-btn:hover{background:var(--bg3);color:var(--text)}
 .h-shortcut{font-size:calc(.58rem + 2pt);color:var(--text3);font-family:var(--mono)}
@@ -280,6 +285,8 @@ textarea.ann:focus{border-color:var(--green);outline:none;color:var(--text)}
   .cmd-input-group{min-width:100%}
 }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
 </head>
 <body>
 
@@ -328,6 +335,7 @@ textarea.ann:focus{border-color:var(--green);outline:none;color:var(--text)}
     <div class="h-right">
       <span class="h-shortcut" title="Atalho para abrir o Diário rápido">Ctrl + '</span>
       <span class="h-user" id="huser"></span>
+      <span class="h-sync sync-idle" id="hsync">local</span>
       <button class="h-btn" onclick="toggleSettings()">Config</button>
       <button class="h-btn" onclick="doLogout()">Sair</button>
     </div>
@@ -524,71 +532,155 @@ const TOOLS=[
 ];
 
 // ═══════════════════════════════════════════════════════════════
-// STORAGE KEYS
+// STORAGE KEYS / BACKEND
 // ═══════════════════════════════════════════════════════════════
 const K={
-  USERS:'ebl_users',SESSION:'ebl_sess',REMEMBER:'ebl_rem',
-  prog:u=>`ebl_p_${u}`,ann:u=>`ebl_a_${u}`,
-  diary:u=>`ebl_diary_${u}`,cmds:u=>`ebl_cmds_${u}`
+  SESSION:'ebl_sess_remote_v1',
+  REMEMBER:'ebl_rem_remote_v1',
+  CACHE:u=>`ebl_cache_${u}`
 };
+const INVITE_CODE='@elielmainframe';
+const REMOTE_TABLE='emunah_lab_accounts';
+const REMOTE_EMPTY_STATE=()=>({progress:{},annotations:{},diary:[],commands:[]});
+const SUPABASE_URL=String(window.MFHUB_SUPABASE_URL||'').trim();
+const SUPABASE_ANON_KEY=String(window.MFHUB_SUPABASE_ANON_KEY||'').trim();
+const SUPABASE_ENABLED=!!(window.supabase&&SUPABASE_URL&&SUPABASE_ANON_KEY);
+const supabaseClient=SUPABASE_ENABLED?window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY):null;
 
-// ═══════════════════════════════════════════════════════════════
-// AUTH
-// ═══════════════════════════════════════════════════════════════
+function readCache(u){try{return JSON.parse(localStorage.getItem(K.CACHE(u))||'null');}catch{return null;}}
+function normalizePayload(payload){
+  const p=payload&&typeof payload==='object'?payload:{};
+  return {
+    progress:p.progress&&typeof p.progress==='object'&&!Array.isArray(p.progress)?p.progress:{},
+    annotations:p.annotations&&typeof p.annotations==='object'&&!Array.isArray(p.annotations)?p.annotations:{},
+    diary:Array.isArray(p.diary)?p.diary:[],
+    commands:Array.isArray(p.commands)?p.commands:[]
+  };
+}
+function currentPayload(){return normalizePayload({progress:PROG,annotations:ANN,diary:DIARY,commands:CMDS});}
+function applyPayload(payload){
+  const p=normalizePayload(payload||REMOTE_EMPTY_STATE());
+  PROG=p.progress;ANN=p.annotations;DIARY=p.diary;CMDS=p.commands;
+  if(CU)localStorage.setItem(K.CACHE(CU),JSON.stringify(p));
+}
+function persistCache(){if(CU)localStorage.setItem(K.CACHE(CU),JSON.stringify(currentPayload()));}
+function backendMissingMessage(){return 'O backend do EMUNAH LAB ainda não está pronto. Rode o SQL de setup antes de usar este arquivo em mais de um computador.';}
+function backendErrorMessage(error){
+  const msg=String(error?.message||error?.details||error?.hint||'');
+  if(!SUPABASE_ENABLED)return 'Supabase não configurado. Mantenha o arquivo supabase-config.js na mesma pasta do site.';
+  if(/relation .*emunah_lab_accounts.* does not exist/i.test(msg))return backendMissingMessage();
+  if(/permission denied|row-level security|not allowed/i.test(msg))return 'A tabela existe, mas a política/permissão do Supabase ainda não permite o acesso deste site.';
+  return msg||'Falha ao acessar o backend do EMUNAH LAB.';
+}
+function setSyncState(mode,label=''){
+  const el=document.getElementById('hsync');
+  if(!el)return;
+  el.className=`h-sync sync-${mode}`;
+  el.textContent=label||({idle:'local',syncing:'salvando',online:'nuvem',offline:'falha'})[mode]||'nuvem';
+}
 async function sha(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');}
-function gU(){return JSON.parse(localStorage.getItem(K.USERS)||'{}');}
-function sU(u){localStorage.setItem(K.USERS,JSON.stringify(u));}
 function sf(f){['login','register','reset'].forEach(x=>document.getElementById(`f-${x}`).classList.toggle('hidden',x!==f));clearMsgs();}
 function clearMsgs(){['le','re','rs','rese','ress'].forEach(id=>{const el=document.getElementById(id);if(el){el.classList.add('hidden');el.textContent='';};});}
 function showE(id,msg){const el=document.getElementById(id);el.textContent=msg;el.classList.remove('hidden');}
 function showOk(id,msg){const el=document.getElementById(id);el.textContent=msg;el.classList.remove('hidden');}
+function requireBackend(msgId){if(SUPABASE_ENABLED)return true;showE(msgId,'Supabase não configurado. Copie também o arquivo supabase-config.js para esta pasta.');return false;}
+async function getRemoteAccount(username){
+  if(!SUPABASE_ENABLED)return {data:null,error:new Error('Supabase indisponível.')};
+  return await supabaseClient.from(REMOTE_TABLE).select('username,password_hash,payload,updated_at').eq('username',username).maybeSingle();
+}
+let syncTimer=null;
+let syncInFlight=null;
+let syncQueued=false;
+async function flushRemoteState(reason='save'){
+  if(!CU){return false;}
+  persistCache();
+  if(!SUPABASE_ENABLED){setSyncState('offline','sem nuvem');return false;}
+  if(syncInFlight){syncQueued=true;return syncInFlight;}
+  setSyncState('syncing',reason==='load'?'carregando':'salvando');
+  const payload=currentPayload();
+  syncInFlight=(async()=>{
+    const {error}=await supabaseClient.from(REMOTE_TABLE).upsert({username:CU,payload,updated_at:new Date().toISOString()},{onConflict:'username'});
+    if(error){console.error('flushRemoteState',error);setSyncState('offline','falha');return false;}
+    setSyncState('online','nuvem ✓');
+    return true;
+  })();
+  const result=await syncInFlight;
+  syncInFlight=null;
+  if(syncQueued){syncQueued=false;return flushRemoteState('queued');}
+  return result;
+}
+function queueRemoteSync(reason='save',delay=450){persistCache();clearTimeout(syncTimer);syncTimer=setTimeout(()=>{flushRemoteState(reason);},delay);}
+
+// ═══════════════════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════════════════
 async function doLogin(){
   const u=document.getElementById('lu').value.trim().toUpperCase();
   const p=document.getElementById('lp').value;
   const r=document.getElementById('lr').checked;
+  clearMsgs();
   if(!u||!p)return showE('le','Preencha todos os campos.');
-  const users=gU();
-  if(!users[u])return showE('le','Usuário não encontrado.');
-  if(users[u]!==await sha(p))return showE('le','Senha incorreta.');
+  if(!requireBackend('le'))return;
+  setSyncState('syncing','login');
+  const {data,error}=await getRemoteAccount(u);
+  if(error)return showE('le',backendErrorMessage(error));
+  if(!data)return showE('le','Usuário não encontrado.');
+  if(data.password_hash!==await sha(p))return showE('le','Senha incorreta.');
   localStorage.setItem(K.SESSION,u);
   r?localStorage.setItem(K.REMEMBER,u):localStorage.removeItem(K.REMEMBER);
-  startApp(u);
+  await startApp(u,data);
 }
-const INVITE_CODE='@elielmainframe';
 async function doRegister(){
   const u=document.getElementById('ru').value.trim().toUpperCase();
   const p=document.getElementById('rp').value,p2=document.getElementById('rp2').value;
   const inv=document.getElementById('rinv').value.trim();
+  clearMsgs();
   if(!u||!p||!p2||!inv)return showE('re','Preencha todos os campos.');
   if(inv!==INVITE_CODE)return showE('re','Código de convite inválido.');
   if(p.length<6)return showE('re','Senha: mín. 6 chars.');
   if(p!==p2)return showE('re','Senhas não coincidem.');
-  const users=gU();
-  if(users[u])return showE('re','ID já existe.');
-  users[u]=await sha(p);sU(users);
-  showOk('rs',`Conta ${u} criada!`);
-  setTimeout(()=>{sf('login');document.getElementById('lu').value=u;},1400);
+  if(!requireBackend('re'))return;
+  const {data:existing,error:checkError}=await getRemoteAccount(u);
+  if(checkError)return showE('re',backendErrorMessage(checkError));
+  if(existing)return showE('re','ID já existe.');
+  const payload=REMOTE_EMPTY_STATE();
+  const {error}=await supabaseClient.from(REMOTE_TABLE).insert({username:u,password_hash:await sha(p),payload});
+  if(error)return showE('re',backendErrorMessage(error));
+  showOk('rs',`Conta ${u} criada com sincronização em nuvem.`);
+  setTimeout(async()=>{
+    sf('login');
+    document.getElementById('lu').value=u;
+    document.getElementById('lp').focus();
+  },900);
 }
 async function doReset(){
   const u=document.getElementById('resu').value.trim().toUpperCase();
   const o=document.getElementById('reso').value,n=document.getElementById('resn').value,n2=document.getElementById('resn2').value;
+  clearMsgs();
   if(!u||!o||!n||!n2)return showE('rese','Preencha todos.');
-  const users=gU();
-  if(!users[u])return showE('rese','Usuário não encontrado.');
-  if(users[u]!==await sha(o))return showE('rese','Senha atual incorreta.');
   if(n.length<6)return showE('rese','Mín. 6 chars.');
   if(n!==n2)return showE('rese','Senhas não coincidem.');
-  users[u]=await sha(n);sU(users);
-  showOk('ress','Senha alterada!');setTimeout(()=>sf('login'),1400);
+  if(!requireBackend('rese'))return;
+  const {data,error}=await getRemoteAccount(u);
+  if(error)return showE('rese',backendErrorMessage(error));
+  if(!data)return showE('rese','Usuário não encontrado.');
+  if(data.password_hash!==await sha(o))return showE('rese','Senha atual incorreta.');
+  const {error:updateError}=await supabaseClient.from(REMOTE_TABLE).update({password_hash:await sha(n),updated_at:new Date().toISOString()}).eq('username',u);
+  if(updateError)return showE('rese',backendErrorMessage(updateError));
+  showOk('ress','Senha alterada com sucesso.');setTimeout(()=>sf('login'),900);
 }
 async function changePass(){
   const u=CU,o=document.getElementById('cop').value,n=document.getElementById('cnp').value,n2=document.getElementById('cnp2').value;
   const msg=document.getElementById('cpm');msg.classList.remove('hidden');
   if(!o||!n||!n2){msg.style.color='var(--red)';msg.textContent='Preencha todos.';return;}
+  if(n.length<6){msg.style.color='var(--red)';msg.textContent='Mín. 6 chars.';return;}
   if(n!==n2){msg.style.color='var(--red)';msg.textContent='Senhas não coincidem.';return;}
-  const users=gU();
-  if(users[u]!==await sha(o)){msg.style.color='var(--red)';msg.textContent='Senha atual incorreta.';return;}
-  users[u]=await sha(n);sU(users);
+  if(!SUPABASE_ENABLED){msg.style.color='var(--red)';msg.textContent='Supabase não configurado.';return;}
+  const {data,error}=await getRemoteAccount(u);
+  if(error){msg.style.color='var(--red)';msg.textContent=backendErrorMessage(error);return;}
+  if(!data||data.password_hash!==await sha(o)){msg.style.color='var(--red)';msg.textContent='Senha atual incorreta.';return;}
+  const {error:updateError}=await supabaseClient.from(REMOTE_TABLE).update({password_hash:await sha(n),updated_at:new Date().toISOString()}).eq('username',u);
+  if(updateError){msg.style.color='var(--red)';msg.textContent=backendErrorMessage(updateError);return;}
   msg.style.color='var(--green)';msg.textContent='Senha alterada.';
   ['cop','cnp','cnp2'].forEach(id=>document.getElementById(id).value='');
 }
@@ -601,25 +693,34 @@ let CU='',PROG={},ANN={},DIARY=[],CMDS=[],CPHASE='fx',CVIEW='phase';
 let diaryPendingFiles=[];
 let cmdPendingFiles=[];
 
-function loadUD(u){
-  PROG=JSON.parse(localStorage.getItem(K.prog(u))||'{}');
-  ANN=JSON.parse(localStorage.getItem(K.ann(u))||'{}');
-  DIARY=JSON.parse(localStorage.getItem(K.diary(u))||'[]');
-  CMDS=JSON.parse(localStorage.getItem(K.cmds(u))||'[]');
+async function loadUD(u,accountRow=null){
+  const cache=readCache(u);
+  applyPayload(cache||REMOTE_EMPTY_STATE());
+  if(!SUPABASE_ENABLED){setSyncState('offline','sem nuvem');return;}
+  let row=accountRow;
+  if(!row){
+    const {data,error}=await getRemoteAccount(u);
+    if(error){console.error('loadUD',error);setSyncState('offline','falha');return;}
+    row=data;
+  }
+  if(row&&row.payload)applyPayload(row.payload);
+  else persistCache();
+  setSyncState('online','nuvem ✓');
 }
-function saveP(){localStorage.setItem(K.prog(CU),JSON.stringify(PROG));updateProg();}
-function saveA(sid,val){ANN[sid]=val;localStorage.setItem(K.ann(CU),JSON.stringify(ANN));}
-function saveDiary(){localStorage.setItem(K.diary(CU),JSON.stringify(DIARY));}
-function saveCmds(){localStorage.setItem(K.cmds(CU),JSON.stringify(CMDS));}
+function saveP(){persistCache();updateProg();queueRemoteSync('progresso');}
+function saveA(sid,val){ANN[sid]=val;persistCache();queueRemoteSync('anotacao');}
+function saveDiary(){persistCache();queueRemoteSync('diario');}
+function saveCmds(){persistCache();queueRemoteSync('comandos');}
 
-function startApp(u){
-  CU=u;loadUD(u);
+async function startApp(u,accountRow=null){
+  CU=u;await loadUD(u,accountRow);
   document.getElementById('auth-screen').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
   document.getElementById('huser').textContent=u;
   document.getElementById('cu').textContent=u;
   buildSidebar();showPhase('fx');updateProg();
 }
+
 
 // ═══════════════════════════════════════════════════════════════
 // SIDEBAR
@@ -1063,7 +1164,7 @@ function updateProg(){
 let SO=false;
 function toggleSettings(){SO=!SO;document.getElementById('settings').classList.toggle('open',SO);}
 function clearProg(){if(!confirm('Limpar todo o progresso? Irreversível.'))return;PROG={};saveP();if(CVIEW==='phase')showPhase(CPHASE);}
-function clearAnn(){if(!confirm('Limpar anotações? Irreversível.'))return;ANN={};localStorage.setItem(K.ann(CU),'{}');if(CVIEW==='phase')showPhase(CPHASE);updateProg();}
+function clearAnn(){if(!confirm('Limpar anotações? Irreversível.'))return;ANN={};persistCache();queueRemoteSync('limpar-anotacoes',0);if(CVIEW==='phase')showPhase(CPHASE);updateProg();}
 function clearDiary(){if(!confirm('Limpar diário? Irreversível.'))return;DIARY=[];saveDiary();if(CVIEW==='tool'&&CPHASE==='t-diary')renderTool('t-diary');updateProg();}
 function clearCmds(){if(!confirm('Limpar comandos? Irreversível.'))return;CMDS=[];saveCmds();if(CVIEW==='tool'&&CPHASE==='t-cmds')renderTool('t-cmds');updateProg();}
 function exportData(){
@@ -1081,7 +1182,7 @@ function importData(){
         if(d.annotations)ANN=d.annotations;
         if(d.diary)DIARY=d.diary;
         if(d.commands)CMDS=d.commands;
-        saveP();localStorage.setItem(K.ann(CU),JSON.stringify(ANN));saveDiary();saveCmds();
+        persistCache();updateProg();queueRemoteSync('importacao',0);
         if(CVIEW==='phase')showPhase(CPHASE);else renderTool(CPHASE);
         alert('Importado.');
       }catch{alert('Arquivo inválido.');}
@@ -1093,13 +1194,20 @@ function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/<
 // ═══════════════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════════════
-(function init(){
+(async function init(){
   const rem=localStorage.getItem(K.REMEMBER),sess=localStorage.getItem(K.SESSION),u=rem||sess;
-  if(u){const users=gU();if(users[u]){startApp(u);return;}}
-  if(!Object.keys(gU()).length)sf('register');
-  else{sf('login');if(rem)document.getElementById('lu').value=rem;}
+  if(u){
+    const {data,error}=await getRemoteAccount(u);
+    if(!error&&data){await startApp(u,data);return;}
+    if(error)console.error('init',error);
+  }
+  sf('login');
+  if(rem)document.getElementById('lu').value=rem;
+  if(!SUPABASE_ENABLED)showE('le','Supabase não configurado. Sem ele, este site não sincroniza entre computadores.');
   document.getElementById('lp')?.addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
   document.getElementById('lu')?.addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('lp').focus();});
+  window.addEventListener('online',()=>{if(CU)flushRemoteState('reconexao');});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden&&CU)flushRemoteState('background');});
 })();
 </script>
 </body>
