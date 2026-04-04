@@ -421,16 +421,32 @@ const PH=[
   {id:'fxs5',num:'C.5',title:'Alocar datasets novos identificados',sub:'Não estavam no mapa original',tags:['JCL'],badge:'new',
    codes:[{l:'Novos datasets — alocar via IDCAMS',c:'ARQ.CONCIL.SEQ      → saida de EBCONC01 (120 bytes)\nARQ.LANCTO.VALID.SEQ → movimentos validos (120 bytes)\nARQ.SALDO.SEQ        → entrada para EBSALD01 (80 bytes)\nARQ.EXTRATO.SEQ      → saida de EBEXTR01 (132 bytes)\nARQ.SALDO.OUT.SEQ    → saida de EBSALD01 (120 bytes)'}],
    done:'LISTCAT de cada dataset retorna sem erro.'},
-  {id:'fxs6',num:'C.6',title:'Achados adicionais — bugs que ainda estão nos arquivos do projeto',sub:'Higiene de JCL e locking em VSAM de escrita',tags:['JCL'],badge:'fix',
-   desc:'Além dos itens já mapeados, ainda existem problemas de DISP e DDs desnecessários nos JCLs DEV. Eles não afetam só a clareza do fluxo: em alguns casos impedem a escrita real no zXplore.',
+  {id:'fxs6',num:'C.6',title:'Corrigir DISP=SHR em VSAM de escrita nos JCLs DEV',sub:'Todos os DDs de escrita precisam de DISP=OLD',tags:['JCL'],badge:'fix',
+   desc:'O fix de DISP=SHR → DISP=OLD já havia sido identificado, mas ainda não está refletido nos arquivos do projeto. Em zXplore, manter SHR em VSAM aberto para escrita pode impedir a atualização real dos datasets.',
    warn:'Se DISP=SHR permanecer em arquivos VSAM abertos para escrita, o job pode falhar ou não atualizar os datasets como esperado.',
    codes:[
-    {l:'A) DISP=SHR em VSAM de escrita nos JCLs DEV — trocar para DISP=OLD',c:'JCL      DD       Dataset                  Programa   Escreve?  DISP atual  Correção\nEBJCLLD  CLIENTE  ARQ.CLIENTE.KSDS        EBCLLOAD   Sim       SHR ❌       OLD ✅\nEBJCLLD  CONTA    ARQ.CONTA.KSDS          EBCLLOAD   Sim       SHR ❌       OLD ✅\nEBJPOST  CONTA    ARQ.CONTA.KSDS          EBPOST01   Sim       SHR ❌       OLD ✅\nEBJVALD  VALIDOS  ARQ.LANCTO.ESDS         EBVALI01   Sim       SHR ❌       OLD ✅\n\nTodos precisam de DISP=OLD para que a escrita funcione corretamente no zXplore.'},
-    {l:'B) EBJPOST.jcl (DEV) — DD CLIENTE desnecessário',c:'O EBJPOST.jcl declara:\n//CLIENTE DD DSN=<HQL>.EMUNAH.ARQ.CLIENTE.KSDS,...\n\nPorém o programa EBPOST01 não possui SELECT/ASSIGN para CLIENTE.\nEsse DD é inerte: não costuma gerar erro, mas é lixo operacional no JCL e deve ser removido para higiene e legibilidade.'},
-    {l:'C) EBJCONC.jcl — DISP=MOD no CONCOUT',c:'O CONCOUT usa DISP=MOD para acumular conciliações, o que faz sentido após a primeira execução.\n\nRisco: se o dataset ainda não existir, DISP=MOD tenta criá-lo sem DCB adequado e a alocação pode falhar.\n\nOpções seguras:\n1) Primeira execução com DISP=(NEW,CATLG,DELETE) + DCB/SPACE explícitos; ou\n2) Pré-alocar ARQ.CONCIL.SEQ antes do job e só então usar DISP=MOD nas execuções seguintes.'},
+    {l:'Mapeamento dos JCLs DEV — trocar SHR por OLD',c:'JCL      DD       Dataset                  Programa   Escreve?  DISP atual  Correção\nEBJCLLD  CLIENTE  ARQ.CLIENTE.KSDS        EBCLLOAD   Sim       SHR ❌       OLD ✅\nEBJCLLD  CONTA    ARQ.CONTA.KSDS          EBCLLOAD   Sim       SHR ❌       OLD ✅\nEBJPOST  CONTA    ARQ.CONTA.KSDS          EBPOST01   Sim       SHR ❌       OLD ✅\nEBJVALD  VALIDOS  ARQ.LANCTO.ESDS         EBVALI01   Sim       SHR ❌       OLD ✅\n\nTodos precisam de DISP=OLD para que a escrita funcione corretamente no zXplore.'}
+   ],
+   done:'EBJCLLD, EBJPOST e EBJVALD usam DISP=OLD nos arquivos VSAM/ESDS de escrita.'},
+  {id:'fxs7',num:'C.7',title:'Remover DD CLIENTE desnecessário do EBJPOST.jcl',sub:'Higiene de JCL — DD inerte no fluxo DEV',tags:['JCL'],badge:'fix',
+   desc:'O EBJPOST.jcl declara um DD CLIENTE, mas o programa EBPOST01 não possui SELECT/ASSIGN para esse arquivo. O DD não agrega nada ao fluxo e só polui o JCL.',
+   codes:[
+    {l:'Trecho a remover do EBJPOST.jcl',c:'//CLIENTE DD DSN=<HQL>.EMUNAH.ARQ.CLIENTE.KSDS,...\n\nO programa EBPOST01 não faz SELECT de CLIENTE.\nEsse DD é inerte: não costuma gerar erro, mas é lixo operacional no JCL e deve ser removido para higiene e legibilidade.'}
+   ],
+   done:'EBJPOST.jcl fica apenas com os DDs realmente usados por EBPOST01.'},
+  {id:'fxs8',num:'C.8',title:'Corrigir estratégia de primeira execução do CONCOUT em EBJCONC.jcl',sub:'DISP=MOD exige dataset previamente existente ou criação explícita',tags:['JCL'],badge:'fix',
+   desc:'O CONCOUT usa DISP=MOD para acumular conciliações, o que faz sentido após a primeira execução. O problema aparece quando o dataset ainda não existe.',
+   warn:'Se ARQ.CONCIL.SEQ não existir, DISP=MOD pode tentar criar o dataset sem DCB adequado e a alocação falha.',
+   codes:[
+    {l:'Opções seguras para o CONCOUT',c:'O CONCOUT usa DISP=MOD para acumular conciliações, o que faz sentido após a primeira execução.\n\nRisco: se o dataset ainda não existir, DISP=MOD tenta criá-lo sem DCB adequado e a alocação pode falhar.\n\nOpções seguras:\n1) Primeira execução com DISP=(NEW,CATLG,DELETE) + DCB/SPACE explícitos; ou\n2) Pré-alocar ARQ.CONCIL.SEQ antes do job e só então usar DISP=MOD nas execuções seguintes.'}
+   ],
+   done:'EBJCONC.jcl possui uma estratégia segura para a primeira execução do CONCOUT.'},
+  {id:'fxs9',num:'C.9',title:'Executar os ajustes adicionais na ordem recomendada',sub:'Sequência prática para estabilizar o projeto',tags:['JCL','DATA'],badge:'fix',
+   desc:'Depois dos fixes imediatos de seed e JCL, execute a ordem abaixo para evitar reexecuções desnecessárias e encadear os ajustes com menor risco.',
+   codes:[
     {l:'Resumo de ações — ordem de execução recomendada',c:'1. Gerar novo lancamentos_d0.txt com contas reais do seed (00000001–00000020, agência 0001)\n2. Corrigir DISP=SHR → DISP=OLD em EBJCLLD, EBJPOST e EBJVALD\n3. Adicionar DD SALDOUT em EBJSALD.jcl\n4. Substituir EBJEXTR.jcl pelo JCL funcional com EBEXTR01\n5. Reescrever EBJEOD.jcl com identidade e fluxo de EOD (pelo menos conciliação + flag de fechamento)\n6. Alocar datasets sequenciais — pré-alocar via JCL/IEFBR14 ou criar inline com tratamento de reexecução\n7. Remover o DD CLIENTE do EBJPOST.jcl'}
    ],
-   done:'Os JCLs DEV estão higienizados: VSAM de escrita com DISP=OLD, DD inútil removido e CONCOUT com estratégia segura de primeira execução.'}
+   done:'A sequência de estabilização foi executada e os ajustes adicionais ficaram refletidos nos arquivos do projeto.'}
 ]},
 {id:'f0',num:0,title:'Fundação',sub:'Contratos antes do código',
  desc:'Prepare o ambiente-base antes de qualquer execução: estrutura USS, datasets remotos, schema DB2 e configuração central.',
