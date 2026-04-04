@@ -150,15 +150,14 @@
   <aside class="sidebar">
     <div class="side-head">
       <button class="side-logo side-logo-link" type="button" onclick="goSection('dashboard')" title="Ir para o Dashboard">MFHUB</button>
-      <div class="side-profile-row">
+      <div class="side-profile-center">
         <button class="profile-avatar" id="profile-avatar-btn" type="button" onclick="openProfileModal()" title="Abrir perfil">
           <img id="profile-avatar-image" alt="Foto de perfil" hidden>
           <span id="profile-avatar-fallback">👤</span>
         </button>
-        <div class="side-profile-main" id="side-profile-main">
-          <div class="side-user" id="sidebar-user">USER@MFHUB</div>
-          <button class="profile-link" type="button" onclick="openProfileModal()">Abrir perfil</button>
-        </div>
+        <div class="side-user" id="sidebar-user">USER</div>
+        <div class="side-user-email" id="sidebar-user-email"></div>
+        <div class="side-user-meta" id="sidebar-user-meta"></div>
       </div>
     </div>
     <div class="side-nav" role="navigation" aria-label="Menu principal">
@@ -192,16 +191,16 @@
       <button class="btn small mobile-menu-btn" id="mobile-menu-btn" onclick="toggleMobileMenu()" aria-label="Menu" style="display:none">☰</button>
       <div class="path" id="topbar-path">Dashboard</div>
       <div class="spacer"></div>
-      <input id="global-search" class="input searchbar" placeholder="Buscar no site..." oninput="handleSearch(this.value)" aria-label="Buscar no site">
+      <input id="global-search" class="input searchbar" placeholder="🔍 Buscar no site..." oninput="handleSearch(this.value)" aria-label="Buscar no site">
       <div class="topbar-primary-actions">
-        <button class="btn small" onclick="openImportCenter()">Importar conteúdo</button>
+        <button class="btn small" onclick="openImportCenter()" title="Importar conteúdo">📥 Importar</button>
         <div class="topbar-backup-group">
-          <button class="btn small" onclick="openImportCenter('backup')">Importar backup</button>
-          <button class="btn small" onclick="exportAllData()">Exportar backup</button>
+          <button class="btn small" onclick="openImportCenter('backup')" title="Restaurar backup">📂 Restaurar</button>
+          <button class="btn small" onclick="exportAllData()" title="Exportar backup">💾 Backup</button>
         </div>
       </div>
       <select id="font-style-select" class="select topbar-font-select" aria-label="Estilo de fonte"></select>
-      <span id="cloud-sync-status" class="badge">Nuvem local</span>
+      <span id="cloud-sync-status" class="badge" title="Clique para ver status da nuvem">Nuvem local</span>
       <div class="clock" id="clock"></div>
     </div>
     <div class="content">

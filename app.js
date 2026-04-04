@@ -744,7 +744,7 @@ async function startApp(user, displayName = user) {
   ensureSeedData();
   ensureDailyGoalsSeeded();
   updateStreak();
-  document.getElementById('sidebar-user').textContent = String(displayName || user).toUpperCase() + '@MFHUB';
+  document.getElementById('sidebar-user').textContent = String(displayName || user).toUpperCase();
   renderSidebarIdentity();
   document.getElementById('app').style.display = 'block';
   startClock();
@@ -2620,7 +2620,7 @@ const ADV_PROFILE_DEFAULTS = {
   photoData:'', photoName:'', displayName:'', tagline:'', bio:'', location:'', links:'',
   favorites:['dashboard','goals','manuals','lab']
 };
-const ADV_DASHBOARD_WIDGETS = ['profile','today','streak','sync','history','exports','shortcuts','admin'];
+const ADV_DASHBOARD_WIDGETS = ['today','streak'];
 const ADV_MAX_REVISIONS = 18;
 let advCloudMeta = { lastSyncAt:'', lastSyncReason:'', pendingReasons:[], payloadBytes:0 };
 
@@ -2752,19 +2752,7 @@ function undoLastChange(){
 function ensureTopbarActions(){
   const topbar = document.querySelector('.topbar');
   if (!topbar) return;
-  let wrap = document.getElementById('topbar-extra-actions');
-  if (!wrap) {
-    wrap = document.createElement('div');
-    wrap.id = 'topbar-extra-actions';
-    wrap.className = 'topbar-extra-actions';
-    wrap.innerHTML = `
-      <button class="btn small" type="button" onclick="openProfileModal()">Perfil</button>
-      <button class="btn small" type="button" onclick="openHistoryModal()">Histórico</button>
-      <button class="btn small" type="button" onclick="flushCloudSync('manual')">Sync agora</button>
-      <button class="btn small" type="button" onclick="openAdminModeModal()">Admin</button>`;
-    const anchor = document.getElementById('font-style-select') || document.getElementById('cloud-sync-status') || document.getElementById('clock');
-    topbar.insertBefore(wrap, anchor);
-  }
+  // No extra buttons — Perfil is in sidebar photo, Sync/Admin/Histórico removed
   const syncBadge = document.getElementById('cloud-sync-status');
   if (syncBadge && syncBadge.dataset.bound !== '1') {
     syncBadge.dataset.bound = '1';
@@ -2773,29 +2761,18 @@ function ensureTopbarActions(){
   }
 }
 function renderSidebarIdentityExtra(){
-  const sideHead = document.querySelector('.side-head');
-  if (!sideHead) return;
-  let meta = document.getElementById('sidebar-user-meta');
-  if (!meta) {
-    meta = document.createElement('div');
-    meta.id = 'sidebar-user-meta';
-    meta.className = 'side-user-meta';
-    const profileMain = document.getElementById('side-profile-main');
-    if (profileMain) profileMain.appendChild(meta);
-    else sideHead.appendChild(meta);
-  }
   const displayName = getProfileDisplayName();
-  const tagline = String(appData?.profile?.tagline || '');
-  const location = String(appData?.profile?.location || '');
   const email = String(currentAuthIdentity?.email || '');
   const sidebarUser = document.getElementById('sidebar-user');
-  const profileLink = document.querySelector('.profile-link');
+  const sidebarEmail = document.getElementById('sidebar-user-email');
   if (sidebarUser) sidebarUser.textContent = displayName.toUpperCase();
-  if (profileLink) {
-    profileLink.textContent = 'Abrir perfil';
-    profileLink.onclick = openProfileModal;
+  if (sidebarEmail) sidebarEmail.textContent = email;
+  let meta = document.getElementById('sidebar-user-meta');
+  if (meta) {
+    const tagline = String(appData?.profile?.tagline || '');
+    const location = String(appData?.profile?.location || '');
+    meta.innerHTML = [tagline, location].filter(Boolean).map(item => `<div>${esc(item)}</div>`).join('');
   }
-  meta.innerHTML = [tagline, location, email].filter(Boolean).map(item => `<div>${esc(item)}</div>`).join('');
 }
 function saveProfileModal(){
   const file = document.getElementById('profile-photo-file')?.files?.[0] || null;
