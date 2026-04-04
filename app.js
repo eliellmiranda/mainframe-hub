@@ -25,7 +25,28 @@ let cloudSyncInFlight = false;
 let cloudSyncQueued = false;
 let lastCloudError = '';
 function getStreakStorageKey() { return currentUser ? `${STREAK_KEY}.${currentUser}` : STREAK_KEY; }
-function getStreakData() { return readLS(getStreakStorageKey(), { lastDate:'', count:0, longest:0 }); }
+function normalizeStreakData(v) {
+  const s = Object.assign({ lastDate:'', count:0, longest:0 }, v || {});
+  s.lastDate = String(s.lastDate || '');
+  s.count = Math.max(0, Number(s.count) || 0);
+  s.longest = Math.max(s.count, Number(s.longest) || 0);
+  return s;
+}
+function getStreakData() { return normalizeStreakData(readLS(getStreakStorageKey(), { lastDate:'', count:0, longest:0 })); }
+function mergeStreakData(localValue, remoteValue) {
+  const local = normalizeStreakData(localValue);
+  const remote = normalizeStreakData(remoteValue);
+  if (!remote.lastDate) return { ...local, longest: Math.max(local.longest, remote.longest) };
+  if (!local.lastDate) return { ...remote, longest: Math.max(local.longest, remote.longest) };
+  if (local.lastDate === remote.lastDate) {
+    const count = Math.max(local.count, remote.count);
+    return { lastDate: local.lastDate, count, longest: Math.max(local.longest, remote.longest, count) };
+  }
+  if (local.lastDate > remote.lastDate) {
+    return { ...local, longest: Math.max(local.longest, remote.longest) };
+  }
+  return { ...remote, longest: Math.max(local.longest, remote.longest) };
+}
 function updateStreak() {
   const today = new Date().toISOString().slice(0,10);
   const s = getStreakData();
@@ -177,15 +198,13 @@ function applySavedFontStyle() {
   const fontStyle = currentUser ? readLS(getFontKey(currentUser), 'share-tech') : 'share-tech';
   setFontStyle(fontStyle, { skipSync:true });
 }
-function ensureFontSelectorElement() {
-  let el = document.getElementById('font-style-select');
-  if (el) return el;
-  const topbar = document.querySelector('.topbar');
-  if (!topbar) return null;
-  el = document.createElement('select');
-  el.id = 'font-style-select';
-  el.className = 'select topbar-font-select';
-  el.setAttribute('aria-label', 'Estilo de fonte');
+function hydrateFontSelectorElement(el) {
+  if (!el) return null;
+  if (el.dataset.ready === '1') {
+    updateFontSelectorValue();
+    return el;
+  }
+  el.innerHTML = '';
   FONT_OPTIONS.forEach(opt => {
     const option = document.createElement('option');
     option.value = opt.value;
@@ -193,10 +212,22 @@ function ensureFontSelectorElement() {
     el.appendChild(option);
   });
   el.addEventListener('change', () => setFontStyle(el.value));
-  const anchor = ensureCloudStatusElement() || document.getElementById('clock');
-  topbar.insertBefore(el, anchor);
+  el.dataset.ready = '1';
   updateFontSelectorValue();
   return el;
+}
+function ensureFontSelectorElement() {
+  let el = document.getElementById('font-style-select');
+  if (el) return hydrateFontSelectorElement(el);
+  const topbar = document.querySelector('.topbar');
+  if (!topbar) return null;
+  el = document.createElement('select');
+  el.id = 'font-style-select';
+  el.className = 'select topbar-font-select';
+  el.setAttribute('aria-label', 'Estilo de fonte');
+  const anchor = ensureCloudStatusElement() || document.getElementById('clock');
+  topbar.insertBefore(el, anchor);
+  return hydrateFontSelectorElement(el);
 }
 function ensureCloudStatusElement() {
   let el = document.getElementById('cloud-sync-status');
@@ -256,6 +287,15 @@ function buildCloudArgs() {
     p_streak: getStreakData()
   };
 }
+function isMissingRpcSignature(error) {
+  const msg = String(error?.message || '');
+  return msg.includes('Could not find the function public.' + CLOUD_RPC_PUT) || msg.includes('schema cache');
+}
+async function callPutStateRpc(args) {
+  const { error } = await supabaseClient.rpc(CLOUD_RPC_PUT, args);
+  if (error) throw error;
+  return true;
+}
 async function fetchCloudRow() {
   if (!canUseCloudSync()) return null;
   const { data, error } = await supabaseClient.rpc(CLOUD_RPC_GET);
@@ -269,8 +309,27 @@ async function pushCloudState(reason='manual') {
     return false;
   }
   setCloudStatus('syncing', reason === 'bootstrap' ? 'Nuvem iniciando…' : 'Nuvem salvando…');
-  const { error } = await supabaseClient.rpc(CLOUD_RPC_PUT, buildCloudArgs());
-  if (error) throw error;
+  const fullArgs = buildCloudArgs();
+  try {
+    await callPutStateRpc(fullArgs);
+  } catch (error) {
+    if (!isMissingRpcSignature(error)) throw error;
+    const fallbacks = [
+      { p_payload: fullArgs.p_payload, p_theme: fullArgs.p_theme, p_streak: fullArgs.p_streak },
+      { p_payload: fullArgs.p_payload, p_theme: fullArgs.p_theme }
+    ];
+    let handled = false;
+    for (const fallbackArgs of fallbacks) {
+      try {
+        await callPutStateRpc(fallbackArgs);
+        handled = true;
+        break;
+      } catch (fallbackError) {
+        if (!isMissingRpcSignature(fallbackError)) throw fallbackError;
+      }
+    }
+    if (!handled) throw error;
+  }
   lastCloudError = '';
   setCloudStatus('synced', 'Nuvem ✓');
   return true;
@@ -335,11 +394,13 @@ async function bootstrapCloudState() {
     writeLS(userDataKey(currentUser), appData);
     if (remote.theme) setTheme(remote.theme, { skipSync:true });
     if (remote.font_style) setFontStyle(remote.font_style, { skipSync:true });
-    if (remote.streak) writeLS(getStreakStorageKey(), remote.streak);
+    const mergedStreak = mergeStreakData(getStreakData(), remote.streak);
+    writeLS(getStreakStorageKey(), mergedStreak);
     ensureSeedData();
     ensureDailyGoalsSeeded();
     renderAll();
     setCloudStatus('synced', 'Nuvem ✓');
+    if (JSON.stringify(mergedStreak) !== JSON.stringify(normalizeStreakData(remote.streak))) scheduleCloudSync('streak-merge');
   } catch (error) {
     console.error('MFHUB cloud bootstrap failed:', error);
     lastCloudError = error?.message || 'Falha ao carregar os dados da nuvem.';
