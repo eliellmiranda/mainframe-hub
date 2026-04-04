@@ -90,7 +90,7 @@ const SEEDS = {"exercises": [{"name": "COBOL — Básico", "desc": "Exercícios 
 let currentUser = null;
 let appData = null;
 let currentSection = 'dashboard';
-let currentDetail = { courseId:null, docId:null, codeSpaceId:null, codeSubspaceId:null, exerciseSpaceId:null, exerciseSubspaceId:null, interviewSpaceId:null, interviewSubspaceId:null, goalDay:null, exerciseFilter:'all', exerciseIndexOpen:true, searchResults:[] };
+let currentDetail = { courseId:null, docId:null, manualId:null, codeSpaceId:null, codeSubspaceId:null, exerciseSpaceId:null, exerciseSubspaceId:null, interviewSpaceId:null, interviewSubspaceId:null, goalDay:null, exerciseFilter:'all', exerciseIndexOpen:true, searchResults:[] };
 
 function readLS(k, fallback=null) { try { const raw = localStorage.getItem(k); return raw ? JSON.parse(raw) : fallback; } catch { return fallback; } }
 function writeLS(k, v) { localStorage.setItem(k, JSON.stringify(v)); }
@@ -119,6 +119,8 @@ function baseData() {
     certificates: [],
     generalNotes: [],
     tools: [],
+    manuals: [],
+    profile: { photoData:'', photoName:'' },
     dailyGoals: {},
     lab: { url:'', planUrl:'emunah-bank-lab.html', title:'EMUNAH BANK LAB' },
     meta: { seedVersion:0, lastSection:'dashboard', goalSeedVersion:0, selectedGoalDay:getTodayGoalKey() }
@@ -134,6 +136,10 @@ function ensureDefaults() {
   appData.certificates ||= [];
   appData.generalNotes ||= [];
   appData.tools ||= [];
+  appData.manuals ||= [];
+  appData.profile ||= { photoData:'', photoName:'' };
+  appData.profile.photoData ||= '';
+  appData.profile.photoName ||= '';
   appData.dailyGoals ||= {};
   appData.lab ||= { url:'', planUrl:'emunah-bank-lab.html', title:'EMUNAH BANK LAB' };
   appData.meta ||= { seedVersion:0, lastSection:'dashboard', goalSeedVersion:0, selectedGoalDay:getTodayGoalKey() };
@@ -229,6 +235,48 @@ function ensureFontSelectorElement() {
   topbar.insertBefore(el, anchor);
   return hydrateFontSelectorElement(el);
 }
+function renderSidebarIdentity() {
+  const avatarBtn = document.getElementById('profile-avatar-btn');
+  const avatarFallback = document.getElementById('profile-avatar-fallback');
+  if (avatarBtn) {
+    const photo = String(appData?.profile?.photoData || '');
+    avatarBtn.style.backgroundImage = photo ? `url(${photo})` : 'none';
+    avatarBtn.setAttribute('aria-label', photo ? 'Trocar foto de perfil' : 'Adicionar foto de perfil');
+  }
+  if (avatarFallback) avatarFallback.style.display = appData?.profile?.photoData ? 'none' : 'block';
+}
+function openProfilePhotoModal() {
+  openModal('Foto de perfil', `
+    <div class="row"><label class="lbl">Imagem</label><input id="profile-photo-file" class="input" type="file" accept="image/*"></div>
+    <div class="auth-note">Escolha uma imagem JPG, PNG ou WEBP. Ela será salva junto com o seu estado do site e aparecerá na barra lateral.</div>
+    ${appData?.profile?.photoData ? `<div class="row"><img src="${esc(appData.profile.photoData)}" alt="Prévia" style="width:96px;height:96px;border-radius:50%;object-fit:cover;border:1px solid var(--border)"></div>` : ''}
+  `, `<button class="btn" onclick="clearProfilePhoto()">Remover foto</button><button class="btn primary" onclick="saveProfilePhoto()">Salvar foto</button>`);
+}
+function saveProfilePhoto() {
+  const file = document.getElementById('profile-photo-file')?.files?.[0];
+  if (!file) return showToast('Escolha uma imagem primeiro.');
+  const reader = new FileReader();
+  reader.onload = e => {
+    appData.profile ||= { photoData:'', photoName:'' };
+    appData.profile.photoData = String(e.target?.result || '');
+    appData.profile.photoName = file.name || 'perfil';
+    saveUserData();
+    renderSidebarIdentity();
+    closeModal();
+    showToast('Foto de perfil atualizada.');
+  };
+  reader.readAsDataURL(file);
+}
+function clearProfilePhoto() {
+  appData.profile ||= { photoData:'', photoName:'' };
+  appData.profile.photoData = '';
+  appData.profile.photoName = '';
+  saveUserData();
+  renderSidebarIdentity();
+  closeModal();
+  showToast('Foto de perfil removida.');
+}
+
 function ensureCloudStatusElement() {
   let el = document.getElementById('cloud-sync-status');
   if (el) return el;
@@ -683,6 +731,7 @@ async function startApp(user, displayName = user) {
   ensureDailyGoalsSeeded();
   updateStreak();
   document.getElementById('sidebar-user').textContent = String(displayName || user).toUpperCase() + '@MFHUB';
+  renderSidebarIdentity();
   document.getElementById('app').style.display = 'block';
   startClock();
   ensureFontSelectorElement();
@@ -1043,9 +1092,10 @@ function updateStatus() {
     certs: appData.certificates.length,
     notes: appData.generalNotes.length,
     tools: appData.tools.length,
+    manuals: appData.manuals.length,
     goals: Object.values(appData.dailyGoals || {}).reduce((a,list)=>a+(Array.isArray(list)?list.length:0),0),
   };
-  document.getElementById('status-stats').textContent = `${totals.courses} cursos · ${totals.docs} docs · ${totals.code} códigos · ${totals.ex + totals.iv} questões · ${totals.linkedin} posts · ${totals.certs} badges · ${totals.tools} ferramentas · ${totals.notes} notas · ${totals.goals} metas`;
+  document.getElementById('status-stats').textContent = `${totals.courses} cursos · ${totals.docs} docs · ${totals.code} códigos · ${totals.ex + totals.iv} questões · ${totals.linkedin} posts · ${totals.certs} badges · ${totals.tools} ferramentas · ${totals.manuals} manuais · ${totals.notes} notas · ${totals.goals} metas`;
 }
 
 function renderDashboard() {
@@ -1060,6 +1110,7 @@ function renderDashboard() {
         <button class="btn" onclick="toggleTheme()">🌓 Tema</button>
         <button class="btn" onclick="goSection('goals')">🎯 Metas</button>
         <button class="btn primary" onclick="openImportCenter()">Importar conteúdo</button>
+        <button class="btn" onclick="openImportCenter('backup')">⬆ Importar backup</button>
         <button class="btn" onclick="exportAllData()">⬇ Exportar backup</button>
       </div>
     </div>
@@ -1068,6 +1119,7 @@ function renderDashboard() {
       <div class="kpi"><div class="kpi-label">Docs</div><div class="kpi-value">${appData.docs.length}</div><div class="kpi-sub">editor + anexos</div></div>
       <div class="kpi"><div class="kpi-label">Exemplos</div><div class="kpi-value">${appData.codeSpaces.reduce((a,s)=>a+(s.subspaces?.length||0),0)}</div><div class="kpi-sub">subespaços de código</div></div>
       <div class="kpi"><div class="kpi-label">Ferramentas</div><div class="kpi-value">${appData.tools.length}</div><div class="kpi-sub">links + instruções</div></div>
+      <div class="kpi"><div class="kpi-label">Manuais</div><div class="kpi-value">${appData.manuals.length}</div><div class="kpi-sub">categorias com texto e anexos</div></div>
       <div class="kpi"><div class="kpi-label">Certificados</div><div class="kpi-value">${appData.certificates.length}</div><div class="kpi-sub">com imagem opcional</div></div>
       <div class="kpi"><div class="kpi-label">Progresso médio</div><div class="kpi-value">${courseAvg}%</div><div class="kpi-sub">dos cursos</div></div>
       <div class="kpi" style="border-color:var(--warn)"><div class="kpi-label">Sequência</div><div class="kpi-value" style="color:var(--warn)">${getStreakData().count}🔥</div><div class="kpi-sub">dias seguidos · recorde ${getStreakData().longest}</div></div>
@@ -1112,6 +1164,7 @@ function renderDashboard() {
         ['🔗','Postagem LinkedIn','linkedin','Rascunhos prontos para revisar e postar depois.'],
         ['🏅','Certificados e badges','certs','Conquistados e a conquistar, com imagem opcional.'],
         ['🧰','Ferramentas','tools','Catálogo de ferramentas com download, site oficial e instruções.'],
+        ['📚','Manuais','manuals','Categorias com texto livre e até 5 anexos por manual.'],
         ['⬡','Emunah Lab','lab','Área isolada do restante do conteúdo.']
       ].map(x=>`<div class="card clickable" onclick="goSection('${x[2]}')"><div class="card-icon">${x[0]}</div><div class="card-title">${x[1]}</div><div class="card-meta">${x[3]}</div></div>`).join('')}
     </div>
@@ -1997,6 +2050,76 @@ function deleteTool(toolId) {
   saveUserData(); renderTools(); renderDashboard(); updateStatus(); showToast('Ferramenta removida.');
 }
 
+
+function renderManuals() {
+  const wrap = document.getElementById('section-manuals');
+  const manual = appData.manuals.find(m => m.id === currentDetail.manualId);
+  if (!manual) {
+    wrap.innerHTML = `
+      <div class="headline">
+        <div><div class="title">Manuais</div><div class="subtitle">Crie categorias de manuais com texto livre e até 5 anexos</div></div>
+        <button class="btn primary" onclick="openManualModal()">Nova categoria</button>
+      </div>
+      <div class="manual-grid">
+        ${appData.manuals.map(m => `<div class="card clickable" id="manual-card-${m.id}" onclick="openManual('${m.id}')"><div class="card-actions"><button class="btn xs" onclick="event.stopPropagation();openManualModal('${m.id}')">Editar</button><button class="btn xs danger" onclick="event.stopPropagation();deleteManual('${m.id}')">Excluir</button></div><div class="card-icon">📚</div><div class="card-title">${esc(m.name)}</div><div class="manual-card-meta">${esc(m.desc||'Sem descrição')}<br>${(m.attachments||[]).length} anexos</div></div>`).join('')}
+        <div class="card new clickable" onclick="openManualModal()"><div><div style="font-size:30px;text-align:center">+</div><div>Nova categoria</div></div></div>
+      </div>
+    `;
+    return;
+  }
+  wrap.innerHTML = `
+    <div class="back" onclick="backToManualList()">← Voltar</div>
+    <div class="headline">
+      <div><div class="title">${esc(manual.name)}</div><div class="subtitle">${esc(manual.desc||'Manual')}</div></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn" onclick="uploadAttachmentsModal('manual','${manual.id}')">Arquivos</button>
+        <button class="btn" onclick="openManualModal('${manual.id}')">Editar categoria</button>
+        <button class="btn primary" onclick="saveManualContent('${manual.id}')">Salvar</button>
+      </div>
+    </div>
+    <div class="cols-2">
+      <div class="panel">
+        <div class="panel-title">Texto do manual</div>
+        <textarea id="manual-editor" class="textarea" style="min-height:440px">${esc(manual.content||'')}</textarea>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Arquivos (até 5)</div>
+        ${renderAttachments(manual.attachments||[], 'manual', manual.id)}
+      </div>
+    </div>
+  `;
+}
+function openManualModal(manualId='') {
+  const manual = manualId ? appData.manuals.find(m => m.id === manualId) : null;
+  openModal(manual ? 'Editar categoria de manual' : 'Nova categoria de manual', `<div class="row"><label class="lbl">Nome da categoria</label><input id="manual-name" class="input" value="${esc(manual?.name || '')}"></div><div class="row"><label class="lbl">Descrição</label><input id="manual-desc" class="input" value="${esc(manual?.desc || '')}"></div>`, `<button class="btn primary" onclick="saveManual('${manualId}')">Salvar</button>`);
+}
+function saveManual(manualId='') {
+  const name = document.getElementById('manual-name').value.trim();
+  const desc = document.getElementById('manual-desc').value.trim();
+  if (!name) return;
+  if (manualId) {
+    const manual = appData.manuals.find(m => m.id === manualId); if (!manual) return;
+    manual.name = name; manual.desc = desc;
+  } else {
+    appData.manuals.push({ id:uid(), name, desc, content:'', attachments:[], createdAt:Date.now() });
+  }
+  saveUserData(); closeModal(); renderManuals(); renderDashboard(); updateStatus(); showToast(manualId ? 'Categoria atualizada.' : 'Categoria criada.');
+}
+function openManual(id) { currentDetail.manualId = id; renderManuals(); }
+function backToManualList() { currentDetail.manualId = null; renderManuals(); }
+function deleteManual(id) {
+  const name = appData.manuals.find(m => m.id === id)?.name || 'esta categoria';
+  if (!confirm(`Deseja mesmo excluir "${name}"?`)) return;
+  appData.manuals = appData.manuals.filter(m => m.id !== id);
+  currentDetail.manualId = null;
+  saveUserData(); renderManuals(); renderDashboard(); updateStatus(); showToast('Categoria removida.');
+}
+function saveManualContent(id) {
+  const manual = appData.manuals.find(m => m.id === id); if (!manual) return;
+  manual.content = document.getElementById('manual-editor').value;
+  saveUserData(); showToast('Manual salvo.');
+}
+
 function renderLab() {
   const v = getDailyVerse();
   const planUrl = appData.lab.planUrl || 'emunah-bank-lab.html';
@@ -2080,6 +2203,7 @@ function renderAttachments(files, type, id1, id2='', id3='') {
 }
 function resolveAttachmentHolder(type, id1, id2='', id3='') {
   if (type==='doc') return appData.docs.find(d=>d.id===id1);
+  if (type==='manual') return appData.manuals.find(m=>m.id===id1);
   if (type==='course-module') return appData.courses.find(c=>c.id===id1)?.modules?.find(m=>m.id===id2);
   if (type==='course-submodule') return appData.courses.find(c=>c.id===id1)?.modules?.find(m=>m.id===id3)?.submodules?.find(s=>s.id===id2);
   if (type==='code-subspace') return appData.codeSpaces.find(s=>s.id===id1)?.subspaces?.find(ss=>ss.id===id2);
@@ -2270,15 +2394,19 @@ function handleSearch(query) {
 }
 
 function openImportCenter(preset='') {
-  openModal('Importar conteúdo', `
+  openModal(preset==='backup' ? 'Importar backup do site' : 'Importar conteúdo', `
     <div class="row"><label class="lbl">Tipo</label>
       <select id="imp-type" class="select">
-        <option value="code" ${preset==='code'?'selected':''}>Exemplos de código</option>
+        <option value="code" ${(preset==='code' || preset==='backup')?'selected':''}>Exemplos de código</option>
         <option value="exercise" ${preset==='exercise'?'selected':''}>Exercícios</option>
         <option value="interview" ${preset==='interview'?'selected':''}>Perguntas de entrevista</option>
       </select>
     </div>
     <div class="row"><label class="lbl">Arquivo (.json, .csv, .txt)</label><input id="imp-file" class="input" type="file" accept=".json,.csv,.txt"></div>
+    <div class="panel" style="margin-top:8px">
+      <div class="panel-title">Backup completo do site</div>
+      <div class="row-text">Você pode importar um backup exportado pelo botão "Exportar backup". O sistema detecta automaticamente o arquivo <code>mfhub.v4</code> e mescla o conteúdo com o que já existe.</div>
+    </div>
     <div class="panel" style="margin-top:8px">
       <div class="panel-title">Layout CSV sugerido</div>
       <div class="row-text">Para código: space,subspace,title,lang,description,code\nPara exercícios/entrevistas: space,subspace,title,prompt,answer</div>
@@ -2373,7 +2501,8 @@ function importContent() {
               }
             });
           };
-          ['courses','docs','generalNotes','linkedinPosts','certificates','tools'].forEach(mergeSimple);
+          ['courses','docs','generalNotes','linkedinPosts','certificates','tools','manuals'].forEach(mergeSimple);
+          if ((!appData.profile?.photoData) && src.profile?.photoData) appData.profile = { ...src.profile };
           saveUserData(); closeModal(); renderAll();
           showToast(`Backup mesclado: ${merged} item(ns) novo(s) adicionado(s).`);
           return;
@@ -2453,7 +2582,7 @@ function closeModal() { document.getElementById('modal-wrap').classList.remove('
 document.getElementById('modal-wrap').addEventListener('click', e => { if (e.target.id === 'modal-wrap') closeModal(); });
 
 function renderAll() {
-  renderDashboard(); renderGoals(); renderNotes(); renderCourses(); renderDocs(); renderCode(); renderExercises(); renderInterviews(); renderLinkedin(); renderCerts(); renderTools(); renderLab(); updateStatus(); updateFontSelectorValue();
+  renderDashboard(); renderGoals(); renderNotes(); renderCourses(); renderDocs(); renderCode(); renderExercises(); renderInterviews(); renderLinkedin(); renderCerts(); renderTools(); renderManuals(); renderLab(); updateStatus(); updateFontSelectorValue(); renderSidebarIdentity();
 }
 
 document.addEventListener('keydown', e => {
@@ -2523,6 +2652,7 @@ window.backToCodeSpace                = backToCodeSpace;
 window.backToCourseList               = backToCourseList;
 window.backToDocList                  = backToDocList;
 window.deleteDoc                      = deleteDoc;
+window.deleteManual                   = deleteManual;
 window.deleteGenericSpace             = deleteGenericSpace;
 window.deleteSubspace                 = deleteSubspace;
 window.downloadAttachment             = downloadAttachment;
@@ -2599,6 +2729,14 @@ window.toggleTheme     = toggleTheme;
 window.setFontStyle    = setFontStyle;
 window.goSection       = goSection;
 window.openImportCenter= openImportCenter;
+window.openManual                    = openManual;
+window.openManualModal               = openManualModal;
+window.backToManualList              = backToManualList;
+window.saveManual                    = saveManual;
+window.saveManualContent             = saveManualContent;
+window.openProfilePhotoModal         = openProfilePhotoModal;
+window.saveProfilePhoto              = saveProfilePhoto;
+window.clearProfilePhoto             = clearProfilePhoto;
 window.handleSearch    = handleSearch;
 window.closeModal      = closeModal;
 window.exportAllData   = exportAllData;
