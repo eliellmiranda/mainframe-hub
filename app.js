@@ -9,7 +9,44 @@ const SESSION_KEY = 'mfhub.session.v4';
 const REMEMBER_KEY = 'mfhub.remember.v1';
 const SEED_VERSION = 20260330;
 const STREAK_KEY = 'mfhub.streak.v1';
-function getStreakData() { return readLS(STREAK_KEY, { lastDate:'', count:0, longest:0 }); }
+const CLOUD_RPC_GET = 'mfhub_get_state';
+const CLOUD_RPC_PUT = 'mfhub_put_state';
+const CLOUD_SYNC_DEBOUNCE_MS = 700;
+const FONT_STYLE_KEY = 'mfhub.fontstyle.v1';
+const FONT_OPTIONS = [
+  { value:'share-tech', label:'Share Tech Mono' },
+  { value:'ibm', label:'IBM Plex Mono' },
+  { value:'vt323', label:'VT323 CRT' },
+  { value:'silkscreen', label:'Silkscreen' }
+];
+let currentAuthIdentity = null;
+let cloudSyncTimer = null;
+let cloudSyncInFlight = false;
+let cloudSyncQueued = false;
+let lastCloudError = '';
+function getStreakStorageKey() { return currentUser ? `${STREAK_KEY}.${currentUser}` : STREAK_KEY; }
+function normalizeStreakData(v) {
+  const s = Object.assign({ lastDate:'', count:0, longest:0 }, v || {});
+  s.lastDate = String(s.lastDate || '');
+  s.count = Math.max(0, Number(s.count) || 0);
+  s.longest = Math.max(s.count, Number(s.longest) || 0);
+  return s;
+}
+function getStreakData() { return normalizeStreakData(readLS(getStreakStorageKey(), { lastDate:'', count:0, longest:0 })); }
+function mergeStreakData(localValue, remoteValue) {
+  const local = normalizeStreakData(localValue);
+  const remote = normalizeStreakData(remoteValue);
+  if (!remote.lastDate) return { ...local, longest: Math.max(local.longest, remote.longest) };
+  if (!local.lastDate) return { ...remote, longest: Math.max(local.longest, remote.longest) };
+  if (local.lastDate === remote.lastDate) {
+    const count = Math.max(local.count, remote.count);
+    return { lastDate: local.lastDate, count, longest: Math.max(local.longest, remote.longest, count) };
+  }
+  if (local.lastDate > remote.lastDate) {
+    return { ...local, longest: Math.max(local.longest, remote.longest) };
+  }
+  return { ...remote, longest: Math.max(local.longest, remote.longest) };
+}
 function updateStreak() {
   const today = new Date().toISOString().slice(0,10);
   const s = getStreakData();
@@ -18,7 +55,8 @@ function updateStreak() {
   const newCount = s.lastDate === yesterday ? s.count + 1 : 1;
   const newLongest = Math.max(newCount, s.longest || 0);
   const updated = { lastDate:today, count:newCount, longest:newLongest };
-  writeLS(STREAK_KEY, updated);
+  writeLS(getStreakStorageKey(), updated);
+  scheduleCloudSync('streak');
   return updated;
 }
 
@@ -52,10 +90,10 @@ const SEEDS = {"exercises": [{"name": "COBOL — Básico", "desc": "Exercícios 
 let currentUser = null;
 let appData = null;
 let currentSection = 'dashboard';
-let currentDetail = { courseId:null, docId:null, codeSpaceId:null, codeSubspaceId:null, exerciseSpaceId:null, exerciseSubspaceId:null, interviewSpaceId:null, interviewSubspaceId:null, goalDay:null, exerciseFilter:'all', exerciseIndexOpen:true, searchResults:[] };
+let currentDetail = { courseId:null, docId:null, manualId:null, codeSpaceId:null, codeSubspaceId:null, exerciseSpaceId:null, exerciseSubspaceId:null, interviewSpaceId:null, interviewSubspaceId:null, goalDay:null, exerciseFilter:'all', exerciseIndexOpen:true, searchResults:[] };
 
 function readLS(k, fallback=null) { try { const raw = localStorage.getItem(k); return raw ? JSON.parse(raw) : fallback; } catch { return fallback; } }
-function writeLS(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (err) { console.error('writeLS failed:', err); return false; } }
+function writeLS(k, v) { localStorage.setItem(k, JSON.stringify(v)); }
 function removeLS(k) { localStorage.removeItem(k); }
 function uid() { return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
 function esc(v) { return String(v ?? '').replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s])); }
@@ -64,6 +102,8 @@ function fmtDate(v) { return v ? new Date(v).toLocaleString('pt-BR') : ''; }
 function showToast(msg) { const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show'); clearTimeout(showToast.t); showToast.t=setTimeout(()=>el.classList.remove('show'),2200); }
 function userDataKey(user) { return `mfhub.data.${user}.v4`; }
 function getThemeKey(user) { return `mfhub.theme.${user||'guest'}.v4`; }
+function getFontKey(user) { return `mfhub.font.${user||'guest'}.v4`; }
+function normalizeFontStyle(fontStyle) { return FONT_OPTIONS.some(opt => opt.value === fontStyle) ? fontStyle : 'share-tech'; }
 function getTodayGoalKey() {
   const keys = ['domingo','segunda','terca','quarta','quinta','sexta','sabado'];
   return keys[new Date().getDay()];
@@ -78,11 +118,10 @@ function baseData() {
     linkedinPosts: [],
     certificates: [],
     generalNotes: [],
-    noteCategories: [],
-    noteRecords: [],
     tools: [],
+    manuals: [],
+    profile: { photoData:'', photoName:'' },
     dailyGoals: {},
-    profile: { displayName:'', tagline:'', location:'', bio:'', links:'', photoData:'', photoName:'', updatedAt:0 },
     lab: { url:'', planUrl:'emunah-bank-lab.html', title:'EMUNAH BANK LAB' },
     meta: { seedVersion:0, lastSection:'dashboard', goalSeedVersion:0, selectedGoalDay:getTodayGoalKey() }
   };
@@ -96,19 +135,12 @@ function ensureDefaults() {
   appData.linkedinPosts ||= [];
   appData.certificates ||= [];
   appData.generalNotes ||= [];
-  appData.noteCategories ||= [];
-  appData.noteRecords ||= [];
   appData.tools ||= [];
-  appData.dailyGoals ||= {};
-  appData.profile ||= { displayName:'', tagline:'', location:'', bio:'', links:'', photoData:'', photoName:'', updatedAt:0 };
-  appData.profile.displayName ||= '';
-  appData.profile.tagline ||= '';
-  appData.profile.location ||= '';
-  appData.profile.bio ||= '';
-  appData.profile.links ||= '';
+  appData.manuals ||= [];
+  appData.profile ||= { photoData:'', photoName:'' };
   appData.profile.photoData ||= '';
   appData.profile.photoName ||= '';
-  appData.profile.updatedAt ||= 0;
+  appData.dailyGoals ||= {};
   appData.lab ||= { url:'', planUrl:'emunah-bank-lab.html', title:'EMUNAH BANK LAB' };
   appData.meta ||= { seedVersion:0, lastSection:'dashboard', goalSeedVersion:0, selectedGoalDay:getTodayGoalKey() };
   appData.meta.selectedGoalDay ||= getTodayGoalKey();
@@ -136,208 +168,14 @@ function loadUserData() {
   appData = Object.assign(baseData(), readLS(userDataKey(currentUser), null) || {});
   ensureDefaults();
 }
-function saveUserData() {
-  const ok = writeLS(userDataKey(currentUser), appData);
-  if (!ok && typeof showToast === 'function') showToast('Não foi possível salvar no navegador. Tente uma imagem menor.');
-  return ok;
+function saveUserData(options={}) {
+  writeLS(userDataKey(currentUser), appData);
+  if (!options.skipSync) scheduleCloudSync('data');
 }
-
-const PROFILE_IMAGE_MAX_INPUT_BYTES = 12 * 1024 * 1024;
-const PROFILE_IMAGE_TARGET_BYTES = 420 * 1024;
-const PROFILE_IMAGE_MAX_DIMENSION = 640;
-function getProfileData() {
-  appData.profile ||= { displayName:'', tagline:'', location:'', bio:'', links:'', photoData:'', photoName:'', updatedAt:0 };
-  return appData.profile;
-}
-function getSidebarDisplayName() {
-  const raw = String(getProfileData().displayName || currentUser || 'USER').trim();
-  return raw || String(currentUser || 'USER').trim() || 'USER';
-}
-function getSidebarMetaLines() {
-  const profile = getProfileData();
-  return [String(profile.tagline || '').trim(), String(profile.location || '').trim()].filter(Boolean);
-}
-function getProfileInitials(name) {
-  const parts = String(name || '').trim().split(/\s+/).filter(Boolean).slice(0, 2);
-  if (!parts.length) return '👤';
-  return parts.map(part => part[0]).join('').toUpperCase();
-}
-function renderSidebarIdentity() {
-  const userEl = document.getElementById('sidebar-user');
-  const metaEl = document.getElementById('sidebar-user-meta');
-  const avatarImg = document.getElementById('profile-avatar-image');
-  const avatarFallback = document.getElementById('profile-avatar-fallback');
-  const photo = String(getProfileData().photoData || '');
-  if (userEl) userEl.textContent = getSidebarDisplayName();
-  if (metaEl) {
-    const lines = getSidebarMetaLines();
-    metaEl.innerHTML = lines.length ? lines.map(item => `<div>${esc(item)}</div>`).join('') : '<div>Mainframe Hub</div>';
-  }
-  if (avatarImg) {
-    if (photo) {
-      avatarImg.src = photo;
-      avatarImg.hidden = false;
-    } else {
-      avatarImg.removeAttribute('src');
-      avatarImg.hidden = true;
-    }
-  }
-  if (avatarFallback) {
-    avatarFallback.textContent = photo ? '' : getProfileInitials(getSidebarDisplayName());
-    avatarFallback.style.display = photo ? 'none' : 'grid';
-  }
-}
-function readFileAsDataURL(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = e => resolve(String(e.target?.result || ''));
-    reader.onerror = () => reject(new Error('Falha ao ler a imagem.'));
-    reader.readAsDataURL(file);
-  });
-}
-function loadImageFromDataURL(dataUrl) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error('Falha ao abrir a imagem.'));
-    img.src = dataUrl;
-  });
-}
-function estimateDataUrlBytes(dataUrl) {
-  const base64 = String(dataUrl || '').split(',')[1] || '';
-  return Math.ceil((base64.length * 3) / 4);
-}
-async function optimizeProfileImage(file) {
-  if (!file) return null;
-  if (!String(file.type || '').startsWith('image/')) throw new Error('Escolha um arquivo de imagem válido.');
-  if (file.size > PROFILE_IMAGE_MAX_INPUT_BYTES) throw new Error('A imagem está grande demais. Use um arquivo de até 12 MB.');
-  const source = await readFileAsDataURL(file);
-  const image = await loadImageFromDataURL(source);
-  let scale = Math.min(1, PROFILE_IMAGE_MAX_DIMENSION / Math.max(image.naturalWidth || 1, image.naturalHeight || 1));
-  let width = Math.max(1, Math.round((image.naturalWidth || 1) * scale));
-  let height = Math.max(1, Math.round((image.naturalHeight || 1) * scale));
-  let quality = 0.88;
-  let data = '';
-  const render = () => {
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d', { alpha:true });
-    ctx.clearRect(0, 0, width, height);
-    ctx.drawImage(image, 0, 0, width, height);
-    return canvas.toDataURL('image/webp', quality);
-  };
-  data = render();
-  let attempts = 0;
-  while (estimateDataUrlBytes(data) > PROFILE_IMAGE_TARGET_BYTES && attempts < 8) {
-    if (quality > 0.56) quality = Math.max(0.56, quality - 0.08);
-    else {
-      width = Math.max(180, Math.round(width * 0.86));
-      height = Math.max(180, Math.round(height * 0.86));
-    }
-    data = render();
-    attempts += 1;
-  }
-  return {
-    data,
-    name: (String(file.name || 'perfil').replace(/\.[^.]+$/, '') || 'perfil') + '.webp',
-    type: 'image/webp',
-    bytes: estimateDataUrlBytes(data)
-  };
-}
-function setProfilePhotoPreview(src='') {
-  const img = document.getElementById('profile-photo-preview');
-  const empty = document.getElementById('profile-photo-preview-empty');
-  const help = document.getElementById('profile-photo-help');
-  if (img) {
-    if (src) {
-      img.src = src;
-      img.hidden = false;
-    } else {
-      img.removeAttribute('src');
-      img.hidden = true;
-    }
-  }
-  if (empty) empty.hidden = !!src;
-  if (help) help.textContent = src ? 'Prévia pronta. Ao salvar, a imagem será redimensionada para ficar leve e não falhar ao gravar.' : 'Escolha JPG, PNG ou WEBP. A imagem será redimensionada automaticamente para evitar falha ao salvar.';
-}
-async function previewProfilePhotoSelection() {
-  const file = document.getElementById('profile-photo-file')?.files?.[0] || null;
-  if (!file) return setProfilePhotoPreview(String(getProfileData().photoData || ''));
-  try {
-    const prepared = await optimizeProfileImage(file);
-    setProfilePhotoPreview(prepared?.data || '');
-  } catch (err) {
-    showToast(err.message || 'Não foi possível preparar a imagem.');
-    setProfilePhotoPreview(String(getProfileData().photoData || ''));
-  }
-}
-async function saveProfileModal() {
-  const profile = getProfileData();
-  profile.displayName = document.getElementById('profile-display-name')?.value.trim() || '';
-  profile.tagline = document.getElementById('profile-tagline')?.value.trim() || '';
-  profile.location = document.getElementById('profile-location')?.value.trim() || '';
-  profile.bio = document.getElementById('profile-bio')?.value.trim() || '';
-  profile.links = document.getElementById('profile-links')?.value.trim() || '';
-  const file = document.getElementById('profile-photo-file')?.files?.[0] || null;
-  try {
-    if (file) {
-      const prepared = await optimizeProfileImage(file);
-      profile.photoData = prepared.data;
-      profile.photoName = prepared.name;
-    }
-    profile.updatedAt = Date.now();
-    if (!saveUserData()) return;
-    renderSidebarIdentity();
-    closeModal();
-    showToast(file ? 'Perfil salvo com foto otimizada.' : 'Perfil salvo.');
-  } catch (err) {
-    console.error(err);
-    showToast(err.message || 'Não foi possível salvar o perfil.');
-  }
-}
-function clearProfilePhoto(closeAfter=true) {
-  const profile = getProfileData();
-  profile.photoData = '';
-  profile.photoName = '';
-  profile.updatedAt = Date.now();
-  const input = document.getElementById('profile-photo-file');
-  if (input) input.value = '';
-  if (!saveUserData()) return;
-  renderSidebarIdentity();
-  if (document.getElementById('profile-photo-preview') || document.getElementById('profile-photo-preview-empty')) setProfilePhotoPreview('');
-  if (closeAfter) closeModal();
-  showToast('Foto de perfil removida.');
-}
-function openProfileModal() {
-  const profile = Object.assign({ displayName:'', tagline:'', location:'', bio:'', links:'', photoData:'', photoName:'', updatedAt:0 }, getProfileData());
-  openModal('Perfil do usuário', `
-    <div class="cols-2">
-      <div class="panel">
-        <div class="panel-title">Identidade</div>
-        <div class="profile-photo-editor">
-          <div class="profile-photo-preview">
-            <img id="profile-photo-preview" src="${esc(profile.photoData || '')}" alt="Prévia da foto de perfil" ${profile.photoData ? '' : 'hidden'}>
-            <div id="profile-photo-preview-empty" class="profile-photo-preview-empty" ${profile.photoData ? 'hidden' : ''}>${esc(getProfileInitials(profile.displayName || currentUser || 'USER'))}</div>
-          </div>
-          <div class="row"><label class="lbl">Foto</label><input id="profile-photo-file" class="input" type="file" accept="image/png,image/jpeg,image/webp" onchange="previewProfilePhotoSelection()"></div>
-          <div id="profile-photo-help" class="auth-note">Escolha JPG, PNG ou WEBP. A imagem será redimensionada automaticamente para evitar falha ao salvar.</div>
-        </div>
-        <div class="row"><label class="lbl">Nome de exibição</label><input id="profile-display-name" class="input" value="${esc(profile.displayName)}" placeholder="Ex.: Eliel Miranda"></div>
-        <div class="row"><label class="lbl">Título</label><input id="profile-tagline" class="input" value="${esc(profile.tagline)}" placeholder="Ex.: Analista Mainframe"></div>
-        <div class="row"><label class="lbl">Local</label><input id="profile-location" class="input" value="${esc(profile.location)}" placeholder="Cidade / contexto"></div>
-      </div>
-      <div class="panel">
-        <div class="panel-title">Resumo</div>
-        <div class="row"><label class="lbl">Bio curta</label><textarea id="profile-bio" class="textarea">${esc(profile.bio)}</textarea></div>
-        <div class="row"><label class="lbl">Links</label><textarea id="profile-links" class="textarea" placeholder="Um por linha">${esc(profile.links)}</textarea></div>
-      </div>
-    </div>
-  `, `<button class="btn danger" onclick="clearProfilePhoto()">Remover foto</button><button class="btn primary" onclick="saveProfileModal()">Salvar perfil</button>`);
-}
-function setTheme(theme) {
+function setTheme(theme, options={}) {
   document.documentElement.dataset.theme = theme;
   if (currentUser) writeLS(getThemeKey(currentUser), theme);
+  if (!options.skipSync) scheduleCloudSync('theme');
 }
 function toggleTheme() {
   const current = document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
@@ -346,7 +184,291 @@ function toggleTheme() {
 }
 function applySavedTheme() {
   const theme = currentUser ? readLS(getThemeKey(currentUser), 'dark') : 'dark';
-  setTheme(theme || 'dark');
+  setTheme(theme || 'dark', { skipSync:true });
+}
+function getCurrentFontStyle() {
+  return normalizeFontStyle(document.documentElement.dataset.font || (currentUser ? readLS(getFontKey(currentUser), 'share-tech') : 'share-tech'));
+}
+function updateFontSelectorValue() {
+  const el = document.getElementById('font-style-select');
+  if (el) el.value = getCurrentFontStyle();
+}
+function setFontStyle(fontStyle, options={}) {
+  const normalized = normalizeFontStyle(fontStyle);
+  document.documentElement.dataset.font = normalized;
+  if (currentUser) writeLS(getFontKey(currentUser), normalized);
+  updateFontSelectorValue();
+  if (!options.skipSync) scheduleCloudSync('font');
+}
+function applySavedFontStyle() {
+  const fontStyle = currentUser ? readLS(getFontKey(currentUser), 'share-tech') : 'share-tech';
+  setFontStyle(fontStyle, { skipSync:true });
+}
+function hydrateFontSelectorElement(el) {
+  if (!el) return null;
+  if (el.dataset.ready === '1') {
+    updateFontSelectorValue();
+    return el;
+  }
+  el.innerHTML = '';
+  FONT_OPTIONS.forEach(opt => {
+    const option = document.createElement('option');
+    option.value = opt.value;
+    option.textContent = 'Fonte: ' + opt.label;
+    el.appendChild(option);
+  });
+  el.addEventListener('change', () => setFontStyle(el.value));
+  el.dataset.ready = '1';
+  updateFontSelectorValue();
+  return el;
+}
+function ensureFontSelectorElement() {
+  let el = document.getElementById('font-style-select');
+  if (el) return hydrateFontSelectorElement(el);
+  const topbar = document.getElementById('topbar-meta-group') || document.querySelector('.topbar');
+  if (!topbar) return null;
+  el = document.createElement('select');
+  el.id = 'font-style-select';
+  el.className = 'select topbar-font-select';
+  el.setAttribute('aria-label', 'Estilo de fonte');
+  const anchor = ensureCloudStatusElement() || document.getElementById('clock');
+  topbar.insertBefore(el, anchor);
+  return hydrateFontSelectorElement(el);
+}
+function renderSidebarIdentity() {
+  const avatarBtn = document.getElementById('profile-avatar-btn');
+  const avatarImg = document.getElementById('profile-avatar-image');
+  const avatarFallback = document.getElementById('profile-avatar-fallback');
+  const photo = String(appData?.profile?.photoData || '');
+  const photoPosition = String(appData?.profile?.photoPosition || 'center center');
+  if (avatarBtn) {
+    avatarBtn.style.backgroundImage = 'none';
+    avatarBtn.setAttribute('aria-label', 'Abrir perfil');
+    avatarBtn.style.setProperty('--profile-photo-position', photoPosition);
+  }
+  if (avatarImg) {
+    avatarImg.style.objectPosition = photoPosition;
+    if (photo) {
+      avatarImg.src = photo;
+      avatarImg.hidden = false;
+    } else {
+      avatarImg.removeAttribute('src');
+      avatarImg.hidden = true;
+    }
+  }
+  if (avatarFallback) avatarFallback.style.display = photo ? 'none' : 'block';
+}
+function openProfilePhotoModal() {
+  openModal('Foto de perfil', `
+    <div class="row"><label class="lbl">Imagem</label><input id="profile-photo-file" class="input" type="file" accept="image/*"></div>
+    <div class="auth-note">Escolha uma imagem JPG, PNG ou WEBP. Ela será salva junto com o seu estado do site e aparecerá na barra lateral.</div>
+    ${appData?.profile?.photoData ? `<div class="row"><img src="${esc(appData.profile.photoData)}" alt="Prévia" style="width:96px;height:96px;border-radius:50%;object-fit:cover;border:1px solid var(--border)"></div>` : ''}
+  `, `<button class="btn" onclick="clearProfilePhoto()">Remover foto</button><button class="btn primary" onclick="saveProfilePhoto()">Salvar foto</button>`);
+}
+function saveProfilePhoto() {
+  const file = document.getElementById('profile-photo-file')?.files?.[0];
+  if (!file) return showToast('Escolha uma imagem primeiro.');
+  const reader = new FileReader();
+  reader.onload = e => {
+    appData.profile ||= { photoData:'', photoName:'' };
+    appData.profile.photoData = String(e.target?.result || '');
+    appData.profile.photoName = file.name || 'perfil';
+    saveUserData();
+    renderSidebarIdentity();
+    closeModal();
+    showToast('Foto de perfil atualizada.');
+  };
+  reader.readAsDataURL(file);
+}
+function clearProfilePhoto() {
+  appData.profile ||= { photoData:'', photoName:'' };
+  appData.profile.photoData = '';
+  appData.profile.photoName = '';
+  saveUserData();
+  renderSidebarIdentity();
+  closeModal();
+  showToast('Foto de perfil removida.');
+}
+
+function ensureCloudStatusElement() {
+  let el = document.getElementById('cloud-sync-status');
+  if (el) return el;
+  const topbar = document.getElementById('topbar-meta-group') || document.querySelector('.topbar');
+  if (!topbar) return null;
+  el = document.createElement('span');
+  el.id = 'cloud-sync-status';
+  el.className = 'badge';
+  el.textContent = 'Nuvem local';
+  topbar.insertBefore(el, document.getElementById('clock'));
+  return el;
+}
+function setCloudStatus(state='local', text='Nuvem local') {
+  const el = ensureCloudStatusElement();
+  if (!el) return;
+  const icons = { local:'☁', syncing:'⟳', synced:'☁', error:'⚠' };
+  el.dataset.state = state;
+  el.textContent = `${icons[state] || '☁'} ${text}`;
+  el.title = lastCloudError || text;
+  el.style.borderColor = 'var(--border)';
+  el.style.color = 'var(--text-soft)';
+  if (state === 'syncing') {
+    el.style.borderColor = 'var(--warn)';
+    el.style.color = 'var(--warn)';
+  } else if (state === 'synced') {
+    el.style.borderColor = 'color-mix(in oklab, var(--accent) 35%, var(--border))';
+    el.style.color = 'var(--accent)';
+  } else if (state === 'error') {
+    el.style.borderColor = 'var(--danger)';
+    el.style.color = 'var(--danger)';
+  }
+}
+function canUseCloudSync() {
+  return !!(SUPABASE_ENABLED && supabaseClient && currentAuthIdentity?.id);
+}
+function payloadHasUserContent(payload) {
+  const p = Object.assign(baseData(), payload || {});
+  return Boolean(
+    (p.courses || []).length ||
+    (p.docs || []).length ||
+    (p.codeSpaces || []).length ||
+    (p.exerciseSpaces || []).length ||
+    (p.interviewSpaces || []).length ||
+    (p.linkedinPosts || []).length ||
+    (p.certificates || []).length ||
+    (p.generalNotes || []).length ||
+    (p.tools || []).length ||
+    Object.values(p.dailyGoals || {}).some(list => Array.isArray(list) && list.length) ||
+    (p.lab?.url)
+  );
+}
+function buildCloudArgs() {
+  return {
+    p_payload: appData,
+    p_theme: document.documentElement.dataset.theme === 'light' ? 'light' : 'dark',
+    p_font_style: getCurrentFontStyle(),
+    p_streak: getStreakData()
+  };
+}
+function isMissingRpcSignature(error) {
+  const msg = String(error?.message || '');
+  return msg.includes('Could not find the function public.' + CLOUD_RPC_PUT) || msg.includes('schema cache');
+}
+async function callPutStateRpc(args) {
+  const { error } = await supabaseClient.rpc(CLOUD_RPC_PUT, args);
+  if (error) throw error;
+  return true;
+}
+async function fetchCloudRow() {
+  if (!canUseCloudSync()) return null;
+  const { data, error } = await supabaseClient.rpc(CLOUD_RPC_GET);
+  if (error) throw error;
+  if (Array.isArray(data)) return data[0] || null;
+  return data || null;
+}
+async function pushCloudState(reason='manual') {
+  if (!canUseCloudSync()) {
+    setCloudStatus('local', 'Nuvem indisponível');
+    return false;
+  }
+  setCloudStatus('syncing', reason === 'bootstrap' ? 'Nuvem iniciando…' : 'Nuvem salvando…');
+  const fullArgs = buildCloudArgs();
+  try {
+    await callPutStateRpc(fullArgs);
+  } catch (error) {
+    if (!isMissingRpcSignature(error)) throw error;
+    const fallbacks = [
+      { p_payload: fullArgs.p_payload, p_theme: fullArgs.p_theme, p_streak: fullArgs.p_streak },
+      { p_payload: fullArgs.p_payload, p_theme: fullArgs.p_theme }
+    ];
+    let handled = false;
+    for (const fallbackArgs of fallbacks) {
+      try {
+        await callPutStateRpc(fallbackArgs);
+        handled = true;
+        break;
+      } catch (fallbackError) {
+        if (!isMissingRpcSignature(fallbackError)) throw fallbackError;
+      }
+    }
+    if (!handled) throw error;
+  }
+  lastCloudError = '';
+  setCloudStatus('synced', 'Nuvem ✓');
+  return true;
+}
+function scheduleCloudSync(reason='change') {
+  if (!currentUser) return;
+  if (!canUseCloudSync()) {
+    setCloudStatus('local', 'Nuvem local');
+    return;
+  }
+  clearTimeout(cloudSyncTimer);
+  setCloudStatus('syncing', 'Nuvem salvando…');
+  cloudSyncTimer = setTimeout(() => { flushCloudSync(reason); }, CLOUD_SYNC_DEBOUNCE_MS);
+}
+async function flushCloudSync(reason='manual') {
+  if (!canUseCloudSync()) return false;
+  clearTimeout(cloudSyncTimer);
+  cloudSyncTimer = null;
+  if (cloudSyncInFlight) {
+    cloudSyncQueued = true;
+    return false;
+  }
+  cloudSyncInFlight = true;
+  try {
+    await pushCloudState(reason);
+    return true;
+  } catch (error) {
+    console.error('MFHUB cloud sync failed:', error);
+    lastCloudError = error?.message || 'Falha ao sincronizar com a nuvem.';
+    setCloudStatus('error', 'Nuvem falha');
+    showToast('Falha na nuvem: ' + lastCloudError);
+    return false;
+  } finally {
+    cloudSyncInFlight = false;
+    if (cloudSyncQueued) {
+      cloudSyncQueued = false;
+      scheduleCloudSync('queued');
+    }
+  }
+}
+async function bootstrapCloudState() {
+  if (!currentUser) return;
+  ensureCloudStatusElement();
+  if (!canUseCloudSync()) {
+    setCloudStatus('local', SUPABASE_ENABLED ? 'Nuvem sem sessão' : 'Nuvem indisponível');
+    return;
+  }
+  try {
+    setCloudStatus('syncing', 'Nuvem carregando…');
+    const remote = await fetchCloudRow();
+    const localHadContent = payloadHasUserContent(appData);
+    if (!remote) {
+      await pushCloudState('bootstrap');
+      return;
+    }
+    if (!payloadHasUserContent(remote.payload) && localHadContent) {
+      await pushCloudState('bootstrap');
+      return;
+    }
+    appData = Object.assign(baseData(), remote.payload || {});
+    ensureDefaults();
+    writeLS(userDataKey(currentUser), appData);
+    if (remote.theme) setTheme(remote.theme, { skipSync:true });
+    if (remote.font_style) setFontStyle(remote.font_style, { skipSync:true });
+    const mergedStreak = mergeStreakData(getStreakData(), remote.streak);
+    writeLS(getStreakStorageKey(), mergedStreak);
+    ensureSeedData();
+    ensureDailyGoalsSeeded();
+    renderAll();
+    setCloudStatus('synced', 'Nuvem ✓');
+    if (JSON.stringify(mergedStreak) !== JSON.stringify(normalizeStreakData(remote.streak))) scheduleCloudSync('streak-merge');
+  } catch (error) {
+    console.error('MFHUB cloud bootstrap failed:', error);
+    lastCloudError = error?.message || 'Falha ao carregar os dados da nuvem.';
+    setCloudStatus('error', 'Nuvem falha');
+    showToast('Falha na nuvem: ' + lastCloudError);
+  }
 }
 
 function saveRememberedLogin(identifier) {
@@ -424,6 +546,8 @@ function showLoginScreen(mode='login') {
   document.documentElement.removeAttribute('data-auth');
   const ls = document.getElementById('login-screen');
   const app = document.getElementById('app');
+  const loading = document.getElementById('loading-screen');
+  if (loading) loading.remove();
   if (ls)  { ls.style.display  = 'flex'; }
   if (app) { app.style.display = 'none'; }
   toggleAuth(mode);
@@ -449,6 +573,7 @@ async function doLogin() {
   if (error) return setFieldText('login-error', error.message || 'Não foi possível entrar.');
   if (remember) saveRememberedLogin(email); else clearRememberedLogin();
   const identity = getAuthIdentity(data.user);
+  currentAuthIdentity = identity;
   writeLS(SESSION_KEY, { user:identity.storageUser, displayName:identity.displayName, email:identity.email, provider:'supabase' });
   cleanupAuthUrl();
   startApp(identity.storageUser, identity.displayName);
@@ -521,6 +646,7 @@ async function doRegister() {
   setFieldText('register-help', `Conta criada para <strong>${esc(email)}</strong>. Verifique sua caixa de entrada e spam.`, true);
   if (data?.session?.user) {
     const identity = getAuthIdentity(data.session.user);
+    currentAuthIdentity = identity;
     writeLS(SESSION_KEY, { user:identity.storageUser, displayName:identity.displayName, email:identity.email, provider:'supabase' });
     startApp(identity.storageUser, identity.displayName);
     return;
@@ -565,12 +691,14 @@ async function resetPassword() {
   showToast('Senha redefinida.');
 }
 async function logout() {
+  try { await flushCloudSync('logout'); } catch (e) {}
   removeLS(SESSION_KEY);
   currentUser = null;
+  currentAuthIdentity = null;
   appData = null;
   document.documentElement.removeAttribute('data-auth');
   if (SUPABASE_ENABLED) {
-    try { await supabaseClient.auth.signOut(); } catch (e) {}
+    try { await supabaseClient.auth.signOut(); } catch (e) { console.warn('Logout remoto falhou:', e.message); }
   }
   location.reload();
 }
@@ -589,6 +717,7 @@ async function tryRestoreSession() {
   }
   if (!data?.session?.user) return false;
   const identity = getAuthIdentity(data.session.user);
+  currentAuthIdentity = identity;
   writeLS(SESSION_KEY, { user:identity.storageUser, displayName:identity.displayName, email:identity.email, provider:'supabase' });
   startApp(identity.storageUser, identity.displayName);
   return true;
@@ -596,6 +725,8 @@ async function tryRestoreSession() {
 function bindSupabaseAuthEvents() {
   if (!SUPABASE_ENABLED) return;
   supabaseClient.auth.onAuthStateChange((event, session) => {
+    if (session?.user) currentAuthIdentity = getAuthIdentity(session.user);
+    if (event === 'SIGNED_OUT') currentAuthIdentity = null;
     if (event === 'PASSWORD_RECOVERY') {
       document.getElementById('recovery-email').value = session?.user?.email || '';
       showLoginScreen('recovery');
@@ -603,28 +734,34 @@ function bindSupabaseAuthEvents() {
     }
   });
 }
-function startApp(user, displayName = user) {
+async function startApp(user, displayName = user) {
   // Esconde a tela de login IMEDIATAMENTE antes de qualquer outra operação
   document.documentElement.dataset.auth = '1';
+  const loading = document.getElementById('loading-screen');
+  if (loading) loading.remove();
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   currentUser = user;
   loadUserData();
   applySavedTheme();
+  applySavedFontStyle();
   ensureSeedData();
   ensureDailyGoalsSeeded();
   updateStreak();
-  const profile = getProfileData();
-  if (!profile.displayName) profile.displayName = String(displayName || user).trim();
+  document.getElementById('sidebar-user').textContent = String(displayName || user).toUpperCase();
   renderSidebarIdentity();
   document.getElementById('app').style.display = 'block';
   startClock();
+  ensureFontSelectorElement();
+  ensureCloudStatusElement();
+  setCloudStatus(canUseCloudSync() ? 'syncing' : 'local', canUseCloudSync() ? 'Nuvem carregando…' : 'Nuvem local');
   // Restore section from URL hash (browser back/forward support), fallback to saved last section
   const hashSection = location.hash.slice(1);
   const initialSection = (hashSection && document.getElementById('section-' + hashSection))
     ? hashSection
     : (appData.meta.lastSection || 'dashboard');
   goSection(initialSection, !hashSection);  // don't push if hash was already in URL
+  await bootstrapCloudState();
 }
 function setMissingSupabaseHelp() {
   if (SUPABASE_ENABLED) return;
@@ -873,6 +1010,7 @@ function renderGoals() {
   const todaySummary = getGoalSummary(getGoalDay(todayKey));
   const suggestions = getGoalSuggestions(selectedDay).slice(0, 4);
   const overdue = getOverdueGoalsForToday();
+  const streak = getStreakData();
   section.innerHTML = `
     <div class="headline">
       <div><div class="title">Metas diárias</div><div class="subtitle">Sistema personalizável com tarefas marcáveis e sugestões baseadas no conteúdo do site</div></div>
@@ -890,6 +1028,7 @@ function renderGoals() {
       <div class="kpi"><div class="kpi-label">Concluídas</div><div class="kpi-value">${summary.done}</div><div class="kpi-sub">marcadas ou completas</div></div>
       <div class="kpi"><div class="kpi-label">Progresso do dia</div><div class="kpi-value">${summary.pct}%</div><div class="kpi-sub">das metas do dia</div></div>
       <div class="kpi"><div class="kpi-label">Hoje</div><div class="kpi-value">${todaySummary.pct}%</div><div class="kpi-sub">andamento do dia atual</div></div>
+      <div class="kpi" style="border-color:var(--warn)"><div class="kpi-label">Sequência</div><div class="kpi-value" style="color:var(--warn)">🔥 ${streak.count}</div><div class="kpi-sub">dias seguidos · recorde ${streak.longest}</div></div>
     </div>
     <div class="goal-grid">
       <div class="stack">
@@ -972,12 +1111,11 @@ function updateStatus() {
     linkedin: appData.linkedinPosts.length,
     certs: appData.certificates.length,
     notes: appData.generalNotes.length,
-    noteCategories: appData.noteCategories.length,
-    noteRecords: appData.noteRecords.length,
     tools: appData.tools.length,
+    manuals: appData.manuals.length,
     goals: Object.values(appData.dailyGoals || {}).reduce((a,list)=>a+(Array.isArray(list)?list.length:0),0),
   };
-  document.getElementById('status-stats').textContent = `${totals.courses} cursos · ${totals.docs} docs · ${totals.code} códigos · ${totals.ex + totals.iv} questões · ${totals.linkedin} posts · ${totals.certs} badges · ${totals.tools} ferramentas · ${totals.notes} notas · ${totals.noteCategories} categorias · ${totals.noteRecords} registros · ${totals.goals} metas`;
+  document.getElementById('status-stats').textContent = `${totals.courses} cursos · ${totals.docs} docs · ${totals.code} códigos · ${totals.ex + totals.iv} questões · ${totals.linkedin} posts · ${totals.certs} badges · ${totals.tools} ferramentas · ${totals.manuals} manuais · ${totals.notes} notas · ${totals.goals} metas`;
 }
 
 function renderDashboard() {
@@ -985,24 +1123,26 @@ function renderDashboard() {
   const todayKey = getTodayGoalKey();
   const todayGoals = getGoalDay(todayKey);
   const todaySummary = getGoalSummary(todayGoals);
+  const kpiCards = [
+    { icon:'📂', label:'Cursos', value:appData.courses.length, sub:'com módulos, submódulos e vídeos' },
+    { icon:'📋', label:'Docs', value:appData.docs.length, sub:'editor + anexos' },
+    { icon:'💻', label:'Exemplos', value:appData.codeSpaces.reduce((a,s)=>a+(s.subspaces?.length||0),0), sub:'subespaços de código' },
+    { icon:'🧰', label:'Ferramentas', value:appData.tools.length, sub:'links + instruções' },
+    { icon:'📚', label:'Manuais', value:appData.manuals.length, sub:'categorias com texto e anexos' },
+    { icon:'🏅', label:'Certificados', value:appData.certificates.length, sub:'com imagem opcional' },
+    { icon:'📈', label:'Progresso médio', value:`${courseAvg}%`, sub:'dos cursos' },
+    { icon:'🔥', label:'Sequência', value:getStreakData().count, sub:`dias seguidos · recorde ${getStreakData().longest}`, warn:true }
+  ];
   document.getElementById('section-dashboard').innerHTML = `
     <div class="headline">
       <div><div class="title">Dashboard</div><div class="subtitle">Visão geral, busca, terminal de login, cursos com vídeos e área de ferramentas</div></div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <div class="dashboard-toolbar">
         <button class="btn" onclick="toggleTheme()">🌓 Tema</button>
         <button class="btn" onclick="goSection('goals')">🎯 Metas</button>
-        <button class="btn primary" onclick="openImportCenter()">Importar conteúdo</button>
-        <button class="btn" onclick="exportAllData()">⬇ Exportar backup</button>
       </div>
     </div>
     <div class="kpis">
-      <div class="kpi"><div class="kpi-label">Cursos</div><div class="kpi-value">${appData.courses.length}</div><div class="kpi-sub">com módulos, submódulos e vídeos</div></div>
-      <div class="kpi"><div class="kpi-label">Docs</div><div class="kpi-value">${appData.docs.length}</div><div class="kpi-sub">editor + anexos</div></div>
-      <div class="kpi"><div class="kpi-label">Exemplos</div><div class="kpi-value">${appData.codeSpaces.reduce((a,s)=>a+(s.subspaces?.length||0),0)}</div><div class="kpi-sub">subespaços de código</div></div>
-      <div class="kpi"><div class="kpi-label">Ferramentas</div><div class="kpi-value">${appData.tools.length}</div><div class="kpi-sub">links + instruções</div></div>
-      <div class="kpi"><div class="kpi-label">Certificados</div><div class="kpi-value">${appData.certificates.length}</div><div class="kpi-sub">com imagem opcional</div></div>
-      <div class="kpi"><div class="kpi-label">Progresso médio</div><div class="kpi-value">${courseAvg}%</div><div class="kpi-sub">dos cursos</div></div>
-      <div class="kpi" style="border-color:var(--warn)"><div class="kpi-label">Sequência</div><div class="kpi-value" style="color:var(--warn)">${getStreakData().count}🔥</div><div class="kpi-sub">dias seguidos · recorde ${getStreakData().longest}</div></div>
+      ${kpiCards.map(item => `<div class="kpi" ${item.warn ? 'style="border-color:var(--warn)"' : ''}><div class="kpi-head"><div class="kpi-label">${esc(item.label)}</div><div class="kpi-icon">${item.icon}</div></div><div class="kpi-value" ${item.warn ? 'style="color:var(--warn)"' : ''}>${esc(String(item.value))}</div><div class="kpi-sub">${esc(item.sub)}</div></div>`).join('')}
     </div>
     <div class="panel" style="margin-bottom:16px;border-left:4px solid var(--accent);background:linear-gradient(135deg,var(--surface),var(--surface-2))">
       <div style="display:flex;align-items:flex-start;gap:14px">
@@ -1044,6 +1184,7 @@ function renderDashboard() {
         ['🔗','Postagem LinkedIn','linkedin','Rascunhos prontos para revisar e postar depois.'],
         ['🏅','Certificados e badges','certs','Conquistados e a conquistar, com imagem opcional.'],
         ['🧰','Ferramentas','tools','Catálogo de ferramentas com download, site oficial e instruções.'],
+        ['📚','Manuais','manuals','Categorias com texto livre e até 5 anexos por manual.'],
         ['⬡','Emunah Lab','lab','Área isolada do restante do conteúdo.']
       ].map(x=>`<div class="card clickable" onclick="goSection('${x[2]}')"><div class="card-icon">${x[0]}</div><div class="card-title">${x[1]}</div><div class="card-meta">${x[3]}</div></div>`).join('')}
     </div>
@@ -1669,114 +1810,28 @@ function deleteSubspace(kind, spaceId, subId) {
 }
 
 
-
 function renderNotes() {
   const wrap = document.getElementById('section-notes');
-  const noteCount = appData.generalNotes.length;
-  const categoryCount = appData.noteCategories.length;
-  const recordCount = appData.noteRecords.length;
-  const uncategorizedCount = appData.noteRecords.filter(record => !record.categoryId).length;
-  const categoryMap = new Map((appData.noteCategories || []).map(category => [category.id, category]));
   wrap.innerHTML = `
     <div class="headline">
-      <div><div class="title">Anotações</div><div class="subtitle">Notas editáveis, categorias independentes e registros classificados</div></div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap">
-        <button class="btn" onclick="openNoteCategoryModal()">Nova categoria</button>
-        <button class="btn" onclick="openNoteRecordModal()">Novo registro</button>
-        <button class="btn primary" onclick="createInlineGeneralNote()">Nova anotação</button>
-      </div>
+      <div><div class="title">Anotações gerais</div><div class="subtitle">Notas livres para estudos, ideias, lembretes e planos</div></div>
+      <button class="btn primary" onclick="openGeneralNoteModal()">Nova anotação</button>
     </div>
-    <div class="kpis" style="margin-bottom:16px">
-      <div class="kpi"><div class="kpi-label">Anotações</div><div class="kpi-value">${noteCount}</div><div class="kpi-sub">editáveis após salvar</div></div>
-      <div class="kpi"><div class="kpi-label">Categorias</div><div class="kpi-value">${categoryCount}</div><div class="kpi-sub">sem sobrescrever as anteriores</div></div>
-      <div class="kpi"><div class="kpi-label">Registros</div><div class="kpi-value">${recordCount}</div><div class="kpi-sub">classificados por categoria</div></div>
-      <div class="kpi"><div class="kpi-label">Sem categoria</div><div class="kpi-value">${uncategorizedCount}</div><div class="kpi-sub">registros ainda não classificados</div></div>
-    </div>
-    <div class="notes-layout">
-      <div class="stack">
-        <div class="panel">
-          <div class="panel-title">Anotações livres</div>
-          ${(appData.generalNotes || []).length ? appData.generalNotes.map(note => `
-            <div class="note-editor-card" id="general-note-${note.id}">
-              <div class="row-top">
-                <div>
-                  <div class="row-title">${esc(note.title || 'Anotação')}</div>
-                  <div class="row-sub">${fmtDate(note.updatedAt || note.createdAt)}</div>
-                </div>
-                <div class="row-actions">
-                  <button class="btn xs" onclick="saveInlineGeneralNote('${note.id}')">Salvar</button>
-                  <button class="btn xs danger" onclick="deleteGeneralNote('${note.id}')">Excluir</button>
-                </div>
-              </div>
-              <div class="row" style="margin-top:12px"><label class="lbl">Título</label><input id="gn-inline-title-${note.id}" class="input" value="${esc(note.title || '')}" placeholder="Título da anotação"></div>
-              <div class="row" style="margin-bottom:0"><label class="lbl">Conteúdo</label><textarea id="gn-inline-content-${note.id}" class="textarea note-inline-textarea" placeholder="Escreva sua anotação aqui...">${esc(note.content || '')}</textarea></div>
+    <div class="stack">
+      ${appData.generalNotes.length ? appData.generalNotes.map(note => `
+        <div class="panel" id="general-note-${note.id}">
+          <div class="row-top">
+            <div><div class="row-title">${esc(note.title)}</div><div class="row-sub">${fmtDate(note.updatedAt || note.createdAt)}</div></div>
+            <div class="row-actions">
+              <button class="btn xs" onclick="openGeneralNoteModal('${note.id}')">Editar</button>
+              <button class="btn xs danger" onclick="deleteGeneralNote('${note.id}')">Excluir</button>
             </div>
-          `).join('') : '<div class="empty">Nenhuma anotação geral cadastrada.</div>'}
-        </div>
-      </div>
-      <div class="stack">
-        <div class="panel">
-          <div class="panel-title">Categorias</div>
-          <div class="row-text" style="margin-top:0">As categorias são criadas uma vez e depois você escolhe uma delas ao criar um registro.</div>
-          <div class="stack" style="margin-top:12px">
-            ${(appData.noteCategories || []).length ? appData.noteCategories.map(category => `
-              <div class="row-item" id="note-category-${category.id}">
-                <div class="row-top">
-                  <div>
-                    <div class="row-title">${esc(category.name)}</div>
-                    <div class="row-sub">${appData.noteRecords.filter(record => record.categoryId === category.id).length} registro(s)</div>
-                  </div>
-                  <div class="row-actions">
-                    <button class="btn xs" onclick="openNoteCategoryModal('${category.id}')">Editar</button>
-                    <button class="btn xs danger" onclick="deleteNoteCategory('${category.id}')">Excluir</button>
-                  </div>
-                </div>
-              </div>
-            `).join('') : '<div class="empty">Nenhuma categoria criada ainda.</div>'}
           </div>
+          <div class="row-text">${nl2br(note.content || '')}</div>
         </div>
-        <div class="panel">
-          <div class="row-top" style="margin-bottom:12px">
-            <div>
-              <div class="panel-title" style="margin-bottom:4px">Registros</div>
-              <div class="row-sub">Cada registro é criado separadamente e pode ser classificado em uma categoria existente.</div>
-            </div>
-            <button class="btn xs" onclick="openNoteRecordModal()">Novo registro</button>
-          </div>
-          <div class="stack">
-            ${(appData.noteRecords || []).length ? appData.noteRecords.map(record => {
-              const category = categoryMap.get(record.categoryId);
-              return `
-                <div class="row-item" id="note-record-${record.id}">
-                  <div class="row-top">
-                    <div>
-                      <div class="row-title">${esc(record.title || 'Registro sem título')}</div>
-                      <div class="row-sub">${category ? esc(category.name) : 'Sem categoria'} · ${fmtDate(record.updatedAt || record.createdAt)}</div>
-                    </div>
-                    <div class="row-actions">
-                      <button class="btn xs" onclick="openNoteRecordModal('${record.id}')">Editar</button>
-                      <button class="btn xs danger" onclick="deleteNoteRecord('${record.id}')">Excluir</button>
-                    </div>
-                  </div>
-                  ${record.content ? `<div class="row-text">${nl2br(record.content)}</div>` : '<div class="empty" style="margin-top:12px">Sem conteúdo neste registro.</div>'}
-                </div>
-              `;
-            }).join('') : '<div class="empty">Nenhum registro criado ainda.</div>'}
-          </div>
-        </div>
-      </div>
+      `).join('') : '<div class="empty">Nenhuma anotação geral cadastrada.</div>'}
     </div>
   `;
-}
-function createInlineGeneralNote() {
-  const note = { id:uid(), title:'', content:'', createdAt:Date.now(), updatedAt:Date.now(), isDraft:true };
-  appData.generalNotes.unshift(note);
-  saveUserData();
-  renderNotes();
-  requestAnimationFrame(() => {
-    document.getElementById(`gn-inline-title-${note.id}`)?.focus();
-    focusSectionElement(`general-note-${note.id}`);
-  });
 }
 function openGeneralNoteModal(noteId='') {
   const note = noteId ? appData.generalNotes.find(n => n.id === noteId) : null;
@@ -1785,101 +1840,23 @@ function openGeneralNoteModal(noteId='') {
     <div class="row"><label class="lbl">Conteúdo</label><textarea id="gn-content" class="textarea" style="min-height:260px">${esc(note?.content || '')}</textarea></div>
   `, `<button class="btn primary" onclick="saveGeneralNote('${noteId}')">Salvar</button>`);
 }
-function saveInlineGeneralNote(noteId) {
-  const note = appData.generalNotes.find(n => n.id === noteId); if (!note) return;
-  const title = document.getElementById(`gn-inline-title-${noteId}`)?.value.trim() || '';
-  const content = document.getElementById(`gn-inline-content-${noteId}`)?.value || '';
-  if (!title && !content.trim()) return showToast('Preencha o título ou o conteúdo antes de salvar.');
-  note.title = title || 'Anotação sem título';
-  note.content = content;
-  note.updatedAt = Date.now();
-  delete note.isDraft;
-  saveUserData();
-  renderNotes();
-  renderDashboard();
-  updateStatus();
-  showToast('Anotação salva.');
-}
 function saveGeneralNote(noteId='') {
   const title = document.getElementById('gn-title').value.trim();
   const content = document.getElementById('gn-content').value;
-  if (!title && !content.trim()) return;
+  if (!title) return;
   if (noteId) {
     const note = appData.generalNotes.find(n => n.id === noteId); if (!note) return;
-    note.title = title || 'Anotação sem título'; note.content = content; note.updatedAt = Date.now(); delete note.isDraft;
+    note.title = title; note.content = content; note.updatedAt = Date.now();
   } else {
-    appData.generalNotes.unshift({ id:uid(), title: title || 'Anotação sem título', content, createdAt:Date.now(), updatedAt:Date.now() });
+    appData.generalNotes.unshift({ id:uid(), title, content, createdAt:Date.now(), updatedAt:Date.now() });
   }
-  saveUserData(); closeModal(); renderNotes(); renderDashboard(); updateStatus(); showToast(noteId ? 'Anotação atualizada.' : 'Anotação criada.');
+  saveUserData(); closeModal(); renderNotes(); updateStatus(); showToast(noteId ? 'Anotação atualizada.' : 'Anotação criada.');
 }
 function deleteGeneralNote(noteId) {
   const name = appData.generalNotes.find(n => n.id === noteId)?.title || 'esta anotação';
   if (!confirm(`Deseja mesmo excluir "${name}"?`)) return;
   appData.generalNotes = appData.generalNotes.filter(n => n.id !== noteId);
-  saveUserData(); renderNotes(); renderDashboard(); updateStatus(); showToast('Anotação removida.');
-}
-function openNoteCategoryModal(categoryId='') {
-  const category = categoryId ? appData.noteCategories.find(c => c.id === categoryId) : null;
-  openModal(category ? 'Editar categoria' : 'Nova categoria', `
-    <div class="row"><label class="lbl">Nome da categoria</label><input id="note-category-name" class="input" value="${esc(category?.name || '')}" placeholder="Ex.: LAB, ZXPLORER, FUTURE"></div>
-  `, `<button class="btn primary" onclick="saveNoteCategory('${categoryId}')">Salvar</button>`);
-}
-function saveNoteCategory(categoryId='') {
-  const name = document.getElementById('note-category-name').value.trim();
-  if (!name) return;
-  const duplicate = appData.noteCategories.find(category => category.name.trim().toLowerCase() === name.toLowerCase() && category.id !== categoryId);
-  if (duplicate) return showToast('Já existe uma categoria com esse nome.');
-  if (categoryId) {
-    const category = appData.noteCategories.find(c => c.id === categoryId); if (!category) return;
-    category.name = name;
-    category.updatedAt = Date.now();
-  } else {
-    appData.noteCategories.push({ id:uid(), name, createdAt:Date.now(), updatedAt:Date.now() });
-  }
-  saveUserData(); closeModal(); renderNotes(); updateStatus(); showToast(categoryId ? 'Categoria atualizada.' : 'Categoria criada.');
-}
-function deleteNoteCategory(categoryId) {
-  const category = appData.noteCategories.find(c => c.id === categoryId);
-  if (!category) return;
-  const linkedRecords = appData.noteRecords.filter(record => record.categoryId === categoryId).length;
-  const msg = linkedRecords
-    ? `A categoria "${category.name}" está ligada a ${linkedRecords} registro(s). Excluir mesmo assim? Os registros ficarão sem categoria.`
-    : `Deseja mesmo excluir "${category.name}"?`;
-  if (!confirm(msg)) return;
-  appData.noteCategories = appData.noteCategories.filter(c => c.id !== categoryId);
-  appData.noteRecords.forEach(record => { if (record.categoryId === categoryId) record.categoryId = ''; });
-  saveUserData(); renderNotes(); updateStatus(); showToast('Categoria removida.');
-}
-function openNoteRecordModal(recordId='') {
-  const record = recordId ? appData.noteRecords.find(r => r.id === recordId) : null;
-  const categoryOptions = [`<option value="">Sem categoria</option>`].concat(
-    (appData.noteCategories || []).map(category => `<option value="${category.id}" ${record?.categoryId === category.id ? 'selected' : ''}>${esc(category.name)}</option>`)
-  ).join('');
-  openModal(record ? 'Editar registro' : 'Novo registro', `
-    <div class="row"><label class="lbl">Título do registro</label><input id="note-record-title" class="input" value="${esc(record?.title || '')}" placeholder="Ex.: Ajuste no ambiente de LAB"></div>
-    <div class="row"><label class="lbl">Categoria</label><select id="note-record-category" class="select">${categoryOptions}</select></div>
-    <div class="row"><label class="lbl">Conteúdo</label><textarea id="note-record-content" class="textarea" style="min-height:240px" placeholder="Detalhes do registro">${esc(record?.content || '')}</textarea></div>
-  `, `<button class="btn primary" onclick="saveNoteRecord('${recordId}')">Salvar</button>`);
-}
-function saveNoteRecord(recordId='') {
-  const title = document.getElementById('note-record-title').value.trim();
-  const categoryId = document.getElementById('note-record-category').value;
-  const content = document.getElementById('note-record-content').value;
-  if (!title && !content.trim()) return;
-  const payload = { title: title || 'Registro sem título', categoryId, content, updatedAt:Date.now() };
-  if (recordId) {
-    const record = appData.noteRecords.find(r => r.id === recordId); if (!record) return;
-    Object.assign(record, payload);
-  } else {
-    appData.noteRecords.unshift({ id:uid(), createdAt:Date.now(), ...payload });
-  }
-  saveUserData(); closeModal(); renderNotes(); updateStatus(); showToast(recordId ? 'Registro atualizado.' : 'Registro criado.');
-}
-function deleteNoteRecord(recordId) {
-  const name = appData.noteRecords.find(record => record.id === recordId)?.title || 'este registro';
-  if (!confirm(`Deseja mesmo excluir "${name}"?`)) return;
-  appData.noteRecords = appData.noteRecords.filter(record => record.id !== recordId);
-  saveUserData(); renderNotes(); updateStatus(); showToast('Registro removido.');
+  saveUserData(); renderNotes(); updateStatus(); showToast('Anotação removida.');
 }
 
 function renderLinkedin() {
@@ -2093,6 +2070,76 @@ function deleteTool(toolId) {
   saveUserData(); renderTools(); renderDashboard(); updateStatus(); showToast('Ferramenta removida.');
 }
 
+
+function renderManuals() {
+  const wrap = document.getElementById('section-manuals');
+  const manual = appData.manuals.find(m => m.id === currentDetail.manualId);
+  if (!manual) {
+    wrap.innerHTML = `
+      <div class="headline">
+        <div><div class="title">Manuais</div><div class="subtitle">Crie categorias de manuais com texto livre e até 5 anexos</div></div>
+        <button class="btn primary" onclick="openManualModal()">Nova categoria</button>
+      </div>
+      <div class="manual-grid">
+        ${appData.manuals.map(m => `<div class="card clickable" id="manual-card-${m.id}" onclick="openManual('${m.id}')"><div class="card-actions"><button class="btn xs" onclick="event.stopPropagation();openManualModal('${m.id}')">Editar</button><button class="btn xs danger" onclick="event.stopPropagation();deleteManual('${m.id}')">Excluir</button></div><div class="card-icon">📚</div><div class="card-title">${esc(m.name)}</div><div class="manual-card-meta">${esc(m.desc||'Sem descrição')}<br>${(m.attachments||[]).length} anexos</div></div>`).join('')}
+        <div class="card new clickable" onclick="openManualModal()"><div><div style="font-size:30px;text-align:center">+</div><div>Nova categoria</div></div></div>
+      </div>
+    `;
+    return;
+  }
+  wrap.innerHTML = `
+    <div class="back" onclick="backToManualList()">← Voltar</div>
+    <div class="headline">
+      <div><div class="title">${esc(manual.name)}</div><div class="subtitle">${esc(manual.desc||'Manual')}</div></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn" onclick="uploadAttachmentsModal('manual','${manual.id}')">Arquivos</button>
+        <button class="btn" onclick="openManualModal('${manual.id}')">Editar categoria</button>
+        <button class="btn primary" onclick="saveManualContent('${manual.id}')">Salvar</button>
+      </div>
+    </div>
+    <div class="cols-2">
+      <div class="panel">
+        <div class="panel-title">Texto do manual</div>
+        <textarea id="manual-editor" class="textarea" style="min-height:440px">${esc(manual.content||'')}</textarea>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Arquivos (até 5)</div>
+        ${renderAttachments(manual.attachments||[], 'manual', manual.id)}
+      </div>
+    </div>
+  `;
+}
+function openManualModal(manualId='') {
+  const manual = manualId ? appData.manuals.find(m => m.id === manualId) : null;
+  openModal(manual ? 'Editar categoria de manual' : 'Nova categoria de manual', `<div class="row"><label class="lbl">Nome da categoria</label><input id="manual-name" class="input" value="${esc(manual?.name || '')}"></div><div class="row"><label class="lbl">Descrição</label><input id="manual-desc" class="input" value="${esc(manual?.desc || '')}"></div>`, `<button class="btn primary" onclick="saveManual('${manualId}')">Salvar</button>`);
+}
+function saveManual(manualId='') {
+  const name = document.getElementById('manual-name').value.trim();
+  const desc = document.getElementById('manual-desc').value.trim();
+  if (!name) return;
+  if (manualId) {
+    const manual = appData.manuals.find(m => m.id === manualId); if (!manual) return;
+    manual.name = name; manual.desc = desc;
+  } else {
+    appData.manuals.push({ id:uid(), name, desc, content:'', attachments:[], createdAt:Date.now() });
+  }
+  saveUserData(); closeModal(); renderManuals(); renderDashboard(); updateStatus(); showToast(manualId ? 'Categoria atualizada.' : 'Categoria criada.');
+}
+function openManual(id) { currentDetail.manualId = id; renderManuals(); }
+function backToManualList() { currentDetail.manualId = null; renderManuals(); }
+function deleteManual(id) {
+  const name = appData.manuals.find(m => m.id === id)?.name || 'esta categoria';
+  if (!confirm(`Deseja mesmo excluir "${name}"?`)) return;
+  appData.manuals = appData.manuals.filter(m => m.id !== id);
+  currentDetail.manualId = null;
+  saveUserData(); renderManuals(); renderDashboard(); updateStatus(); showToast('Categoria removida.');
+}
+function saveManualContent(id) {
+  const manual = appData.manuals.find(m => m.id === id); if (!manual) return;
+  manual.content = document.getElementById('manual-editor').value;
+  saveUserData(); showToast('Manual salvo.');
+}
+
 function renderLab() {
   const v = getDailyVerse();
   const planUrl = appData.lab.planUrl || 'emunah-bank-lab.html';
@@ -2176,6 +2223,7 @@ function renderAttachments(files, type, id1, id2='', id3='') {
 }
 function resolveAttachmentHolder(type, id1, id2='', id3='') {
   if (type==='doc') return appData.docs.find(d=>d.id===id1);
+  if (type==='manual') return appData.manuals.find(m=>m.id===id1);
   if (type==='course-module') return appData.courses.find(c=>c.id===id1)?.modules?.find(m=>m.id===id2);
   if (type==='course-submodule') return appData.courses.find(c=>c.id===id1)?.modules?.find(m=>m.id===id3)?.submodules?.find(s=>s.id===id2);
   if (type==='code-subspace') return appData.codeSpaces.find(s=>s.id===id1)?.subspaces?.find(ss=>ss.id===id2);
@@ -2346,13 +2394,6 @@ function handleSearch(query) {
   appData.generalNotes.forEach(note => {
     if ((note.title+' '+note.content).toLowerCase().includes(q)) results.push({ area:'Anotações gerais', title:note.title, text:note.content.slice(0,220), target:{ section:'notes', focusId:`general-note-${note.id}` } });
   });
-  appData.noteCategories.forEach(category => {
-    if ((category.name || '').toLowerCase().includes(q)) results.push({ area:'Categorias de anotações', title:category.name, text:`${appData.noteRecords.filter(record => record.categoryId === category.id).length} registro(s)`, target:{ section:'notes', focusId:`note-category-${category.id}` } });
-  });
-  appData.noteRecords.forEach(record => {
-    const category = appData.noteCategories.find(item => item.id === record.categoryId);
-    if ((record.title+' '+(record.content || '')+' '+(category?.name || '')).toLowerCase().includes(q)) results.push({ area:'Registros', title:record.title || 'Registro sem título', text:[category?.name || 'Sem categoria', (record.content || '')].join(' · ').slice(0,220), target:{ section:'notes', focusId:`note-record-${record.id}` } });
-  });
   appData.tools.forEach(tool => {
     if ((tool.name+' '+(tool.category||'')+' '+(tool.instructions||'')+' '+(tool.downloadUrl||'')+' '+(tool.websiteUrl||'')).toLowerCase().includes(q)) {
       results.push({ area:'Ferramentas', title:tool.name, text:[tool.category, tool.downloadUrl, tool.websiteUrl].filter(Boolean).join(' · ').slice(0,220), target:{ section:'tools', focusId:`tool-${tool.id}` } });
@@ -2373,15 +2414,19 @@ function handleSearch(query) {
 }
 
 function openImportCenter(preset='') {
-  openModal('Importar conteúdo', `
+  openModal(preset==='backup' ? 'Importar backup do site' : 'Importar conteúdo', `
     <div class="row"><label class="lbl">Tipo</label>
       <select id="imp-type" class="select">
-        <option value="code" ${preset==='code'?'selected':''}>Exemplos de código</option>
+        <option value="code" ${(preset==='code' || preset==='backup')?'selected':''}>Exemplos de código</option>
         <option value="exercise" ${preset==='exercise'?'selected':''}>Exercícios</option>
         <option value="interview" ${preset==='interview'?'selected':''}>Perguntas de entrevista</option>
       </select>
     </div>
     <div class="row"><label class="lbl">Arquivo (.json, .csv, .txt)</label><input id="imp-file" class="input" type="file" accept=".json,.csv,.txt"></div>
+    <div class="panel" style="margin-top:8px">
+      <div class="panel-title">Backup completo do site</div>
+      <div class="row-text">Você pode importar um backup exportado pelo botão "Exportar backup". O sistema detecta automaticamente o arquivo <code>mfhub.v4</code> e mescla o conteúdo com o que já existe.</div>
+    </div>
     <div class="panel" style="margin-top:8px">
       <div class="panel-title">Layout CSV sugerido</div>
       <div class="row-text">Para código: space,subspace,title,lang,description,code\nPara exercícios/entrevistas: space,subspace,title,prompt,answer</div>
@@ -2476,7 +2521,8 @@ function importContent() {
               }
             });
           };
-          ['courses','docs','generalNotes','linkedinPosts','certificates','tools'].forEach(mergeSimple);
+          ['courses','docs','generalNotes','linkedinPosts','certificates','tools','manuals'].forEach(mergeSimple);
+          if ((!appData.profile?.photoData) && src.profile?.photoData) appData.profile = { ...src.profile };
           saveUserData(); closeModal(); renderAll();
           showToast(`Backup mesclado: ${merged} item(ns) novo(s) adicionado(s).`);
           return;
@@ -2556,8 +2602,7 @@ function closeModal() { document.getElementById('modal-wrap').classList.remove('
 document.getElementById('modal-wrap').addEventListener('click', e => { if (e.target.id === 'modal-wrap') closeModal(); });
 
 function renderAll() {
-  renderSidebarIdentity();
-  renderDashboard(); renderGoals(); renderNotes(); renderCourses(); renderDocs(); renderCode(); renderExercises(); renderInterviews(); renderLinkedin(); renderCerts(); renderTools(); renderLab(); updateStatus();
+  renderDashboard(); renderGoals(); renderNotes(); renderCourses(); renderDocs(); renderCode(); renderExercises(); renderInterviews(); renderLinkedin(); renderCerts(); renderTools(); renderManuals(); renderLab(); updateStatus(); updateFontSelectorValue(); renderSidebarIdentity();
 }
 
 document.addEventListener('keydown', e => {
@@ -2569,9 +2614,642 @@ document.addEventListener('keydown', e => {
   }
 });
 
+
+
+// ═══════════════════════════════════════════════════════════════
+// ADVANCED SAFE ENHANCEMENTS LAYER
+// ═══════════════════════════════════════════════════════════════
+currentDetail.manualNodeId ||= null;
+const ADV_PROFILE_DEFAULTS = {
+  photoData:'', photoName:'', photoPosition:'center center', displayName:'', tagline:'', bio:'', location:'', links:'',
+  favorites:['dashboard','goals','manuals','lab']
+};
+const ADV_DASHBOARD_WIDGETS = ['today','streak'];
+const ADV_MAX_REVISIONS = 18;
+let advCloudMeta = { lastSyncAt:'', lastSyncReason:'', pendingReasons:[], payloadBytes:0 };
+
+function advClone(value){ return JSON.parse(JSON.stringify(value)); }
+function advFmtDt(value){ return value ? new Date(value).toLocaleString('pt-BR') : '—'; }
+function advBytes(bytes){
+  const n = Number(bytes) || 0;
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(2)} MB`;
+}
+function advDownloadJson(filename, payload){
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type:'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+function getProfileDisplayName(){
+  return String(appData?.profile?.displayName || currentAuthIdentity?.displayName || currentUser || 'USER').trim();
+}
+function ensureManualStructure(manual){
+  if (!manual) return null;
+  manual.nodes ||= [];
+  if (!manual.nodes.length) {
+    manual.nodes.push({
+      id: uid(),
+      parentId: null,
+      title: 'Visão geral',
+      content: String(manual.content || ''),
+      attachments: Array.isArray(manual.attachments) ? manual.attachments : [],
+      createdAt: manual.createdAt || Date.now(),
+    });
+  }
+  manual.nodes.forEach(node => {
+    node.id ||= uid();
+    node.parentId = node.parentId || null;
+    node.title = String(node.title || 'Seção');
+    node.content = String(node.content || '');
+    node.attachments ||= [];
+    node.createdAt ||= Date.now();
+  });
+  manual.content = '';
+  manual.attachments = [];
+  return manual;
+}
+function getManualNode(manualId, nodeId=''){
+  const manual = appData.manuals.find(m => m.id === manualId);
+  if (!manual) return null;
+  ensureManualStructure(manual);
+  return manual.nodes.find(node => node.id === nodeId) || manual.nodes[0] || null;
+}
+function serializeAppDataForRevision(){
+  const snapshot = advClone(appData || baseData());
+  delete snapshot.history;
+  return snapshot;
+}
+function recordRevision(reason='Atualização'){ 
+  if (!currentUser || !appData) return;
+  appData.history ||= [];
+  const snapshot = serializeAppDataForRevision();
+  const serialized = JSON.stringify(snapshot);
+  const signature = `${serialized.length}:${serialized.slice(0, 180)}`;
+  const latest = appData.history[0];
+  if (latest && latest.signature === signature) return;
+  appData.history.unshift({
+    id: uid(),
+    ts: new Date().toISOString(),
+    reason,
+    section: currentSection,
+    signature,
+    snapshot
+  });
+  if (appData.history.length > ADV_MAX_REVISIONS) appData.history.length = ADV_MAX_REVISIONS;
+}
+function applyRevisionSnapshot(snapshot, reason='Restauração'){ 
+  const preservedHistory = advClone(appData?.history || []);
+  const restored = Object.assign(baseData(), advClone(snapshot || {}));
+  restored.history = preservedHistory;
+  appData = restored;
+  ensureDefaults();
+  saveUserData({ skipRevision:true, reason });
+  recordRevision(reason);
+  writeLS(userDataKey(currentUser), appData);
+  renderAll();
+  showToast('Versão restaurada com sucesso.');
+}
+function openHistoryModal(){
+  const revisions = appData?.history || [];
+  openModal('Histórico de versões', `
+    <div class="panel" style="margin-bottom:12px"><div class="panel-title">Desfazer e restaurar</div><div class="row-text">O sistema guarda até ${ADV_MAX_REVISIONS} versões locais do estado do site para permitir restauração rápida sem depender do backup inteiro.</div></div>
+    <div class="stack">
+      ${revisions.length ? revisions.map((rev, idx) => `
+        <div class="panel">
+          <div class="row-top">
+            <div>
+              <div class="row-title">${esc(rev.reason || 'Alteração')}</div>
+              <div class="row-sub">${advFmtDt(rev.ts)} · seção ${esc(rev.section || '—')} · versão ${idx + 1}</div>
+            </div>
+            <div class="row-actions">
+              <button class="btn xs" onclick="restoreRevision('${rev.id}')">Restaurar</button>
+              <button class="btn xs" onclick="exportRevision('${rev.id}')">Exportar</button>
+            </div>
+          </div>
+        </div>`).join('') : '<div class="empty">Nenhuma versão gravada ainda.</div>'}
+    </div>
+  `, `<button class="btn" onclick="undoLastChange()">Desfazer última mudança</button>`);
+}
+function restoreRevision(revisionId){
+  const rev = (appData?.history || []).find(item => item.id === revisionId);
+  if (!rev) return showToast('Versão não encontrada.');
+  closeModal();
+  applyRevisionSnapshot(rev.snapshot, `Restaurou versão de ${advFmtDt(rev.ts)}`);
+}
+function exportRevision(revisionId){
+  const rev = (appData?.history || []).find(item => item.id === revisionId);
+  if (!rev) return;
+  advDownloadJson(`mfhub-revisao-${revisionId}.json`, rev);
+  showToast('Versão exportada.');
+}
+function undoLastChange(){
+  const revisions = appData?.history || [];
+  if (revisions.length < 2) return showToast('Ainda não há versão anterior para desfazer.');
+  closeModal();
+  applyRevisionSnapshot(revisions[1].snapshot, 'Desfazer última mudança');
+}
+function ensureTopbarActions(){
+  const topbar = document.querySelector('.topbar');
+  if (!topbar) return;
+  // No extra buttons — Perfil is in sidebar photo, Sync/Admin/Histórico removed
+  const syncBadge = document.getElementById('cloud-sync-status');
+  if (syncBadge && syncBadge.dataset.bound !== '1') {
+    syncBadge.dataset.bound = '1';
+    syncBadge.style.cursor = 'pointer';
+    syncBadge.addEventListener('click', openCloudStatusModal);
+  }
+}
+function renderSidebarIdentityExtra(){
+  const displayName = getProfileDisplayName();
+  const sidebarUser = document.getElementById('sidebar-user');
+  if (sidebarUser) sidebarUser.textContent = displayName.toUpperCase();
+  let meta = document.getElementById('sidebar-user-meta');
+  if (meta) {
+    const tagline = String(appData?.profile?.tagline || '');
+    const location = String(appData?.profile?.location || '');
+    meta.innerHTML = [tagline, location].filter(Boolean).map(item => `<div>${esc(item)}</div>`).join('');
+  }
+}
+function saveProfileModal(){
+  const file = document.getElementById('profile-photo-file')?.files?.[0] || null;
+  const applyFields = (photoData='', photoName='') => {
+    appData.profile ||= advClone(ADV_PROFILE_DEFAULTS);
+    appData.profile.displayName = document.getElementById('profile-display-name')?.value.trim() || '';
+    appData.profile.photoPosition = document.getElementById('profile-photo-position')?.value || 'center center';
+    appData.profile.tagline = document.getElementById('profile-tagline')?.value.trim() || '';
+    appData.profile.location = document.getElementById('profile-location')?.value.trim() || '';
+    appData.profile.bio = document.getElementById('profile-bio')?.value.trim() || '';
+    appData.profile.links = document.getElementById('profile-links')?.value.trim() || '';
+    appData.profile.favorites = Array.from(document.querySelectorAll('[data-profile-fav]:checked')).map(el => el.value);
+    if (photoData) {
+      appData.profile.photoData = photoData;
+      appData.profile.photoName = photoName || 'perfil';
+    }
+    saveUserData({ reason:'Atualizou perfil' });
+    renderSidebarIdentity();
+    closeModal();
+    showToast('Perfil atualizado.');
+  };
+  if (!file) return applyFields();
+  const reader = new FileReader();
+  reader.onload = e => applyFields(String(e.target?.result || ''), file.name || 'perfil');
+  reader.readAsDataURL(file);
+}
+function openProfileModal(){
+  appData.profile ||= advClone(ADV_PROFILE_DEFAULTS);
+  const profile = Object.assign({}, ADV_PROFILE_DEFAULTS, appData.profile || {});
+  const favoriteOptions = [
+    ['dashboard','Dashboard'], ['goals','Metas'], ['manuals','Manuais'], ['tools','Ferramentas'], ['lab','Lab'], ['courses','Cursos']
+  ];
+  openModal('Perfil do usuário', `
+    <div class="cols-2">
+      <div class="panel">
+        <div class="panel-title">Identidade</div>
+        <div class="row"><label class="lbl">Foto</label><input id="profile-photo-file" class="input" type="file" accept="image/*"></div>
+        ${profile.photoData ? `<div class="row"><img src="${esc(profile.photoData)}" alt="Prévia" style="width:96px;height:96px;border-radius:50%;object-fit:cover;object-position:${esc(profile.photoPosition || 'center center')};border:1px solid var(--border)"></div>` : ''}
+        <div class="row"><label class="lbl">Posição da foto</label><select id="profile-photo-position" class="select">
+          ${[['center top','Topo'],['center center','Centro'],['center bottom','Base']].map(([value,label]) => `<option value="${value}" ${String(profile.photoPosition || 'center center') === value ? 'selected' : ''}>${label}</option>`).join('')}
+        </select></div>
+        <div class="row"><label class="lbl">Nome de exibição</label><input id="profile-display-name" class="input" value="${esc(profile.displayName)}" placeholder="Ex.: Eliel Miranda"></div>
+        <div class="row"><label class="lbl">Título</label><input id="profile-tagline" class="input" value="${esc(profile.tagline)}" placeholder="Ex.: Analista Mainframe"></div>
+        <div class="row"><label class="lbl">Local</label><input id="profile-location" class="input" value="${esc(profile.location)}" placeholder="Cidade / contexto"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Resumo</div>
+        <div class="row"><label class="lbl">Bio curta</label><textarea id="profile-bio" class="textarea">${esc(profile.bio)}</textarea></div>
+        <div class="row"><label class="lbl">Links</label><textarea id="profile-links" class="textarea" placeholder="Um por linha">${esc(profile.links)}</textarea></div>
+        <div class="row"><label class="lbl">Atalhos favoritos</label>
+          <div class="profile-fav-grid">
+            ${favoriteOptions.map(([value,label]) => `<label><input type="checkbox" data-profile-fav value="${value}" ${profile.favorites.includes(value) ? 'checked' : ''}> ${label}</label>`).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+  `, `<button class="btn" onclick="clearProfilePhoto()">Remover foto</button><button class="btn primary" onclick="saveProfileModal()">Salvar perfil</button>`);
+}
+openProfilePhotoModal = openProfileModal;
+const _advClearProfilePhoto = clearProfilePhoto;
+clearProfilePhoto = function(){ _advClearProfilePhoto(); appData.profile.displayName ||= ''; renderSidebarIdentity(); };
+const _oldBaseData = baseData;
+baseData = function(){
+  const data = _oldBaseData();
+  data.profile = Object.assign({}, ADV_PROFILE_DEFAULTS, data.profile || {});
+  data.history = Array.isArray(data.history) ? data.history : [];
+  data.meta = Object.assign({ dashboardWidgets: ADV_DASHBOARD_WIDGETS.slice() }, data.meta || {});
+  return data;
+};
+const _oldEnsureDefaults = ensureDefaults;
+ensureDefaults = function(){
+  _oldEnsureDefaults();
+  currentDetail.manualNodeId ||= null;
+  appData.history = Array.isArray(appData.history) ? appData.history : [];
+  appData.profile = Object.assign({}, ADV_PROFILE_DEFAULTS, appData.profile || {});
+  if (!Array.isArray(appData.meta.dashboardWidgets) || !appData.meta.dashboardWidgets.length) appData.meta.dashboardWidgets = ADV_DASHBOARD_WIDGETS.slice();
+  appData.manuals.forEach(ensureManualStructure);
+};
+const _oldSaveUserData = saveUserData;
+saveUserData = function(options={}){
+  if (!options.skipRevision && appData && currentUser) recordRevision(options.reason || `Atualização em ${currentSection}`);
+  _oldSaveUserData(options);
+};
+const _oldRenderSidebarIdentity = renderSidebarIdentity;
+renderSidebarIdentity = function(){
+  _oldRenderSidebarIdentity();
+  renderSidebarIdentityExtra();
+};
+const _oldScheduleCloudSync = scheduleCloudSync;
+scheduleCloudSync = function(reason='change'){
+  advCloudMeta.pendingReasons.push(reason);
+  _oldScheduleCloudSync(reason);
+};
+const _oldPushCloudState = pushCloudState;
+pushCloudState = async function(reason='manual'){
+  try { advCloudMeta.payloadBytes = new Blob([JSON.stringify(appData || {})]).size; } catch(e) { advCloudMeta.payloadBytes = 0; }
+  const ok = await _oldPushCloudState(reason);
+  if (ok) {
+    advCloudMeta.lastSyncAt = new Date().toISOString();
+    advCloudMeta.lastSyncReason = reason;
+    advCloudMeta.pendingReasons = [];
+  }
+  return ok;
+};
+const _oldBootstrapCloudState = bootstrapCloudState;
+bootstrapCloudState = async function(){
+  const result = await _oldBootstrapCloudState();
+  if (!lastCloudError && canUseCloudSync()) advCloudMeta.lastSyncReason ||= 'bootstrap';
+  return result;
+};
+function openCloudStatusModal(){
+  const pending = Array.from(new Set(advCloudMeta.pendingReasons)).join(', ') || 'nenhuma';
+  openModal('Diagnóstico da nuvem', `
+    <div class="stack">
+      <div class="panel"><div class="panel-title">Sincronização</div>
+        <div class="stat-row"><span class="sk">Status</span><span class="sv">${esc(document.getElementById('cloud-sync-status')?.textContent || '—')}</span></div>
+        <div class="stat-row"><span class="sk">Último sync</span><span class="sv">${esc(advFmtDt(advCloudMeta.lastSyncAt))}</span></div>
+        <div class="stat-row"><span class="sk">Motivo</span><span class="sv">${esc(advCloudMeta.lastSyncReason || '—')}</span></div>
+        <div class="stat-row"><span class="sk">Fila pendente</span><span class="sv">${esc(pending)}</span></div>
+        <div class="stat-row"><span class="sk">Payload</span><span class="sv">${esc(advBytes(advCloudMeta.payloadBytes || new Blob([JSON.stringify(appData || {})]).size))}</span></div>
+      </div>
+      <div class="panel"><div class="panel-title">Erros</div><div class="row-text">${lastCloudError ? esc(lastCloudError) : 'Nenhum erro recente.'}</div></div>
+    </div>
+  `, `<button class="btn" onclick="openAdminModeModal()">Modo admin</button><button class="btn primary" onclick="flushCloudSync('manual')">Sincronizar agora</button>`);
+}
+function openAdminModeModal(){
+  const payloadBytes = new Blob([JSON.stringify(appData || {})]).size;
+  const totals = {
+    manualsNodes: (appData.manuals || []).reduce((acc, manual) => acc + (ensureManualStructure(manual)?.nodes?.length || 0), 0),
+    revisions: (appData.history || []).length,
+    attachments: (appData.docs || []).reduce((acc, doc) => acc + (doc.attachments || []).length, 0) + (appData.manuals || []).reduce((acc, manual) => acc + (ensureManualStructure(manual).nodes || []).reduce((sum, node) => sum + (node.attachments || []).length, 0), 0)
+  };
+  openModal('Modo admin técnico', `
+    <div class="stack">
+      <div class="panel"><div class="panel-title">Sessão</div>
+        <div class="stat-row"><span class="sk">Usuário</span><span class="sv">${esc(currentUser || '—')}</span></div>
+        <div class="stat-row"><span class="sk">Auth ID</span><span class="sv">${esc(currentAuthIdentity?.id || '—')}</span></div>
+        <div class="stat-row"><span class="sk">Email</span><span class="sv">${esc(currentAuthIdentity?.email || '—')}</span></div>
+        <div class="stat-row"><span class="sk">Seção atual</span><span class="sv">${esc(currentSection || 'dashboard')}</span></div>
+      </div>
+      <div class="panel"><div class="panel-title">Estado do app</div>
+        <div class="stat-row"><span class="sk">Payload</span><span class="sv">${esc(advBytes(payloadBytes))}</span></div>
+        <div class="stat-row"><span class="sk">Revisões</span><span class="sv">${totals.revisions}</span></div>
+        <div class="stat-row"><span class="sk">Nós de manuais</span><span class="sv">${totals.manualsNodes}</span></div>
+        <div class="stat-row"><span class="sk">Anexos</span><span class="sv">${totals.attachments}</span></div>
+        <div class="stat-row"><span class="sk">Tema / fonte</span><span class="sv">${esc((document.documentElement.dataset.theme || 'dark') + ' / ' + getCurrentFontStyle())}</span></div>
+      </div>
+      <div class="panel"><div class="panel-title">Nuvem</div>
+        <div class="row-text">${lastCloudError ? esc(lastCloudError) : 'Nenhum erro recente. Último sync em ' + esc(advFmtDt(advCloudMeta.lastSyncAt)) + '.'}</div>
+      </div>
+    </div>
+  `, `<button class="btn" onclick="openCloudStatusModal()">Detalhes da nuvem</button><button class="btn primary" onclick="flushCloudSync('manual')">Sincronizar agora</button>`);
+}
+function openExportCenter(){
+  const sections = [
+    ['all', 'Backup completo'], ['goals', 'Metas diárias'], ['notes', 'Anotações'], ['courses', 'Cursos'], ['docs', 'Documentação'], ['code', 'Código'],
+    ['exercises', 'Exercícios'], ['interviews', 'Entrevistas'], ['linkedin', 'LinkedIn'], ['certs', 'Certificados'], ['tools', 'Ferramentas'], ['manuals', 'Manuais'], ['profile', 'Perfil']
+  ];
+  openModal('Exportar por seção', `
+    <div class="stack">${sections.map(([key, label]) => `<div class="row-item"><div class="row-top"><div><div class="row-title">${esc(label)}</div><div class="row-sub">Arquivo JSON separado para essa área.</div></div><button class="btn xs" onclick="exportSectionData('${key}')">Exportar</button></div></div>`).join('')}</div>
+  `);
+}
+function exportSectionData(sectionKey='all'){
+  if (sectionKey === 'all') return exportAllData();
+  const sectionMap = {
+    goals: { dailyGoals: appData.dailyGoals, streak: getStreakData() },
+    notes: { generalNotes: appData.generalNotes },
+    courses: { courses: appData.courses },
+    docs: { docs: appData.docs },
+    code: { codeSpaces: appData.codeSpaces },
+    exercises: { exerciseSpaces: appData.exerciseSpaces },
+    interviews: { interviewSpaces: appData.interviewSpaces },
+    linkedin: { linkedinPosts: appData.linkedinPosts },
+    certs: { certificates: appData.certificates },
+    tools: { tools: appData.tools },
+    manuals: { manuals: appData.manuals },
+    profile: { profile: appData.profile }
+  };
+  const payload = { exportedAt: new Date().toISOString(), exportedBy: currentUser, section: sectionKey, data: sectionMap[sectionKey] || {} };
+  advDownloadJson(`mfhub-${sectionKey}-${new Date().toISOString().slice(0,10)}.json`, payload);
+  showToast(`Seção ${sectionKey} exportada.`);
+}
+function openDashboardPrefsModal(){
+  const selected = new Set(appData.meta.dashboardWidgets || ADV_DASHBOARD_WIDGETS);
+  openModal('Personalizar dashboard', `
+    <div class="panel"><div class="panel-title">Widgets rápidos</div>
+      <div class="profile-fav-grid">${ADV_DASHBOARD_WIDGETS.map(id => `<label><input type="checkbox" data-dash-widget value="${id}" ${selected.has(id) ? 'checked' : ''}> ${esc(id)}</label>`).join('')}</div>
+    </div>
+  `, `<button class="btn primary" onclick="saveDashboardPrefs()">Salvar preferências</button>`);
+}
+function saveDashboardPrefs(){
+  const selected = Array.from(document.querySelectorAll('[data-dash-widget]:checked')).map(el => el.value);
+  appData.meta.dashboardWidgets = selected.length ? selected : ADV_DASHBOARD_WIDGETS.slice();
+  saveUserData({ reason:'Atualizou dashboard' });
+  closeModal();
+  renderDashboard();
+  showToast('Dashboard atualizado.');
+}
+function renderDashboardExtras(){
+  const host = document.getElementById('dashboard-extra-zone');
+  if (host) host.remove();
+}
+const _oldRenderDashboard = renderDashboard;
+renderDashboard = function(){
+  _oldRenderDashboard();
+  renderDashboardExtras();
+};
+const _oldUpdateStatus = updateStatus;
+updateStatus = function(){
+  _oldUpdateStatus();
+  const el = document.getElementById('status-stats');
+  if (el) el.textContent += ` · ${(appData.history || []).length} revisões`;
+};
+const _oldRenderAll = renderAll;
+renderAll = function(){
+  _oldRenderAll();
+  ensureTopbarActions();
+  renderSidebarIdentity();
+};
+const _oldResolveAttachmentHolder = resolveAttachmentHolder;
+resolveAttachmentHolder = function(type, id1, id2='', id3=''){
+  if (type === 'manual-node') return getManualNode(id1, id2);
+  return _oldResolveAttachmentHolder(type, id1, id2, id3);
+};
+function renderManualTreeNodes(manual, parentId=null, depth=0){
+  const nodes = (manual.nodes || []).filter(node => (node.parentId || null) === parentId).sort((a,b) => String(a.title).localeCompare(String(b.title), 'pt-BR'));
+  return nodes.map(node => `
+    <div class="manual-tree-node ${currentDetail.manualNodeId === node.id ? 'active' : ''}" id="manual-node-${node.id}" style="margin-left:${depth * 14}px" onclick="openManualNode('${manual.id}','${node.id}')">
+      <span>${depth ? '└' : '•'}</span>
+      <span>${esc(node.title)}</span>
+      <span class="manual-node-count">${(node.attachments || []).length}</span>
+    </div>
+    ${renderManualTreeNodes(manual, node.id, depth + 1)}
+  `).join('');
+}
+renderManuals = function(){
+  const wrap = document.getElementById('section-manuals');
+  const manual = appData.manuals.find(m => m.id === currentDetail.manualId);
+  if (!manual) {
+    wrap.innerHTML = `
+      <div class="headline">
+        <div><div class="title">Manuais</div><div class="subtitle">Categorias com árvore de seções, texto livre e anexos por nó</div></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" onclick="openImportCenter('backup')">Importar</button><button class="btn primary" onclick="openManualModal()">Nova categoria</button></div>
+      </div>
+      <div class="manual-grid">
+        ${appData.manuals.map(m => { ensureManualStructure(m); return `<div class="card clickable" id="manual-card-${m.id}" onclick="openManual('${m.id}')"><div class="card-actions"><button class="btn xs" onclick="event.stopPropagation();openManualModal('${m.id}')">Editar</button><button class="btn xs danger" onclick="event.stopPropagation();deleteManual('${m.id}')">Excluir</button></div><div class="card-icon">📚</div><div class="card-title">${esc(m.name)}</div><div class="manual-card-meta">${esc(m.desc||'Sem descrição')}<br>${(m.nodes || []).length} nó(s)</div></div>`; }).join('')}
+        <div class="card new clickable" onclick="openManualModal()"><div><div style="font-size:30px;text-align:center">+</div><div>Nova categoria</div></div></div>
+      </div>
+    `;
+    return;
+  }
+  ensureManualStructure(manual);
+  const selectedNode = getManualNode(manual.id, currentDetail.manualNodeId) || manual.nodes[0];
+  currentDetail.manualNodeId = selectedNode?.id || null;
+  wrap.innerHTML = `
+    <div class="back" onclick="backToManualList()">← Voltar</div>
+    <div class="headline">
+      <div><div class="title">${esc(manual.name)}</div><div class="subtitle">${esc(manual.desc || 'Manual')}</div></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn" onclick="openManualModal('${manual.id}')">Editar categoria</button>
+        <button class="btn" onclick="openManualNodeModal('${manual.id}','')">Nova seção raiz</button>
+        <button class="btn primary" onclick="saveManualNodeContent('${manual.id}','${selectedNode.id}')">Salvar seção</button>
+      </div>
+    </div>
+    <div class="manual-tree-layout">
+      <div class="panel">
+        <div class="panel-title">Árvore do manual</div>
+        <div class="manual-tree">${renderManualTreeNodes(manual)}</div>
+      </div>
+      <div class="stack">
+        <div class="panel">
+          <div class="row-top">
+            <div>
+              <div class="panel-title">Seção atual</div>
+              <div class="row-title">${esc(selectedNode.title)}</div>
+              <div class="row-sub">${(selectedNode.attachments || []).length} anexo(s)</div>
+            </div>
+            <div class="row-actions">
+              <button class="btn xs" onclick="openManualNodeModal('${manual.id}','${selectedNode.id}')">Subseção</button>
+              <button class="btn xs" onclick="openManualNodeModal('${manual.id}','${selectedNode.parentId || ''}','${selectedNode.id}')">Editar</button>
+              <button class="btn xs danger" onclick="deleteManualNode('${manual.id}','${selectedNode.id}')">Excluir</button>
+            </div>
+          </div>
+          <textarea id="manual-node-editor" class="textarea" style="min-height:360px;margin-top:12px">${esc(selectedNode.content || '')}</textarea>
+        </div>
+        <div class="panel">
+          <div class="panel-title">Anexos da seção</div>
+          <div style="margin-bottom:10px"><button class="btn xs" onclick="uploadAttachmentsModal('manual-node','${manual.id}','${selectedNode.id}')">Adicionar arquivo</button></div>
+          ${renderAttachments(selectedNode.attachments || [], 'manual-node', manual.id, selectedNode.id)}
+        </div>
+      </div>
+    </div>
+  `;
+};
+openManual = function(id){
+  currentDetail.manualId = id;
+  const manual = appData.manuals.find(m => m.id === id);
+  ensureManualStructure(manual);
+  currentDetail.manualNodeId = manual?.nodes?.[0]?.id || null;
+  renderManuals();
+};
+backToManualList = function(){
+  currentDetail.manualId = null;
+  currentDetail.manualNodeId = null;
+  renderManuals();
+};
+function openManualNode(manualId, nodeId){
+  currentDetail.manualId = manualId;
+  currentDetail.manualNodeId = nodeId;
+  renderManuals();
+  focusSectionElement(`manual-node-${nodeId}`);
+}
+function openManualNodeModal(manualId, parentId='', nodeId=''){
+  const node = nodeId ? getManualNode(manualId, nodeId) : null;
+  openModal(node ? 'Editar seção do manual' : 'Nova seção do manual', `
+    <div class="row"><label class="lbl">Título da seção</label><input id="manual-node-title" class="input" value="${esc(node?.title || '')}"></div>
+    <div class="row"><label class="lbl">Texto inicial (opcional)</label><textarea id="manual-node-content" class="textarea">${esc(node?.content || '')}</textarea></div>
+  `, `<button class="btn primary" onclick="saveManualNode('${manualId}','${parentId}','${nodeId}')">Salvar</button>`);
+}
+function saveManualNode(manualId, parentId='', nodeId=''){
+  const manual = appData.manuals.find(m => m.id === manualId); if (!manual) return;
+  ensureManualStructure(manual);
+  const title = document.getElementById('manual-node-title').value.trim();
+  const content = document.getElementById('manual-node-content').value;
+  if (!title) return showToast('Dê um título para a seção.');
+  if (nodeId) {
+    const node = getManualNode(manualId, nodeId); if (!node) return;
+    node.title = title; node.content = content;
+  } else {
+    manual.nodes.push({ id: uid(), parentId: parentId || null, title, content, attachments: [], createdAt: Date.now() });
+    currentDetail.manualNodeId = manual.nodes[manual.nodes.length - 1].id;
+  }
+  saveUserData({ reason:'Atualizou manual' });
+  closeModal();
+  renderManuals();
+  showToast('Seção do manual salva.');
+}
+function deleteManualNode(manualId, nodeId){
+  const manual = appData.manuals.find(m => m.id === manualId); if (!manual) return;
+  const node = getManualNode(manualId, nodeId);
+  if (!confirm(`Deseja mesmo excluir a seção "${(node && node.title) ? node.title : 'selecionada'}" e as subseções abaixo dela?`)) return;
+  ensureManualStructure(manual);
+  if (manual.nodes.length === 1) return showToast('Cada manual precisa manter ao menos uma seção.');
+  const idsToRemove = new Set([nodeId]);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    manual.nodes.forEach(node => {
+      if (!idsToRemove.has(node.id) && idsToRemove.has(node.parentId)) { idsToRemove.add(node.id); changed = true; }
+    });
+  }
+  manual.nodes = manual.nodes.filter(node => !idsToRemove.has(node.id));
+  currentDetail.manualNodeId = manual.nodes[0]?.id || null;
+  saveUserData({ reason:'Removeu seção do manual' });
+  renderManuals();
+  showToast('Seção removida.');
+}
+function saveManualNodeContent(manualId, nodeId){
+  const node = getManualNode(manualId, nodeId); if (!node) return;
+  node.content = document.getElementById('manual-node-editor').value;
+  saveUserData({ reason:'Salvou seção do manual' });
+  showToast('Seção salva.');
+}
+const _oldHandleSearch = handleSearch;
+function renderSearchResultsPage(rawQuery){
+  const results = currentDetail.searchResults || [];
+  const html = `
+    <div class="headline"><div><div class="title">Busca</div><div class="subtitle">Resultados para "${esc(rawQuery)}"</div></div></div>
+    <div class="search-results">
+      ${results.length ? results.map((r,idx)=>`<div class="panel click-search-result" onclick="openSearchResult(${idx})"><div class="panel-title">${esc(r.area)}</div><div class="row-title">${esc(r.title)}</div><div class="row-text">${nl2br(r.text)}</div><div class="row-sub" style="margin-top:10px;color:var(--warn)">Abrir resultado</div></div>`).join('') : '<div class="empty">Nenhum resultado encontrado.</div>'}
+    </div>`;
+  document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+  const dash = document.getElementById('section-dashboard');
+  dash.classList.add('active');
+  dash.innerHTML = html;
+  document.getElementById('topbar-path').textContent = 'BUSCA';
+  document.getElementById('status-section').textContent = 'BUSCA';
+}
+handleSearch = function(query){
+  _oldHandleSearch(query);
+  const rawQuery = (query || '').trim();
+  const q = rawQuery.toLowerCase();
+  if (!q) return;
+  const extras = [];
+  appData.manuals.forEach(manual => {
+    ensureManualStructure(manual);
+    if ((manual.name + ' ' + (manual.desc || '')).toLowerCase().includes(q)) extras.push({ area:'Manuais', title:manual.name, text:manual.desc || 'Categoria de manual', target:{ section:'manuals', manualId:manual.id, nodeId:manual.nodes[0]?.id, focusId:`manual-card-${manual.id}` } });
+    (manual.nodes || []).forEach(node => {
+      const nodeText = [node.title, node.content, ...(node.attachments || []).map(file => file.name)].join(' ').toLowerCase();
+      if (nodeText.includes(q)) extras.push({ area:'Manual / seção', title:`${manual.name} > ${node.title}`, text:(node.content || (node.attachments || []).map(file => file.name).join(', ')).slice(0, 220), target:{ section:'manuals', manualId:manual.id, nodeId:node.id, focusId:`manual-node-${node.id}` } });
+    });
+  });
+  const profileText = [appData.profile.displayName, appData.profile.tagline, appData.profile.bio, appData.profile.location, appData.profile.links].join(' ').toLowerCase();
+  if (profileText.includes(q)) extras.push({ area:'Perfil', title:getProfileDisplayName(), text:[appData.profile.tagline, appData.profile.location].filter(Boolean).join(' · ') || 'Abrir perfil', target:{ section:'profile' } });
+  const labText = [appData.lab?.title, appData.lab?.url, appData.lab?.planUrl].join(' ').toLowerCase();
+  if (labText.includes(q)) extras.push({ area:'Lab', title:appData.lab?.title || 'EMUNAH BANK LAB', text:[appData.lab?.url, appData.lab?.planUrl].filter(Boolean).join(' · '), target:{ section:'lab' } });
+  if (extras.length) {
+    currentDetail.searchResults = [...(currentDetail.searchResults || []), ...extras];
+    renderSearchResultsPage(rawQuery);
+  }
+};
+const _oldOpenSearchResult = openSearchResult;
+openSearchResult = function(index){
+  const result = (currentDetail.searchResults || [])[index];
+  const t = result?.target || {};
+  if (t.section === 'manuals') {
+    currentDetail.manualId = t.manualId || null;
+    currentDetail.manualNodeId = t.nodeId || null;
+    goSection('manuals');
+    focusSectionElement(t.focusId || '');
+    return;
+  }
+  if (t.section === 'profile') {
+    openProfileModal();
+    return;
+  }
+  if (t.section === 'admin') {
+    openAdminModeModal();
+    return;
+  }
+  return _oldOpenSearchResult(index);
+};
+const _oldExportAllData = exportAllData;
+exportAllData = function(){
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    exportedBy: currentUser,
+    version: 'mfhub.v4',
+    data: appData,
+    streak: getStreakData(),
+    cloud: { lastSyncAt: advCloudMeta.lastSyncAt, lastSyncReason: advCloudMeta.lastSyncReason }
+  };
+  advDownloadJson(`mfhub-backup-${new Date().toISOString().slice(0,10)}.json`, payload);
+  showToast('Backup exportado com sucesso.');
+};
+const _oldImportContent = importContent;
+importContent = function(){
+  const file = document.getElementById('imp-file')?.files?.[0];
+  if (!file) return _oldImportContent();
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const parsed = JSON.parse(String(e.target?.result || '{}'));
+      if (parsed && parsed.version === 'mfhub.v4' && parsed.streak) {
+        const merged = mergeStreakData(getStreakData(), parsed.streak);
+        writeLS(getStreakStorageKey(), merged);
+      }
+    } catch(err) {}
+    _oldImportContent();
+  };
+  reader.readAsText(file, 'utf-8');
+};
+window.openProfileModal = openProfileModal;
+window.openCloudStatusModal = openCloudStatusModal;
+window.openHistoryModal = openHistoryModal;
+window.restoreRevision = restoreRevision;
+window.exportRevision = exportRevision;
+window.undoLastChange = undoLastChange;
+window.openExportCenter = openExportCenter;
+window.exportSectionData = exportSectionData;
+window.openAdminModeModal = openAdminModeModal;
+window.openDashboardPrefsModal = openDashboardPrefsModal;
+window.saveDashboardPrefs = saveDashboardPrefs;
+window.openManualNode = openManualNode;
+window.openManualNodeModal = openManualNodeModal;
+window.saveManualNode = saveManualNode;
+window.deleteManualNode = deleteManualNode;
+window.saveManualNodeContent = saveManualNodeContent;
+window.saveProfileModal = saveProfileModal;
+
 bindSupabaseAuthEvents();
 setMissingSupabaseHelp();
 loadRememberedLogin();
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) flushCloudSync('visibility');
+});
 
 if (isRecoveryFlow()) {
   showLoginScreen('recovery');
@@ -2624,6 +3302,7 @@ window.backToCodeSpace                = backToCodeSpace;
 window.backToCourseList               = backToCourseList;
 window.backToDocList                  = backToDocList;
 window.deleteDoc                      = deleteDoc;
+window.deleteManual                   = deleteManual;
 window.deleteGenericSpace             = deleteGenericSpace;
 window.deleteSubspace                 = deleteSubspace;
 window.downloadAttachment             = downloadAttachment;
@@ -2655,10 +3334,6 @@ window.openSnippetModal               = openSnippetModal;
 window.openSubmoduleModal             = openSubmoduleModal;
 window.openSubspaceModal              = openSubspaceModal;
 window.openToolModal                  = openToolModal;
-window.openProfileModal               = openProfileModal;
-window.previewProfilePhotoSelection   = previewProfilePhotoSelection;
-window.saveProfileModal               = saveProfileModal;
-window.clearProfilePhoto              = clearProfilePhoto;
 window.recalculateCourseProgress      = recalculateCourseProgress;
 window.removeAttachment               = removeAttachment;
 window.saveCert                       = saveCert;
@@ -2692,14 +3367,6 @@ window.togglePracticeIndex            = togglePracticeIndex;
 window.togglePracticeMinimized        = togglePracticeMinimized;
 window.toggleSubmoduleDone            = toggleSubmoduleDone;
 window.uploadAttachmentsModal         = uploadAttachmentsModal;
-window.createInlineGeneralNote        = createInlineGeneralNote;
-window.saveInlineGeneralNote          = saveInlineGeneralNote;
-window.openNoteCategoryModal          = openNoteCategoryModal;
-window.saveNoteCategory               = saveNoteCategory;
-window.deleteNoteCategory             = deleteNoteCategory;
-window.openNoteRecordModal            = openNoteRecordModal;
-window.saveNoteRecord                 = saveNoteRecord;
-window.deleteNoteRecord               = deleteNoteRecord;
 
 // Expose functions called via onclick in HTML to global scope
 window.doLogin         = doLogin;
@@ -2709,8 +3376,17 @@ window.resetPassword   = resetPassword;
 window.toggleAuth      = toggleAuth;
 window.logout          = logout;
 window.toggleTheme     = toggleTheme;
+window.setFontStyle    = setFontStyle;
 window.goSection       = goSection;
 window.openImportCenter= openImportCenter;
+window.openManual                    = openManual;
+window.openManualModal               = openManualModal;
+window.backToManualList              = backToManualList;
+window.saveManual                    = saveManual;
+window.saveManualContent             = saveManualContent;
+window.openProfilePhotoModal         = openProfilePhotoModal;
+window.saveProfilePhoto              = saveProfilePhoto;
+window.clearProfilePhoto             = clearProfilePhoto;
 window.handleSearch    = handleSearch;
 window.closeModal      = closeModal;
 window.exportAllData   = exportAllData;
