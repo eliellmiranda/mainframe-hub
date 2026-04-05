@@ -55,7 +55,7 @@ let currentSection = 'dashboard';
 let currentDetail = { courseId:null, docId:null, codeSpaceId:null, codeSubspaceId:null, exerciseSpaceId:null, exerciseSubspaceId:null, interviewSpaceId:null, interviewSubspaceId:null, goalDay:null, exerciseFilter:'all', exerciseIndexOpen:true, searchResults:[] };
 
 function readLS(k, fallback=null) { try { const raw = localStorage.getItem(k); return raw ? JSON.parse(raw) : fallback; } catch { return fallback; } }
-function writeLS(k, v) { localStorage.setItem(k, JSON.stringify(v)); }
+function writeLS(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (err) { console.error('writeLS failed:', err); return false; } }
 function removeLS(k) { localStorage.removeItem(k); }
 function uid() { return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
 function esc(v) { return String(v ?? '').replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s])); }
@@ -82,6 +82,7 @@ function baseData() {
     noteRecords: [],
     tools: [],
     dailyGoals: {},
+    profile: { displayName:'', tagline:'', location:'', bio:'', links:'', photoData:'', photoName:'', updatedAt:0 },
     lab: { url:'', planUrl:'emunah-bank-lab.html', title:'EMUNAH BANK LAB' },
     meta: { seedVersion:0, lastSection:'dashboard', goalSeedVersion:0, selectedGoalDay:getTodayGoalKey() }
   };
@@ -99,6 +100,15 @@ function ensureDefaults() {
   appData.noteRecords ||= [];
   appData.tools ||= [];
   appData.dailyGoals ||= {};
+  appData.profile ||= { displayName:'', tagline:'', location:'', bio:'', links:'', photoData:'', photoName:'', updatedAt:0 };
+  appData.profile.displayName ||= '';
+  appData.profile.tagline ||= '';
+  appData.profile.location ||= '';
+  appData.profile.bio ||= '';
+  appData.profile.links ||= '';
+  appData.profile.photoData ||= '';
+  appData.profile.photoName ||= '';
+  appData.profile.updatedAt ||= 0;
   appData.lab ||= { url:'', planUrl:'emunah-bank-lab.html', title:'EMUNAH BANK LAB' };
   appData.meta ||= { seedVersion:0, lastSection:'dashboard', goalSeedVersion:0, selectedGoalDay:getTodayGoalKey() };
   appData.meta.selectedGoalDay ||= getTodayGoalKey();
@@ -126,7 +136,205 @@ function loadUserData() {
   appData = Object.assign(baseData(), readLS(userDataKey(currentUser), null) || {});
   ensureDefaults();
 }
-function saveUserData() { writeLS(userDataKey(currentUser), appData); }
+function saveUserData() {
+  const ok = writeLS(userDataKey(currentUser), appData);
+  if (!ok && typeof showToast === 'function') showToast('Não foi possível salvar no navegador. Tente uma imagem menor.');
+  return ok;
+}
+
+const PROFILE_IMAGE_MAX_INPUT_BYTES = 12 * 1024 * 1024;
+const PROFILE_IMAGE_TARGET_BYTES = 420 * 1024;
+const PROFILE_IMAGE_MAX_DIMENSION = 640;
+function getProfileData() {
+  appData.profile ||= { displayName:'', tagline:'', location:'', bio:'', links:'', photoData:'', photoName:'', updatedAt:0 };
+  return appData.profile;
+}
+function getSidebarDisplayName() {
+  const raw = String(getProfileData().displayName || currentUser || 'USER').trim();
+  return raw || String(currentUser || 'USER').trim() || 'USER';
+}
+function getSidebarMetaLines() {
+  const profile = getProfileData();
+  return [String(profile.tagline || '').trim(), String(profile.location || '').trim()].filter(Boolean);
+}
+function getProfileInitials(name) {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean).slice(0, 2);
+  if (!parts.length) return '👤';
+  return parts.map(part => part[0]).join('').toUpperCase();
+}
+function renderSidebarIdentity() {
+  const userEl = document.getElementById('sidebar-user');
+  const metaEl = document.getElementById('sidebar-user-meta');
+  const avatarImg = document.getElementById('profile-avatar-image');
+  const avatarFallback = document.getElementById('profile-avatar-fallback');
+  const photo = String(getProfileData().photoData || '');
+  if (userEl) userEl.textContent = getSidebarDisplayName();
+  if (metaEl) {
+    const lines = getSidebarMetaLines();
+    metaEl.innerHTML = lines.length ? lines.map(item => `<div>${esc(item)}</div>`).join('') : '<div>Mainframe Hub</div>';
+  }
+  if (avatarImg) {
+    if (photo) {
+      avatarImg.src = photo;
+      avatarImg.hidden = false;
+    } else {
+      avatarImg.removeAttribute('src');
+      avatarImg.hidden = true;
+    }
+  }
+  if (avatarFallback) {
+    avatarFallback.textContent = photo ? '' : getProfileInitials(getSidebarDisplayName());
+    avatarFallback.style.display = photo ? 'none' : 'grid';
+  }
+}
+function readFileAsDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(String(e.target?.result || ''));
+    reader.onerror = () => reject(new Error('Falha ao ler a imagem.'));
+    reader.readAsDataURL(file);
+  });
+}
+function loadImageFromDataURL(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Falha ao abrir a imagem.'));
+    img.src = dataUrl;
+  });
+}
+function estimateDataUrlBytes(dataUrl) {
+  const base64 = String(dataUrl || '').split(',')[1] || '';
+  return Math.ceil((base64.length * 3) / 4);
+}
+async function optimizeProfileImage(file) {
+  if (!file) return null;
+  if (!String(file.type || '').startsWith('image/')) throw new Error('Escolha um arquivo de imagem válido.');
+  if (file.size > PROFILE_IMAGE_MAX_INPUT_BYTES) throw new Error('A imagem está grande demais. Use um arquivo de até 12 MB.');
+  const source = await readFileAsDataURL(file);
+  const image = await loadImageFromDataURL(source);
+  let scale = Math.min(1, PROFILE_IMAGE_MAX_DIMENSION / Math.max(image.naturalWidth || 1, image.naturalHeight || 1));
+  let width = Math.max(1, Math.round((image.naturalWidth || 1) * scale));
+  let height = Math.max(1, Math.round((image.naturalHeight || 1) * scale));
+  let quality = 0.88;
+  let data = '';
+  const render = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d', { alpha:true });
+    ctx.clearRect(0, 0, width, height);
+    ctx.drawImage(image, 0, 0, width, height);
+    return canvas.toDataURL('image/webp', quality);
+  };
+  data = render();
+  let attempts = 0;
+  while (estimateDataUrlBytes(data) > PROFILE_IMAGE_TARGET_BYTES && attempts < 8) {
+    if (quality > 0.56) quality = Math.max(0.56, quality - 0.08);
+    else {
+      width = Math.max(180, Math.round(width * 0.86));
+      height = Math.max(180, Math.round(height * 0.86));
+    }
+    data = render();
+    attempts += 1;
+  }
+  return {
+    data,
+    name: (String(file.name || 'perfil').replace(/\.[^.]+$/, '') || 'perfil') + '.webp',
+    type: 'image/webp',
+    bytes: estimateDataUrlBytes(data)
+  };
+}
+function setProfilePhotoPreview(src='') {
+  const img = document.getElementById('profile-photo-preview');
+  const empty = document.getElementById('profile-photo-preview-empty');
+  const help = document.getElementById('profile-photo-help');
+  if (img) {
+    if (src) {
+      img.src = src;
+      img.hidden = false;
+    } else {
+      img.removeAttribute('src');
+      img.hidden = true;
+    }
+  }
+  if (empty) empty.hidden = !!src;
+  if (help) help.textContent = src ? 'Prévia pronta. Ao salvar, a imagem será redimensionada para ficar leve e não falhar ao gravar.' : 'Escolha JPG, PNG ou WEBP. A imagem será redimensionada automaticamente para evitar falha ao salvar.';
+}
+async function previewProfilePhotoSelection() {
+  const file = document.getElementById('profile-photo-file')?.files?.[0] || null;
+  if (!file) return setProfilePhotoPreview(String(getProfileData().photoData || ''));
+  try {
+    const prepared = await optimizeProfileImage(file);
+    setProfilePhotoPreview(prepared?.data || '');
+  } catch (err) {
+    showToast(err.message || 'Não foi possível preparar a imagem.');
+    setProfilePhotoPreview(String(getProfileData().photoData || ''));
+  }
+}
+async function saveProfileModal() {
+  const profile = getProfileData();
+  profile.displayName = document.getElementById('profile-display-name')?.value.trim() || '';
+  profile.tagline = document.getElementById('profile-tagline')?.value.trim() || '';
+  profile.location = document.getElementById('profile-location')?.value.trim() || '';
+  profile.bio = document.getElementById('profile-bio')?.value.trim() || '';
+  profile.links = document.getElementById('profile-links')?.value.trim() || '';
+  const file = document.getElementById('profile-photo-file')?.files?.[0] || null;
+  try {
+    if (file) {
+      const prepared = await optimizeProfileImage(file);
+      profile.photoData = prepared.data;
+      profile.photoName = prepared.name;
+    }
+    profile.updatedAt = Date.now();
+    if (!saveUserData()) return;
+    renderSidebarIdentity();
+    closeModal();
+    showToast(file ? 'Perfil salvo com foto otimizada.' : 'Perfil salvo.');
+  } catch (err) {
+    console.error(err);
+    showToast(err.message || 'Não foi possível salvar o perfil.');
+  }
+}
+function clearProfilePhoto(closeAfter=true) {
+  const profile = getProfileData();
+  profile.photoData = '';
+  profile.photoName = '';
+  profile.updatedAt = Date.now();
+  const input = document.getElementById('profile-photo-file');
+  if (input) input.value = '';
+  if (!saveUserData()) return;
+  renderSidebarIdentity();
+  if (document.getElementById('profile-photo-preview') || document.getElementById('profile-photo-preview-empty')) setProfilePhotoPreview('');
+  if (closeAfter) closeModal();
+  showToast('Foto de perfil removida.');
+}
+function openProfileModal() {
+  const profile = Object.assign({ displayName:'', tagline:'', location:'', bio:'', links:'', photoData:'', photoName:'', updatedAt:0 }, getProfileData());
+  openModal('Perfil do usuário', `
+    <div class="cols-2">
+      <div class="panel">
+        <div class="panel-title">Identidade</div>
+        <div class="profile-photo-editor">
+          <div class="profile-photo-preview">
+            <img id="profile-photo-preview" src="${esc(profile.photoData || '')}" alt="Prévia da foto de perfil" ${profile.photoData ? '' : 'hidden'}>
+            <div id="profile-photo-preview-empty" class="profile-photo-preview-empty" ${profile.photoData ? 'hidden' : ''}>${esc(getProfileInitials(profile.displayName || currentUser || 'USER'))}</div>
+          </div>
+          <div class="row"><label class="lbl">Foto</label><input id="profile-photo-file" class="input" type="file" accept="image/png,image/jpeg,image/webp" onchange="previewProfilePhotoSelection()"></div>
+          <div id="profile-photo-help" class="auth-note">Escolha JPG, PNG ou WEBP. A imagem será redimensionada automaticamente para evitar falha ao salvar.</div>
+        </div>
+        <div class="row"><label class="lbl">Nome de exibição</label><input id="profile-display-name" class="input" value="${esc(profile.displayName)}" placeholder="Ex.: Eliel Miranda"></div>
+        <div class="row"><label class="lbl">Título</label><input id="profile-tagline" class="input" value="${esc(profile.tagline)}" placeholder="Ex.: Analista Mainframe"></div>
+        <div class="row"><label class="lbl">Local</label><input id="profile-location" class="input" value="${esc(profile.location)}" placeholder="Cidade / contexto"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Resumo</div>
+        <div class="row"><label class="lbl">Bio curta</label><textarea id="profile-bio" class="textarea">${esc(profile.bio)}</textarea></div>
+        <div class="row"><label class="lbl">Links</label><textarea id="profile-links" class="textarea" placeholder="Um por linha">${esc(profile.links)}</textarea></div>
+      </div>
+    </div>
+  `, `<button class="btn danger" onclick="clearProfilePhoto()">Remover foto</button><button class="btn primary" onclick="saveProfileModal()">Salvar perfil</button>`);
+}
 function setTheme(theme) {
   document.documentElement.dataset.theme = theme;
   if (currentUser) writeLS(getThemeKey(currentUser), theme);
@@ -406,7 +614,9 @@ function startApp(user, displayName = user) {
   ensureSeedData();
   ensureDailyGoalsSeeded();
   updateStreak();
-  document.getElementById('sidebar-user').textContent = String(displayName || user).toUpperCase() + '@MFHUB';
+  const profile = getProfileData();
+  if (!profile.displayName) profile.displayName = String(displayName || user).trim();
+  renderSidebarIdentity();
   document.getElementById('app').style.display = 'block';
   startClock();
   // Restore section from URL hash (browser back/forward support), fallback to saved last section
@@ -2346,6 +2556,7 @@ function closeModal() { document.getElementById('modal-wrap').classList.remove('
 document.getElementById('modal-wrap').addEventListener('click', e => { if (e.target.id === 'modal-wrap') closeModal(); });
 
 function renderAll() {
+  renderSidebarIdentity();
   renderDashboard(); renderGoals(); renderNotes(); renderCourses(); renderDocs(); renderCode(); renderExercises(); renderInterviews(); renderLinkedin(); renderCerts(); renderTools(); renderLab(); updateStatus();
 }
 
@@ -2444,6 +2655,10 @@ window.openSnippetModal               = openSnippetModal;
 window.openSubmoduleModal             = openSubmoduleModal;
 window.openSubspaceModal              = openSubspaceModal;
 window.openToolModal                  = openToolModal;
+window.openProfileModal               = openProfileModal;
+window.previewProfilePhotoSelection   = previewProfilePhotoSelection;
+window.saveProfileModal               = saveProfileModal;
+window.clearProfilePhoto              = clearProfilePhoto;
 window.recalculateCourseProgress      = recalculateCourseProgress;
 window.removeAttachment               = removeAttachment;
 window.saveCert                       = saveCert;

@@ -120,7 +120,16 @@
   <aside class="sidebar">
     <div class="side-head">
       <div class="side-logo">MFHUB</div>
-      <div class="side-user" id="sidebar-user">USER@MFHUB</div>
+      <div class="side-sublogo">Mainframe Hub</div>
+      <div class="side-profile-center">
+        <button class="profile-avatar" id="profile-avatar-btn" onclick="openProfileModal()" aria-label="Abrir perfil">
+          <img id="profile-avatar-image" alt="Foto de perfil" hidden>
+          <span id="profile-avatar-fallback">👤</span>
+        </button>
+        <div class="side-user" id="sidebar-user">USER</div>
+        <div class="side-user-meta" id="sidebar-user-meta"><div>Mainframe Hub</div></div>
+        <button class="btn xs" id="sidebar-profile-btn" onclick="openProfileModal()">Ver perfil</button>
+      </div>
     </div>
     <div class="side-nav">
       <div class="side-sec">Lab</div>
