@@ -69,7 +69,7 @@ label.lbl { display:block; font-size:13px; font-weight:600; margin-bottom:8px; c
 }
 .side-head { padding:22px 18px 16px; border-bottom:1px solid var(--border); display:grid; gap:14px; justify-items:center; }
 .side-logo { font-size:42px; font-weight:700; color:var(--accent); font-family:var(--display-font); letter-spacing:.06em; }
-.side-logo-link { background:none; border:none; padding:0; cursor:pointer; text-align:left; width:100%; justify-self:start; }
+.side-logo-link { background:none; border:none; padding:0; cursor:pointer; width:100%; justify-self:center; display:flex; justify-content:center; text-align:center; }
 .side-profile-center { width:100%; display:grid; justify-items:center; gap:10px; padding:14px 14px 0; margin-top:0; border:1px solid var(--border); border-radius:18px; background:var(--surface); box-shadow:var(--shadow); }
 .side-profile-info { width:100%; max-width:190px; display:grid; justify-items:center; gap:4px; text-align:center; }
 .profile-avatar { width:72px; height:72px; border-radius:50%; border:2px solid var(--border); background:var(--surface-2); background-size:cover; background-position:center; background-repeat:no-repeat; color:var(--text-soft); display:grid; place-items:center; cursor:pointer; overflow:hidden; box-shadow:var(--shadow); flex-shrink:0; transition:border-color .2s, transform .2s; }

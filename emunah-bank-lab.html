@@ -532,6 +532,92 @@ const K={
   diary:u=>`ebl_diary_${u}`,cmds:u=>`ebl_cmds_${u}`
 };
 
+const ATT_DB='ebl_assets_db',ATT_STORE='files';
+let ATT_DB_PROMISE=null;
+function openAttDb(){
+  if(ATT_DB_PROMISE)return ATT_DB_PROMISE;
+  ATT_DB_PROMISE=new Promise((resolve,reject)=>{
+    if(!window.indexedDB)return reject(new Error('IndexedDB indisponível.'));
+    const req=indexedDB.open(ATT_DB,1);
+    req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(ATT_STORE))db.createObjectStore(ATT_STORE,{keyPath:'id'});};
+    req.onsuccess=()=>resolve(req.result);
+    req.onerror=()=>reject(req.error||new Error('Falha ao abrir banco de anexos.'));
+  });
+  return ATT_DB_PROMISE;
+}
+async function attReq(mode,executor){
+  const db=await openAttDb();
+  return await new Promise((resolve,reject)=>{
+    const tx=db.transaction(ATT_STORE,mode),store=tx.objectStore(ATT_STORE);let req;
+    try{req=executor(store);}catch(err){reject(err);return;}
+    tx.oncomplete=()=>resolve(req?.result);
+    tx.onerror=()=>reject(tx.error||req?.error||new Error('Falha no banco de anexos.'));
+    tx.onabort=()=>reject(tx.error||req?.error||new Error('Falha no banco de anexos.'));
+  });
+}
+function dataUrlToBlob(dataUrl=''){
+  const [meta,data='']=String(dataUrl||'').split(','),m=/data:([^;]+);base64/.exec(meta||''),mime=m?m[1]:'application/octet-stream';
+  const bin=atob(data||''),buf=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++)buf[i]=bin.charCodeAt(i);
+  return new Blob([buf],{type:mime});
+}
+function blobToDataUrl(blob){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=e=>resolve(String(e?.target?.result||''));r.onerror=()=>reject(r.error||new Error('Falha ao serializar asset.'));r.readAsDataURL(blob);});}
+async function saveDiaryAsset(fileOrBlob,meta={}){
+  const blob=fileOrBlob instanceof Blob?fileOrBlob:new Blob([fileOrBlob],{type:meta.type||'application/octet-stream'});
+  const assetId=meta.assetId||`${CU||'guest'}_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
+  await attReq('readwrite',store=>store.put({id:assetId,user:CU||'',name:meta.name||'arquivo',type:meta.type||blob.type||'application/octet-stream',size:Number(meta.size||blob.size||0),blob}));
+  return assetId;
+}
+async function getDiaryAsset(assetId=''){if(!assetId)return null;return await attReq('readonly',store=>store.get(assetId));}
+async function deleteDiaryAsset(assetId=''){if(!assetId)return false;await attReq('readwrite',store=>store.delete(assetId));return true;}
+async function getDiaryFileBlob(file){
+  if(!file)return null;
+  if(file.assetId){const item=await getDiaryAsset(file.assetId);if(item?.blob)return item.blob;}
+  if(file.data)return dataUrlToBlob(file.data);
+  return null;
+}
+async function migrateDiaryFilesToIndexedDb(targetDiary=DIARY){
+  let changed=false;
+  for(const entry of targetDiary||[]){
+    entry.files=Array.isArray(entry.files)?entry.files:[];
+    for(const file of entry.files){
+      if(!file||typeof file!=='object')continue;
+      if(!file.assetId&&file.data){
+        const blob=dataUrlToBlob(file.data);
+        const assetId=await saveDiaryAsset(blob,{assetId:file.id||`${entry.id}_${Date.now()}`,name:file.name||'arquivo',type:file.type||blob.type||'application/octet-stream',size:file.size||blob.size||0});
+        file.assetId=assetId;file.size=Number(file.size||blob.size||0);file.type=file.type||blob.type||'application/octet-stream';delete file.data;changed=true;
+      }else if(file.assetId&&file.data){delete file.data;changed=true;}
+    }
+  }
+  return changed;
+}
+async function collectDiaryAssetsForExport(targetDiary=DIARY){
+  const assets=[],seen=new Set();
+  for(const entry of targetDiary||[]){
+    entry.files=Array.isArray(entry.files)?entry.files:[];
+    for(const file of entry.files){
+      if(!file||typeof file!=='object')continue;
+      const assetId=String(file.assetId||file.id||'').trim();
+      if(!assetId||seen.has(assetId))continue;
+      let data='';
+      if(file.data)data=String(file.data||'');
+      else {const blob=await getDiaryFileBlob(file);if(blob)data=await blobToDataUrl(blob);}
+      if(!data)continue;
+      file.assetId=assetId;delete file.data;
+      assets.push({id:assetId,name:file.name||'arquivo',type:file.type||'',size:Number(file.size||0),data});
+      seen.add(assetId);
+    }
+  }
+  return assets;
+}
+async function restoreDiaryAssetsFromBackup(assets=[]){
+  for(const asset of assets||[]){
+    if(!asset?.id||!asset?.data)continue;
+    const blob=dataUrlToBlob(asset.data);
+    await saveDiaryAsset(blob,{assetId:asset.id,name:asset.name||'arquivo',type:asset.type||blob.type||'application/octet-stream',size:asset.size||blob.size||0});
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════
 // AUTH
 // ═══════════════════════════════════════════════════════════════
@@ -612,8 +698,9 @@ function saveA(sid,val){ANN[sid]=val;localStorage.setItem(K.ann(CU),JSON.stringi
 function saveDiary(){localStorage.setItem(K.diary(CU),JSON.stringify(DIARY));}
 function saveCmds(){localStorage.setItem(K.cmds(CU),JSON.stringify(CMDS));}
 
-function startApp(u){
+async function startApp(u){
   CU=u;loadUD(u);
+  if(await migrateDiaryFilesToIndexedDb(DIARY))saveDiary();
   document.getElementById('auth-screen').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
   document.getElementById('huser').textContent=u;
@@ -693,16 +780,10 @@ function setDiaryMode(targetId,mode){
 function triggerDiaryFile(targetId){document.getElementById(`${targetId}-file`).click();}
 
 function handleDiaryFiles(targetId,input){
-  const files=Array.from(input.files);
+  const files=Array.from(input.files||[]);
   if(!diaryPendingFiles[targetId])diaryPendingFiles[targetId]=[];
-  files.forEach(f=>{
-    const reader=new FileReader();
-    reader.onload=e=>{
-      diaryPendingFiles[targetId].push({name:f.name,size:f.size,data:e.target.result});
-      renderDiaryFileChips(targetId);
-    };
-    reader.readAsDataURL(f);
-  });
+  files.forEach(f=>{diaryPendingFiles[targetId].push({name:f.name,size:f.size,type:f.type,file:f});});
+  renderDiaryFileChips(targetId);
   input.value='';
 }
 
@@ -717,11 +798,18 @@ function rmDiaryFile(targetId,idx){
   renderDiaryFileChips(targetId);
 }
 
-function saveDiaryEntry(targetId){
+async function saveDiaryEntry(targetId){
   const text=document.getElementById(`${targetId}-text`).value.trim();
   if(!text)return;
   const mode=diaryModes[targetId]||'HOM';
-  const files=(diaryPendingFiles[targetId]||[]).map(f=>({name:f.name,size:f.size,data:f.data}));
+  const pending=diaryPendingFiles[targetId]||[];
+  const files=[];
+  for(const item of pending){
+    if(item?.file instanceof Blob){
+      const assetId=await saveDiaryAsset(item.file,{name:item.name,type:item.type,size:item.size});
+      files.push({id:`df_${Date.now()}_${Math.random().toString(36).slice(2,6)}`,name:item.name,size:item.size,type:item.type||'',assetId});
+    }
+  }
   DIARY.unshift({id:Date.now(),ts:new Date().toISOString(),mode,text,files});
   saveDiary();
   document.getElementById(`${targetId}-text`).value='';
@@ -732,14 +820,18 @@ function saveDiaryEntry(targetId){
   updateProg();
 }
 
-function deleteDiaryEntry(id){
+async function deleteDiaryEntry(id){
   if(!confirm('Excluir este registro do diário?'))return;
+  const entry=DIARY.find(e=>e.id===id);
+  for(const file of (entry?.files||[])){ if(file?.assetId){ try{ await deleteDiaryAsset(file.assetId); }catch(err){} } }
   DIARY=DIARY.filter(e=>e.id!==id);
   saveDiary();renderTool('t-diary');updateProg();
 }
 
-function downloadAttachment(data,name){
-  const a=document.createElement('a');a.href=data;a.download=name;a.click();
+async function downloadAttachment(assetId,name){
+  const item=await getDiaryAsset(assetId);
+  if(!item?.blob)return alert('Arquivo não encontrado.');
+  const url=URL.createObjectURL(item.blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),4000);
 }
 
 function renderDiaryPage(){
@@ -765,7 +857,7 @@ function renderDiaryPage(){
   } else {
     filtered.forEach(e=>{
       const preview=e.text.length>90?e.text.slice(0,90)+'...':e.text;
-      const filesHtml=e.files&&e.files.length?`<div class="diary-entry-attachments">${e.files.map(f=>`<span class="diary-attachment" onclick="downloadAttachment('${f.data}','${esc(f.name)}')">${esc(f.name)}</span>`).join('')}</div>`:'';
+      const filesHtml=e.files&&e.files.length?`<div class="diary-entry-attachments">${e.files.map(f=>`<span class="diary-attachment" onclick="downloadAttachment('${f.assetId||''}','${esc(f.name)}')">${esc(f.name)}</span>`).join('')}</div>`:'';
       const fc=e.files&&e.files.length?`<span class="diary-entry-files-count">${e.files.length} arquivo${e.files.length>1?'s':''}</span>`:'';
       html+=`<div class="diary-entry" id="de-${e.id}">
         <div class="diary-entry-hdr" onclick="toggleDiaryEntry(${e.id})">
@@ -1066,25 +1158,28 @@ function clearProg(){if(!confirm('Limpar todo o progresso? Irreversível.'))retu
 function clearAnn(){if(!confirm('Limpar anotações? Irreversível.'))return;ANN={};localStorage.setItem(K.ann(CU),'{}');if(CVIEW==='phase')showPhase(CPHASE);updateProg();}
 function clearDiary(){if(!confirm('Limpar diário? Irreversível.'))return;DIARY=[];saveDiary();if(CVIEW==='tool'&&CPHASE==='t-diary')renderTool('t-diary');updateProg();}
 function clearCmds(){if(!confirm('Limpar comandos? Irreversível.'))return;CMDS=[];saveCmds();if(CVIEW==='tool'&&CPHASE==='t-cmds')renderTool('t-cmds');updateProg();}
-function exportData(){
-  const d={user:CU,exportedAt:new Date().toISOString(),progress:PROG,annotations:ANN,diary:DIARY,commands:CMDS};
+async function exportData(){
+  const diaryClone=JSON.parse(JSON.stringify(DIARY));
+  const assets=await collectDiaryAssetsForExport(diaryClone);
+  const d={user:CU,exportedAt:new Date().toISOString(),version:'ebl.v2',progress:PROG,annotations:ANN,diary:diaryClone,commands:CMDS,assets};
   const b=new Blob([JSON.stringify(d,null,2)],{type:'application/json'});
   const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=`emunah-bank-lab-${CU}-${Date.now()}.json`;a.click();URL.revokeObjectURL(u);
 }
 function importData(){
   const i=document.createElement('input');i.type='file';i.accept='.json';i.onchange=e=>{
     const f=e.target.files[0];if(!f)return;
-    const r=new FileReader();r.onload=ev=>{
+    const r=new FileReader();r.onload=async ev=>{
       try{
         const d=JSON.parse(ev.target.result);
+        if(d.assets)await restoreDiaryAssetsFromBackup(d.assets);
         if(d.progress)PROG=d.progress;
         if(d.annotations)ANN=d.annotations;
-        if(d.diary)DIARY=d.diary;
+        if(d.diary){DIARY=d.diary;await migrateDiaryFilesToIndexedDb(DIARY);}
         if(d.commands)CMDS=d.commands;
         saveP();localStorage.setItem(K.ann(CU),JSON.stringify(ANN));saveDiary();saveCmds();
         if(CVIEW==='phase')showPhase(CPHASE);else renderTool(CPHASE);
         alert('Importado.');
-      }catch{alert('Arquivo inválido.');}
+      }catch(err){console.error(err);alert('Arquivo inválido.');}
     };r.readAsText(f);
   };i.click();
 }
