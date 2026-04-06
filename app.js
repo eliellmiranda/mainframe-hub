@@ -93,7 +93,83 @@ let currentSection = 'dashboard';
 let currentDetail = { courseId:null, docId:null, manualId:null, codeSpaceId:null, codeSubspaceId:null, exerciseSpaceId:null, exerciseSubspaceId:null, interviewSpaceId:null, interviewSubspaceId:null, goalDay:null, reminderFilter:'pending', exerciseFilter:'all', exerciseIndexOpen:true, searchResults:[] };
 
 function readLS(k, fallback=null) { try { const raw = localStorage.getItem(k); return raw ? JSON.parse(raw) : fallback; } catch { return fallback; } }
-function writeLS(k, v) { localStorage.setItem(k, JSON.stringify(v)); }
+function stripHeavyFieldsFromRevisionSnapshot(snapshot) {
+  if (!snapshot || typeof snapshot !== 'object') return snapshot;
+  try {
+    if (snapshot.history) delete snapshot.history;
+    if (snapshot.profile && typeof snapshot.profile === 'object' && snapshot.profile.photoData) {
+      snapshot.profile.photoData = '';
+    }
+    if (Array.isArray(snapshot.certificates)) {
+      snapshot.certificates.forEach(cert => {
+        if (cert && typeof cert === 'object' && cert.imageData) cert.imageData = '';
+      });
+    }
+    const walk = (value) => {
+      if (!value || typeof value !== 'object') return;
+      if (Array.isArray(value)) {
+        value.forEach(walk);
+        return;
+      }
+      if (Array.isArray(value.attachments)) {
+        value.attachments.forEach(file => {
+          if (file && typeof file === 'object' && file.data) delete file.data;
+        });
+      }
+      Object.values(value).forEach(walk);
+    };
+    walk(snapshot);
+  } catch (err) {
+    console.warn('MFHUB: falha ao reduzir snapshot de revisão:', err);
+  }
+  return snapshot;
+}
+function compactPayloadForStorage(value, historyLimit=null) {
+  if (!value || typeof value !== 'object') return value;
+  let payload;
+  try {
+    payload = JSON.parse(JSON.stringify(value));
+  } catch {
+    return value;
+  }
+  if (payload.history) {
+    const history = Array.isArray(payload.history) ? payload.history : [];
+    payload.history = history
+      .slice(0, historyLimit == null ? history.length : historyLimit)
+      .map(entry => {
+        const nextEntry = Object.assign({}, entry || {});
+        if (nextEntry.snapshot) nextEntry.snapshot = stripHeavyFieldsFromRevisionSnapshot(nextEntry.snapshot);
+        return nextEntry;
+      });
+  }
+  return payload;
+}
+function writeLS(k, v) {
+  const serialized = JSON.stringify(v);
+  try {
+    localStorage.setItem(k, serialized);
+    return true;
+  } catch (err) {
+    const msg = String(err?.message || err || '');
+    const isQuota = /quota|exceeded|storage/i.test(msg) || err?.name === 'QuotaExceededError';
+    const isMfhubData = typeof k === 'string' && k.startsWith('mfhub.data.') && k.endsWith('.v4');
+    if (!isQuota || !isMfhubData || !v || typeof v !== 'object') throw err;
+    const fallbackHistorySteps = [6, 3, 1, 0];
+    for (const limit of fallbackHistorySteps) {
+      try {
+        localStorage.setItem(k, JSON.stringify(compactPayloadForStorage(v, limit)));
+        console.warn(`MFHUB: armazenamento compactado para caber no navegador (histórico: ${limit}).`);
+        return true;
+      } catch (fallbackErr) {
+        const fallbackMsg = String(fallbackErr?.message || fallbackErr || '');
+        const stillQuota = /quota|exceeded|storage/i.test(fallbackMsg) || fallbackErr?.name === 'QuotaExceededError';
+        if (!stillQuota) throw fallbackErr;
+      }
+    }
+    console.warn('MFHUB: não foi possível salvar no localStorage por falta de espaço.');
+    return false;
+  }
+}
 function removeLS(k) { localStorage.removeItem(k); }
 function uid() { return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
 function esc(v) { return String(v ?? '').replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s])); }
@@ -2981,7 +3057,7 @@ function getManualNode(manualId, nodeId=''){
 function serializeAppDataForRevision(){
   const snapshot = advClone(appData || baseData());
   delete snapshot.history;
-  return snapshot;
+  return stripHeavyFieldsFromRevisionSnapshot(snapshot);
 }
 function recordRevision(reason='Atualização'){ 
   if (!currentUser || !appData) return;

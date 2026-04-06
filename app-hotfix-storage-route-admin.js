@@ -271,6 +271,29 @@
     return true;
   }
 
+  function sanitizeHistorySnapshot(snapshot, sourceKey = '') {
+    if (!snapshot || typeof snapshot !== 'object') return false;
+    let dirty = false;
+    if (snapshot.history) {
+      delete snapshot.history;
+      dirty = true;
+    }
+    if (snapshot.profile && typeof snapshot.profile === 'object' && snapshot.profile.photoData) {
+      snapshot.profile.photoData = '';
+      dirty = true;
+    }
+    if (Array.isArray(snapshot.certificates)) {
+      snapshot.certificates.forEach(cert => {
+        if (cert && typeof cert === 'object' && cert.imageData) {
+          cert.imageData = '';
+          dirty = true;
+        }
+      });
+    }
+    const nested = sanitizePayloadObject(snapshot, sourceKey + ':history');
+    return dirty || nested.dirty;
+  }
+
   function sanitizePayloadObject(payload, sourceKey = '') {
     if (!payload || typeof payload !== 'object') return { dirty: false };
     let dirty = false;
@@ -292,6 +315,11 @@
         if (scheduleAssetOffload(file, sourceKey)) dirty = true;
       });
     });
+    if (Array.isArray(payload.history)) {
+      payload.history.forEach(entry => {
+        if (entry?.snapshot && sanitizeHistorySnapshot(entry.snapshot, sourceKey)) dirty = true;
+      });
+    }
     return { dirty };
   }
 
@@ -505,9 +533,10 @@
   }
 
   Storage.prototype.setItem = function patchedSetItem(key, value) {
+    let parsed = null;
     try {
       if (this === localStorage && isMfhubDataKey(key) && typeof value === 'string') {
-        const parsed = safeJsonParse(value, null);
+        parsed = safeJsonParse(value, null);
         if (parsed && typeof parsed === 'object') {
           sanitizePayloadObject(parsed, key);
           value = JSON.stringify(parsed);
@@ -516,7 +545,30 @@
     } catch (err) {
       console.warn('[MFHUB HOTFIX] Sanitização de localStorage falhou:', err);
     }
-    return originalSetItem.call(this, key, value);
+    try {
+      return originalSetItem.call(this, key, value);
+    } catch (err) {
+      const msg = String(err?.message || err || '');
+      const isQuota = /quota|exceeded|storage/i.test(msg) || err?.name === 'QuotaExceededError';
+      if (!(this === localStorage && isMfhubDataKey(key) && isQuota && parsed && typeof parsed === 'object')) throw err;
+      const steps = [6, 3, 1, 0];
+      for (const limit of steps) {
+        try {
+          const clone = safeJsonParse(JSON.stringify(parsed), null) || parsed;
+          if (Array.isArray(clone.history)) clone.history = clone.history.slice(0, limit);
+          sanitizePayloadObject(clone, key);
+          const compact = JSON.stringify(clone);
+          originalSetItem.call(this, key, compact);
+          console.warn(`[MFHUB HOTFIX] Salvamento compactado para caber no navegador (histórico: ${limit}).`);
+          return;
+        } catch (retryErr) {
+          const retryMsg = String(retryErr?.message || retryErr || '');
+          const stillQuota = /quota|exceeded|storage/i.test(retryMsg) || retryErr?.name === 'QuotaExceededError';
+          if (!stillQuota) throw retryErr;
+        }
+      }
+      throw err;
+    }
   };
 
   function patchPracticeNavigation() {
