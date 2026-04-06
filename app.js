@@ -100,216 +100,6 @@ function esc(v) { return String(v ?? '').replace(/[&<>"']/g, s => ({'&':'&amp;',
 function nl2br(v) { return esc(v).replace(/\n/g,'<br>'); }
 function fmtDate(v) { return v ? new Date(v).toLocaleString('pt-BR') : ''; }
 function showToast(msg) { const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show'); clearTimeout(showToast.t); showToast.t=setTimeout(()=>el.classList.remove('show'),2200); }
-
-const ATTACHMENT_DB_NAME = 'mfhub-attachments-db';
-const ATTACHMENT_STORE_NAME = 'attachments';
-let attachmentDbPromise = null;
-function openAttachmentDb() {
-  if (attachmentDbPromise) return attachmentDbPromise;
-  attachmentDbPromise = new Promise((resolve, reject) => {
-    if (!window.indexedDB) return reject(new Error('IndexedDB não disponível neste navegador.'));
-    const request = indexedDB.open(ATTACHMENT_DB_NAME, 1);
-    request.onupgradeneeded = () => {
-      const db = request.result;
-      if (!db.objectStoreNames.contains(ATTACHMENT_STORE_NAME)) {
-        db.createObjectStore(ATTACHMENT_STORE_NAME, { keyPath:'id' });
-      }
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error || new Error('Falha ao abrir o banco de anexos.'));
-  });
-  return attachmentDbPromise;
-}
-async function attachmentStoreRequest(mode, executor) {
-  const db = await openAttachmentDb();
-  return await new Promise((resolve, reject) => {
-    const tx = db.transaction(ATTACHMENT_STORE_NAME, mode);
-    const store = tx.objectStore(ATTACHMENT_STORE_NAME);
-    let request;
-    try {
-      request = executor(store);
-    } catch (error) {
-      reject(error);
-      return;
-    }
-    tx.oncomplete = () => resolve(request?.result);
-    tx.onerror = () => reject(tx.error || request?.error || new Error('Falha ao acessar os anexos.'));
-    tx.onabort = () => reject(tx.error || request?.error || new Error('Falha ao acessar os anexos.'));
-  });
-}
-function dataUrlToBlob(dataUrl='') {
-  const [meta, data=''] = String(dataUrl || '').split(',');
-  const mimeMatch = /data:([^;]+);base64/.exec(meta || '');
-  const mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
-  const bytes = atob(data || '');
-  const buffer = new Uint8Array(bytes.length);
-  for (let i = 0; i < bytes.length; i++) buffer[i] = bytes.charCodeAt(i);
-  return new Blob([buffer], { type:mime });
-}
-function blobToDataUrl(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = e => resolve(String(e?.target?.result || ''));
-    reader.onerror = () => reject(reader.error || new Error('Falha ao serializar o arquivo.'));
-    reader.readAsDataURL(blob);
-  });
-}
-async function putAttachmentAsset(asset) {
-  if (!asset?.id || !asset?.blob) throw new Error('Asset inválido.');
-  return await attachmentStoreRequest('readwrite', store => store.put(asset));
-}
-async function getAttachmentAsset(assetId='') {
-  if (!assetId) return null;
-  return await attachmentStoreRequest('readonly', store => store.get(assetId));
-}
-async function deleteAttachmentAsset(assetId='') {
-  if (!assetId) return false;
-  await attachmentStoreRequest('readwrite', store => store.delete(assetId));
-  return true;
-}
-async function saveFileToAttachmentStore(fileOrBlob, meta={}) {
-  const blob = fileOrBlob instanceof Blob ? fileOrBlob : new Blob([fileOrBlob], { type:meta.type || 'application/octet-stream' });
-  const assetId = meta.assetId || uid();
-  await putAttachmentAsset({
-    id: assetId,
-    user: currentUser || '',
-    name: meta.name || 'arquivo',
-    type: meta.type || blob.type || 'application/octet-stream',
-    size: Number(meta.size || blob.size || 0),
-    createdAt: meta.createdAt || Date.now(),
-    blob,
-  });
-  return assetId;
-}
-async function getAttachmentBlob(file) {
-  if (!file) return null;
-  if (file.assetId) {
-    const stored = await getAttachmentAsset(file.assetId);
-    if (stored?.blob) return stored.blob;
-  }
-  if (file.data) return dataUrlToBlob(file.data);
-  return null;
-}
-function createAttachmentMeta(file, assetId) {
-  return {
-    id: uid(),
-    name: file.name || 'arquivo',
-    type: file.type || 'application/octet-stream',
-    size: Number(file.size || 0),
-    assetId,
-    storage: 'idb',
-    createdAt: Date.now(),
-  };
-}
-function collectAttachmentArrays(root) {
-  const groups = [];
-  if (!root || typeof root !== 'object') return groups;
-  (root.courses || []).forEach(course => {
-    (course.modules || []).forEach(module => {
-      module.attachments ||= [];
-      groups.push(module.attachments);
-      (module.submodules || []).forEach(sub => {
-        sub.attachments ||= [];
-        groups.push(sub.attachments);
-      });
-    });
-  });
-  (root.docs || []).forEach(doc => {
-    doc.attachments ||= [];
-    groups.push(doc.attachments);
-  });
-  [['codeSpaces'], ['exerciseSpaces'], ['interviewSpaces']].forEach(([key]) => {
-    (root[key] || []).forEach(space => {
-      (space.subspaces || []).forEach(sub => {
-        sub.attachments ||= [];
-        groups.push(sub.attachments);
-      });
-    });
-  });
-  (root.manuals || []).forEach(manual => {
-    if (typeof ensureManualStructure === 'function') ensureManualStructure(manual);
-    if (Array.isArray(manual.attachments)) groups.push(manual.attachments);
-    (manual.nodes || []).forEach(node => {
-      node.attachments ||= [];
-      groups.push(node.attachments);
-    });
-  });
-  return groups;
-}
-async function migrateAttachmentArraysToIndexedDb(root=appData) {
-  let changed = false;
-  for (const files of collectAttachmentArrays(root)) {
-    for (const file of files) {
-      if (!file || typeof file !== 'object') continue;
-      if (!file.assetId && file.data) {
-        const blob = dataUrlToBlob(file.data);
-        const assetId = await saveFileToAttachmentStore(blob, {
-          assetId: file.id || uid(),
-          name: file.name || 'arquivo',
-          type: file.type || blob.type || 'application/octet-stream',
-          size: file.size || blob.size || 0,
-          createdAt: file.createdAt || Date.now(),
-        });
-        file.assetId = assetId;
-        file.storage = 'idb';
-        file.size = Number(file.size || blob.size || 0);
-        delete file.data;
-        changed = true;
-      } else if (file.assetId && file.data) {
-        delete file.data;
-        changed = true;
-      }
-    }
-  }
-  return changed;
-}
-async function collectAttachmentAssetsForExport(root) {
-  const assets = [];
-  const seen = new Set();
-  for (const files of collectAttachmentArrays(root)) {
-    for (const file of files) {
-      if (!file || typeof file !== 'object') continue;
-      let assetId = String(file.assetId || '').trim();
-      if (!assetId && file.data) {
-        assetId = file.id || uid();
-        file.assetId = assetId;
-        file.storage = 'idb';
-        file.size = Number(file.size || 0);
-      }
-      if (!assetId || seen.has(assetId)) continue;
-      let dataUrl = '';
-      if (file.data) dataUrl = String(file.data || '');
-      else {
-        const blob = await getAttachmentBlob(file);
-        if (blob) dataUrl = await blobToDataUrl(blob);
-      }
-      if (!dataUrl) continue;
-      assets.push({
-        id: assetId,
-        name: file.name || 'arquivo',
-        type: file.type || '',
-        size: Number(file.size || 0),
-        data: dataUrl,
-      });
-      delete file.data;
-      seen.add(assetId);
-    }
-  }
-  return assets;
-}
-async function restoreAttachmentAssetsFromBackup(assets=[]) {
-  for (const asset of assets || []) {
-    if (!asset?.id || !asset?.data) continue;
-    const blob = dataUrlToBlob(asset.data);
-    await saveFileToAttachmentStore(blob, {
-      assetId: asset.id,
-      name: asset.name || 'arquivo',
-      type: asset.type || blob.type || 'application/octet-stream',
-      size: asset.size || blob.size || 0,
-      createdAt: Date.now(),
-    });
-  }
-}
 function userDataKey(user) { return `mfhub.data.${user}.v4`; }
 function getThemeKey(user) { return `mfhub.theme.${user||'guest'}.v4`; }
 function getFontKey(user) { return `mfhub.font.${user||'guest'}.v4`; }
@@ -677,9 +467,7 @@ async function bootstrapCloudState() {
     }
     appData = Object.assign(baseData(), remote.payload || {});
     ensureDefaults();
-    const migratedRemoteAttachments = await migrateAttachmentArraysToIndexedDb(appData);
     writeLS(userDataKey(currentUser), appData);
-    if (migratedRemoteAttachments) scheduleCloudSync('attachment-migration');
     if (remote.theme) setTheme(remote.theme, { skipSync:true });
     if (remote.font_style) setFontStyle(remote.font_style, { skipSync:true });
     const mergedStreak = mergeStreakData(getStreakData(), remote.streak);
@@ -969,8 +757,6 @@ async function startApp(user, displayName = user) {
   document.getElementById('app').style.display = 'block';
   currentUser = user;
   loadUserData();
-  const migratedLocalAttachments = await migrateAttachmentArraysToIndexedDb(appData);
-  if (migratedLocalAttachments) writeLS(userDataKey(currentUser), appData);
   applySavedTheme();
   applySavedFontStyle();
   ensureSeedData();
@@ -1757,7 +1543,7 @@ function renderCourseModule(course, module) {
       </div>
       <div class="stack">
         <div class="row-item">
-          <div class="panel-title">Arquivos do módulo (ilimitado)</div>
+          <div class="panel-title">Arquivos do módulo (até 5)</div>
           ${renderAttachments(module.attachments||[], 'course-module', course.id, module.id)}
         </div>
         <div class="row-item">
@@ -2690,30 +2476,14 @@ function saveLab() {
 }
 
 function renderAttachments(files, type, id1, id2='', id3='') {
-  if (!files || !files.length) return '<div class="empty">Nenhum arquivo anexado.</div>';
-  return files.map(f=>`<div class="file-row" id="attachment-${f.id}"><div class="file-name">📎 ${esc(f.name)}</div><button class="btn xs" onclick="openAttachment('${type}','${id1}','${id2}','${f.id}','${id3}')">Abrir</button><button class="btn xs" onclick="downloadAttachment('${type}','${id1}','${id2}','${f.id}','${id3}')">Baixar</button><button class="btn xs danger" onclick="removeAttachment('${type}','${id1}','${id2}','${f.id}','${id3}')">Excluir</button></div>`).join('');
-}
-function getAttachmentLimit(type) {
-  if (type === 'course-module') return Infinity;
-  if (type === 'course-submodule') return 5;
-  if (['doc','manual','manual-node','code-subspace','exercise-subspace','interview-subspace'].includes(type)) return 5;
-  return 5;
-}
-function getAttachmentLimitLabel(type) {
-  const limit = getAttachmentLimit(type);
-  return Number.isFinite(limit) ? `Limite de até ${limit} arquivo(s) neste local.` : 'Sem limite de arquivos neste local.';
+  if (!files || !files.length) return '<div class=\"empty\">Nenhum arquivo anexado.</div>';
+  return files.map(f=>`<div class=\"file-row\" id=\"attachment-${f.id}\"><div class=\"file-name\">📎 ${esc(f.name)}</div><button class=\"btn xs\" onclick=\"openAttachment('${type}','${id1}','${id2}','${f.id}','${id3}')\">Abrir</button><button class=\"btn xs\" onclick=\"downloadAttachment('${type}','${id1}','${id2}','${f.id}','${id3}')\">Baixar</button><button class=\"btn xs danger\" onclick=\"removeAttachment('${type}','${id1}','${id2}','${f.id}','${id3}')\">Excluir</button></div>`).join('');
 }
 function resolveAttachmentHolder(type, id1, id2='', id3='') {
   if (type==='doc') return appData.docs.find(d=>d.id===id1);
   if (type==='manual') return appData.manuals.find(m=>m.id===id1);
   if (type==='course-module') return appData.courses.find(c=>c.id===id1)?.modules?.find(m=>m.id===id2);
-  if (type==='course-submodule') {
-    const course = appData.courses.find(c=>c.id===id1);
-    if (!course) return null;
-    const module = course.modules?.find(m=>m.id===id3) || course.modules?.find(m=>(m.submodules||[]).some(s=>s.id===id2));
-    if (!module) return null;
-    return module.submodules?.find(s=>s.id===id2) || null;
-  }
+  if (type==='course-submodule') return appData.courses.find(c=>c.id===id1)?.modules?.find(m=>m.id===id3)?.submodules?.find(s=>s.id===id2);
   if (type==='code-subspace') return appData.codeSpaces.find(s=>s.id===id1)?.subspaces?.find(ss=>ss.id===id2);
   if (type==='exercise-subspace') return appData.exerciseSpaces.find(s=>s.id===id1)?.subspaces?.find(ss=>ss.id===id2);
   if (type==='interview-subspace') return appData.interviewSpaces.find(s=>s.id===id1)?.subspaces?.find(ss=>ss.id===id2);
@@ -2724,103 +2494,57 @@ function getAttachmentRecord(type,id1,id2,fileId,id3='') {
   const file = holder?.attachments?.find(a=>a.id===fileId) || null;
   return { holder, file };
 }
-async function openAttachment(type,id1,id2,fileId,id3='') {
+function openAttachment(type,id1,id2,fileId,id3='') {
   const { file } = getAttachmentRecord(type,id1,id2,fileId,id3);
-  const blob = await getAttachmentBlob(file);
-  if (!file || !blob) return showToast('Arquivo não encontrado.');
-  const url = URL.createObjectURL(blob);
+  if (!file || !file.data) return showToast('Arquivo não encontrado.');
   const a = document.createElement('a');
-  a.href = url;
+  a.href = file.data;
   a.target = '_blank';
   a.rel = 'noopener';
   document.body.appendChild(a);
   a.click();
   a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 8000);
 }
-async function downloadAttachment(type,id1,id2,fileId,id3='') {
+function downloadAttachment(type,id1,id2,fileId,id3='') {
   const { file } = getAttachmentRecord(type,id1,id2,fileId,id3);
-  const blob = await getAttachmentBlob(file);
-  if (!file || !blob) return showToast('Arquivo não encontrado.');
-  const url = URL.createObjectURL(blob);
+  if (!file || !file.data) return showToast('Arquivo não encontrado.');
   const a = document.createElement('a');
-  a.href = url;
+  a.href = file.data;
   a.download = file.name || 'arquivo';
   document.body.appendChild(a);
   a.click();
   a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 4000);
 }
-async function removeAttachment(type,id1,id2,fileId,id3='') {
+function removeAttachment(type,id1,id2,fileId,id3='') {
   const { holder, file } = getAttachmentRecord(type,id1,id2,fileId,id3);
   if (!holder || !file) return showToast('Arquivo não encontrado.');
   if (!confirm(`Excluir o arquivo "${file.name}"?`)) return;
-  if (file.assetId) {
-    try { await deleteAttachmentAsset(file.assetId); } catch (error) { console.warn('Falha ao remover asset do IndexedDB:', error); }
-  }
   holder.attachments = (holder.attachments||[]).filter(a=>a.id!==fileId);
   saveUserData(); renderAll(); showToast('Arquivo removido.');
 }
 function uploadAttachmentsModal(type,id1,id2='',id3='') {
   const holder = resolveAttachmentHolder(type,id1,id2,id3);
-  if (!holder) return showToast('Não foi possível localizar o local do anexo.');
   const count = holder?.attachments?.length || 0;
-  openModal('Anexar arquivos', `<div class="row"><label class="lbl">Arquivos</label><input id="up-files" class="input" type="file" multiple></div><div class="muted">${getAttachmentLimitLabel(type)} Já existem ${count} arquivo(s) neste local.</div>`, `<button class="btn primary" onclick="saveUploads('${type}','${id1}','${id2}','${id3}')">Enviar</button>`);
+  openModal('Anexar arquivos', `<div class="row"><label class="lbl">Arquivos</label><input id="up-files" class="input" type="file" multiple></div><div class="muted">Limite de 5 arquivos por espaço ou subespaço. Já existem ${count} arquivo(s) neste local.</div>`, `<button class="btn primary" onclick="saveUploads('${type}','${id1}','${id2}','${id3}')">Enviar</button>`);
 }
-function readFileAsDataUrl(file) {
-  return new Promise((resolve, reject) => {
+function saveUploads(type,id1,id2='',id3='') {
+  const holder = resolveAttachmentHolder(type,id1,id2,id3); if(!holder)return;
+  const files = Array.from(document.getElementById('up-files').files||[]);
+  holder.attachments ||= [];
+  if (!files.length) return;
+  if (holder.attachments.length + files.length > 5) return alert('O limite é de até 5 arquivos.');
+  let done=0;
+  files.forEach(file => {
     const reader = new FileReader();
-    reader.onload = e => resolve(e?.target?.result || '');
-    reader.onerror = () => reject(new Error(`Falha ao ler ${file?.name || 'arquivo'}.`));
+    reader.onload = e => {
+      holder.attachments.push({ id:uid(), name:file.name, type:file.type, data:e.target.result, createdAt:Date.now() });
+      done++;
+      if (done === files.length) {
+        saveUserData(); closeModal(); renderAll(); showToast('Arquivos anexados.');
+      }
+    };
     reader.readAsDataURL(file);
   });
-}
-function isStorageQuotaError(error) {
-  const message = String(error?.message || '');
-  return error?.name === 'QuotaExceededError' || error?.code === 22 || error?.code === 1014 || message.includes('quota') || message.includes('storage_quota_exceeded');
-}
-async function saveUploads(type,id1,id2='',id3='') {
-  const holder = resolveAttachmentHolder(type,id1,id2,id3);
-  if (!holder) return showToast('Não foi possível localizar o local do anexo.');
-  const files = Array.from(document.getElementById('up-files')?.files || []);
-  holder.attachments ||= [];
-  if (!files.length) return showToast('Selecione ao menos um arquivo.');
-  const limit = getAttachmentLimit(type);
-  if (Number.isFinite(limit) && holder.attachments.length + files.length > limit) return alert(`O limite é de até ${limit} arquivos neste local.`);
-
-  const originalAttachments = [...holder.attachments];
-  const loadedAttachments = [];
-  let failed = 0;
-
-  for (const file of files) {
-    try {
-      const assetId = await saveFileToAttachmentStore(file, { name:file.name, type:file.type, size:file.size, createdAt:Date.now() });
-      loadedAttachments.push(createAttachmentMeta(file, assetId));
-    } catch (error) {
-      console.error('MFHUB attachment save failed:', error);
-      failed++;
-      if (isStorageQuotaError(error)) {
-        showToast('O navegador não conseguiu reservar espaço no banco local de anexos.');
-      }
-    }
-  }
-
-  if (!loadedAttachments.length) return showToast('Nenhum arquivo pôde ser salvo.');
-
-  holder.attachments = [...originalAttachments, ...loadedAttachments];
-  try {
-    saveUserData();
-    closeModal();
-    renderAll();
-    showToast(failed ? 'Arquivos anexados com algumas falhas.' : (loadedAttachments.length === 1 ? 'Arquivo anexado.' : 'Arquivos anexados.'));
-  } catch (error) {
-    holder.attachments = originalAttachments;
-    console.error('MFHUB metadata save failed:', error);
-    if (isStorageQuotaError(error)) {
-      return showToast('Não houve espaço para salvar os metadados do anexo neste navegador.');
-    }
-    return showToast('Não foi possível salvar o anexo.');
-  }
 }
 
 function focusSectionElement(elementId) {
@@ -3782,16 +3506,12 @@ openSearchResult = function(index){
   return _oldOpenSearchResult(index);
 };
 const _oldExportAllData = exportAllData;
-exportAllData = async function(){
-  const dataClone = advClone(appData || baseData());
-  delete dataClone.history;
-  const assets = await collectAttachmentAssetsForExport(dataClone);
+exportAllData = function(){
   const payload = {
     exportedAt: new Date().toISOString(),
     exportedBy: currentUser,
     version: 'mfhub.v4',
-    data: dataClone,
-    assets,
+    data: appData,
     streak: getStreakData(),
     cloud: { lastSyncAt: advCloudMeta.lastSyncAt, lastSyncReason: advCloudMeta.lastSyncReason }
   };
@@ -3799,68 +3519,16 @@ exportAllData = async function(){
   showToast('Backup exportado com sucesso.');
 };
 const _oldImportContent = importContent;
-async function mergeBackupPayload(parsed){
-  const src = advClone(parsed?.data || {});
-  await restoreAttachmentAssetsFromBackup(parsed?.assets || []);
-  await migrateAttachmentArraysToIndexedDb(src);
-  let merged = 0;
-  const mergeList = (srcList, destList, itemsKey) => {
-    (srcList || []).forEach(srcSpace => {
-      let destSpace = destList.find(s => s.name === srcSpace.name);
-      if (!destSpace) {
-        destSpace = { ...srcSpace, id: uid(), subspaces: [] };
-        destList.push(destSpace);
-      }
-      (srcSpace.subspaces || []).forEach(srcSub => {
-        let destSub = destSpace.subspaces.find(ss => ss.name === srcSub.name);
-        if (!destSub) {
-          destSub = { ...srcSub, id: uid(), [itemsKey]: [] };
-          destSpace.subspaces.push(destSub);
-        }
-        const existingTitles = new Set((destSub[itemsKey] || []).map(i => i.title));
-        (srcSub[itemsKey] || []).forEach(item => {
-          if (!existingTitles.has(item.title)) {
-            destSub[itemsKey].push({ ...item, id: uid() });
-            merged++;
-          }
-        });
-      });
-    });
-  };
-  mergeList(src.exerciseSpaces, appData.exerciseSpaces, 'items');
-  mergeList(src.interviewSpaces, appData.interviewSpaces, 'items');
-  mergeList(src.codeSpaces, appData.codeSpaces, 'snippets');
-  const mergeSimple = (key) => {
-    const existing = new Set((appData[key]||[]).map(x=>x.name||x.title||x.id));
-    (src[key]||[]).forEach(x => {
-      if (!existing.has(x.name||x.title||x.id)) {
-        appData[key].push({ ...x, id: uid() });
-        merged++;
-      }
-    });
-  };
-  ['courses','docs','generalNotes','linkedinPosts','certificates','tools','manuals','reminders'].forEach(mergeSimple);
-  if ((!appData.profile?.photoData) && src.profile?.photoData) appData.profile = { ...src.profile };
-  if (parsed?.streak) {
-    const mergedStreak = mergeStreakData(getStreakData(), parsed.streak);
-    writeLS(getStreakStorageKey(), mergedStreak);
-  }
-  saveUserData(); closeModal(); renderAll();
-  showToast(`Backup mesclado: ${merged} item(ns) novo(s) adicionado(s).`);
-}
 importContent = function(){
   const file = document.getElementById('imp-file')?.files?.[0];
   if (!file) return _oldImportContent();
   const reader = new FileReader();
-  reader.onload = async e => {
+  reader.onload = e => {
     try {
       const parsed = JSON.parse(String(e.target?.result || '{}'));
-      if (parsed && parsed.version === 'mfhub.v4' && parsed.data) {
-        return await mergeBackupPayload(parsed);
-      }
       if (parsed && parsed.version === 'mfhub.v4' && parsed.streak) {
-        const mergedStreak = mergeStreakData(getStreakData(), parsed.streak);
-        writeLS(getStreakStorageKey(), mergedStreak);
+        const merged = mergeStreakData(getStreakData(), parsed.streak);
+        writeLS(getStreakStorageKey(), merged);
       }
     } catch(err) {}
     _oldImportContent();
@@ -4009,6 +3677,8 @@ window.stepGoalProgress               = stepGoalProgress;
 window.toggleCourseVideoWatched       = toggleCourseVideoWatched;
 window.toggleLinkedinStatus           = toggleLinkedinStatus;
 window.toggleModelAnswer              = toggleModelAnswer;
+window.updatePracticeUserAnswer       = updatePracticeUserAnswer;
+window.updatePracticeModelAnswer      = updatePracticeModelAnswer;
 window.toggleModuleDone               = toggleModuleDone;
 window.togglePracticeIndex            = togglePracticeIndex;
 window.togglePracticeMinimized        = togglePracticeMinimized;
