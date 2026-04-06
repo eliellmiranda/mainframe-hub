@@ -1543,7 +1543,7 @@ function renderCourseModule(course, module) {
       </div>
       <div class="stack">
         <div class="row-item">
-          <div class="panel-title">Arquivos do módulo (até 5)</div>
+          <div class="panel-title">Arquivos do módulo (ilimitado)</div>
           ${renderAttachments(module.attachments||[], 'course-module', course.id, module.id)}
         </div>
         <div class="row-item">
@@ -2476,14 +2476,30 @@ function saveLab() {
 }
 
 function renderAttachments(files, type, id1, id2='', id3='') {
-  if (!files || !files.length) return '<div class=\"empty\">Nenhum arquivo anexado.</div>';
-  return files.map(f=>`<div class=\"file-row\" id=\"attachment-${f.id}\"><div class=\"file-name\">📎 ${esc(f.name)}</div><button class=\"btn xs\" onclick=\"openAttachment('${type}','${id1}','${id2}','${f.id}','${id3}')\">Abrir</button><button class=\"btn xs\" onclick=\"downloadAttachment('${type}','${id1}','${id2}','${f.id}','${id3}')\">Baixar</button><button class=\"btn xs danger\" onclick=\"removeAttachment('${type}','${id1}','${id2}','${f.id}','${id3}')\">Excluir</button></div>`).join('');
+  if (!files || !files.length) return '<div class="empty">Nenhum arquivo anexado.</div>';
+  return files.map(f=>`<div class="file-row" id="attachment-${f.id}"><div class="file-name">📎 ${esc(f.name)}</div><button class="btn xs" onclick="openAttachment('${type}','${id1}','${id2}','${f.id}','${id3}')">Abrir</button><button class="btn xs" onclick="downloadAttachment('${type}','${id1}','${id2}','${f.id}','${id3}')">Baixar</button><button class="btn xs danger" onclick="removeAttachment('${type}','${id1}','${id2}','${f.id}','${id3}')">Excluir</button></div>`).join('');
+}
+function getAttachmentLimit(type) {
+  if (type === 'course-module') return Infinity;
+  if (type === 'course-submodule') return 5;
+  if (['doc','manual','manual-node','code-subspace','exercise-subspace','interview-subspace'].includes(type)) return 5;
+  return 5;
+}
+function getAttachmentLimitLabel(type) {
+  const limit = getAttachmentLimit(type);
+  return Number.isFinite(limit) ? `Limite de até ${limit} arquivo(s) neste local.` : 'Sem limite de arquivos neste local.';
 }
 function resolveAttachmentHolder(type, id1, id2='', id3='') {
   if (type==='doc') return appData.docs.find(d=>d.id===id1);
   if (type==='manual') return appData.manuals.find(m=>m.id===id1);
   if (type==='course-module') return appData.courses.find(c=>c.id===id1)?.modules?.find(m=>m.id===id2);
-  if (type==='course-submodule') return appData.courses.find(c=>c.id===id1)?.modules?.find(m=>m.id===id3)?.submodules?.find(s=>s.id===id2);
+  if (type==='course-submodule') {
+    const course = appData.courses.find(c=>c.id===id1);
+    if (!course) return null;
+    const module = course.modules?.find(m=>m.id===id3) || course.modules?.find(m=>(m.submodules||[]).some(s=>s.id===id2));
+    if (!module) return null;
+    return module.submodules?.find(s=>s.id===id2) || null;
+  }
   if (type==='code-subspace') return appData.codeSpaces.find(s=>s.id===id1)?.subspaces?.find(ss=>ss.id===id2);
   if (type==='exercise-subspace') return appData.exerciseSpaces.find(s=>s.id===id1)?.subspaces?.find(ss=>ss.id===id2);
   if (type==='interview-subspace') return appData.interviewSpaces.find(s=>s.id===id1)?.subspaces?.find(ss=>ss.id===id2);
@@ -2524,23 +2540,41 @@ function removeAttachment(type,id1,id2,fileId,id3='') {
 }
 function uploadAttachmentsModal(type,id1,id2='',id3='') {
   const holder = resolveAttachmentHolder(type,id1,id2,id3);
+  if (!holder) return showToast('Não foi possível localizar o local do anexo.');
   const count = holder?.attachments?.length || 0;
-  openModal('Anexar arquivos', `<div class="row"><label class="lbl">Arquivos</label><input id="up-files" class="input" type="file" multiple></div><div class="muted">Limite de 5 arquivos por espaço ou subespaço. Já existem ${count} arquivo(s) neste local.</div>`, `<button class="btn primary" onclick="saveUploads('${type}','${id1}','${id2}','${id3}')">Enviar</button>`);
+  openModal('Anexar arquivos', `<div class="row"><label class="lbl">Arquivos</label><input id="up-files" class="input" type="file" multiple></div><div class="muted">${getAttachmentLimitLabel(type)} Já existem ${count} arquivo(s) neste local.</div>`, `<button class="btn primary" onclick="saveUploads('${type}','${id1}','${id2}','${id3}')">Enviar</button>`);
 }
 function saveUploads(type,id1,id2='',id3='') {
-  const holder = resolveAttachmentHolder(type,id1,id2,id3); if(!holder)return;
-  const files = Array.from(document.getElementById('up-files').files||[]);
+  const holder = resolveAttachmentHolder(type,id1,id2,id3);
+  if (!holder) return showToast('Não foi possível localizar o local do anexo.');
+  const files = Array.from(document.getElementById('up-files')?.files || []);
   holder.attachments ||= [];
-  if (!files.length) return;
-  if (holder.attachments.length + files.length > 5) return alert('O limite é de até 5 arquivos.');
+  if (!files.length) return showToast('Selecione ao menos um arquivo.');
+  const limit = getAttachmentLimit(type);
+  if (Number.isFinite(limit) && holder.attachments.length + files.length > limit) return alert(`O limite é de até ${limit} arquivos neste local.`);
   let done=0;
+  let failed=0;
   files.forEach(file => {
     const reader = new FileReader();
     reader.onload = e => {
       holder.attachments.push({ id:uid(), name:file.name, type:file.type, data:e.target.result, createdAt:Date.now() });
       done++;
-      if (done === files.length) {
-        saveUserData(); closeModal(); renderAll(); showToast('Arquivos anexados.');
+      if (done + failed === files.length) {
+        saveUserData();
+        closeModal();
+        renderAll();
+        showToast(failed ? 'Arquivos anexados com algumas falhas.' : (files.length === 1 ? 'Arquivo anexado.' : 'Arquivos anexados.'));
+      }
+    };
+    reader.onerror = () => {
+      failed++;
+      if (done + failed === files.length) {
+        if (done) {
+          saveUserData();
+          closeModal();
+          renderAll();
+        }
+        showToast(done ? 'Arquivos anexados com algumas falhas.' : 'Nenhum arquivo pôde ser lido.');
       }
     };
     reader.readAsDataURL(file);
