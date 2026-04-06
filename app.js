@@ -11,6 +11,7 @@ const SEED_VERSION = 20260330;
 const STREAK_KEY = 'mfhub.streak.v1';
 const CLOUD_RPC_GET = 'mfhub_get_state';
 const CLOUD_RPC_PUT = 'mfhub_put_state';
+const CLOUD_RPC_ADMIN_METRICS = 'mfhub_admin_metrics';
 const CLOUD_SYNC_DEBOUNCE_MS = 700;
 const FONT_STYLE_KEY = 'mfhub.fontstyle.v1';
 const FONT_OPTIONS = [
@@ -93,83 +94,7 @@ let currentSection = 'dashboard';
 let currentDetail = { courseId:null, docId:null, manualId:null, codeSpaceId:null, codeSubspaceId:null, exerciseSpaceId:null, exerciseSubspaceId:null, interviewSpaceId:null, interviewSubspaceId:null, goalDay:null, reminderFilter:'pending', exerciseFilter:'all', exerciseIndexOpen:true, searchResults:[] };
 
 function readLS(k, fallback=null) { try { const raw = localStorage.getItem(k); return raw ? JSON.parse(raw) : fallback; } catch { return fallback; } }
-function stripHeavyFieldsFromRevisionSnapshot(snapshot) {
-  if (!snapshot || typeof snapshot !== 'object') return snapshot;
-  try {
-    if (snapshot.history) delete snapshot.history;
-    if (snapshot.profile && typeof snapshot.profile === 'object' && snapshot.profile.photoData) {
-      snapshot.profile.photoData = '';
-    }
-    if (Array.isArray(snapshot.certificates)) {
-      snapshot.certificates.forEach(cert => {
-        if (cert && typeof cert === 'object' && cert.imageData) cert.imageData = '';
-      });
-    }
-    const walk = (value) => {
-      if (!value || typeof value !== 'object') return;
-      if (Array.isArray(value)) {
-        value.forEach(walk);
-        return;
-      }
-      if (Array.isArray(value.attachments)) {
-        value.attachments.forEach(file => {
-          if (file && typeof file === 'object' && file.data) delete file.data;
-        });
-      }
-      Object.values(value).forEach(walk);
-    };
-    walk(snapshot);
-  } catch (err) {
-    console.warn('MFHUB: falha ao reduzir snapshot de revisão:', err);
-  }
-  return snapshot;
-}
-function compactPayloadForStorage(value, historyLimit=null) {
-  if (!value || typeof value !== 'object') return value;
-  let payload;
-  try {
-    payload = JSON.parse(JSON.stringify(value));
-  } catch {
-    return value;
-  }
-  if (payload.history) {
-    const history = Array.isArray(payload.history) ? payload.history : [];
-    payload.history = history
-      .slice(0, historyLimit == null ? history.length : historyLimit)
-      .map(entry => {
-        const nextEntry = Object.assign({}, entry || {});
-        if (nextEntry.snapshot) nextEntry.snapshot = stripHeavyFieldsFromRevisionSnapshot(nextEntry.snapshot);
-        return nextEntry;
-      });
-  }
-  return payload;
-}
-function writeLS(k, v) {
-  const serialized = JSON.stringify(v);
-  try {
-    localStorage.setItem(k, serialized);
-    return true;
-  } catch (err) {
-    const msg = String(err?.message || err || '');
-    const isQuota = /quota|exceeded|storage/i.test(msg) || err?.name === 'QuotaExceededError';
-    const isMfhubData = typeof k === 'string' && k.startsWith('mfhub.data.') && k.endsWith('.v4');
-    if (!isQuota || !isMfhubData || !v || typeof v !== 'object') throw err;
-    const fallbackHistorySteps = [6, 3, 1, 0];
-    for (const limit of fallbackHistorySteps) {
-      try {
-        localStorage.setItem(k, JSON.stringify(compactPayloadForStorage(v, limit)));
-        console.warn(`MFHUB: armazenamento compactado para caber no navegador (histórico: ${limit}).`);
-        return true;
-      } catch (fallbackErr) {
-        const fallbackMsg = String(fallbackErr?.message || fallbackErr || '');
-        const stillQuota = /quota|exceeded|storage/i.test(fallbackMsg) || fallbackErr?.name === 'QuotaExceededError';
-        if (!stillQuota) throw fallbackErr;
-      }
-    }
-    console.warn('MFHUB: não foi possível salvar no localStorage por falta de espaço.');
-    return false;
-  }
-}
+function writeLS(k, v) { localStorage.setItem(k, JSON.stringify(v)); }
 function removeLS(k) { localStorage.removeItem(k); }
 function uid() { return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
 function esc(v) { return String(v ?? '').replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s])); }
@@ -3057,7 +2982,7 @@ function getManualNode(manualId, nodeId=''){
 function serializeAppDataForRevision(){
   const snapshot = advClone(appData || baseData());
   delete snapshot.history;
-  return stripHeavyFieldsFromRevisionSnapshot(snapshot);
+  return snapshot;
 }
 function recordRevision(reason='Atualização'){ 
   if (!currentUser || !appData) return;
@@ -3284,14 +3209,44 @@ function openCloudStatusModal(){
     </div>
   `, `<button class="btn" onclick="openAdminModeModal()">Modo admin</button><button class="btn primary" onclick="flushCloudSync('manual')">Sincronizar agora</button>`);
 }
-function openAdminModeModal(){
+function buildAdminMetricsSnapshot(remoteMetrics=null, remoteError=''){
   const payloadBytes = new Blob([JSON.stringify(appData || {})]).size;
   const totals = {
     manualsNodes: (appData.manuals || []).reduce((acc, manual) => acc + (ensureManualStructure(manual)?.nodes?.length || 0), 0),
     revisions: (appData.history || []).length,
     attachments: (appData.docs || []).reduce((acc, doc) => acc + (doc.attachments || []).length, 0) + (appData.manuals || []).reduce((acc, manual) => acc + (ensureManualStructure(manual).nodes || []).reduce((sum, node) => sum + (node.attachments || []).length, 0), 0)
   };
-  openModal('Modo admin técnico', `
+  return { payloadBytes, totals, remoteMetrics: remoteMetrics || null, remoteError: remoteError || '' };
+}
+function renderAdminSupabasePanel(snapshot){
+  if (!SUPABASE_ENABLED) {
+    return `<div class="panel"><div class="panel-title">Supabase</div><div class="row-text">Supabase não está configurado neste build.</div></div>`;
+  }
+  if (!canUseCloudSync()) {
+    return `<div class="panel"><div class="panel-title">Supabase</div><div class="row-text">Entre com uma sessão válida para consultar as métricas do projeto.</div></div>`;
+  }
+  if (snapshot.remoteError) {
+    return `<div class="panel"><div class="panel-title">Supabase</div><div class="row-text">${esc(snapshot.remoteError)}</div></div>`;
+  }
+  if (!snapshot.remoteMetrics) {
+    return `<div class="panel"><div class="panel-title">Supabase</div><div class="row-text">Carregando métricas do projeto...</div></div>`;
+  }
+  const m = snapshot.remoteMetrics;
+  return `
+    <div class="panel"><div class="panel-title">Supabase</div>
+      <div class="stat-row"><span class="sk">Banco atual</span><span class="sv">${esc(m.database_size_pretty || advBytes(m.database_size_bytes || 0))}</span></div>
+      <div class="stat-row"><span class="sk">Tabela MFHUB</span><span class="sv">${esc(m.mfhub_table_size_pretty || advBytes(m.mfhub_table_size_bytes || 0))}</span></div>
+      <div class="stat-row"><span class="sk">Payloads MFHUB</span><span class="sv">${esc(m.payload_total_pretty || advBytes(m.payload_total_bytes || 0))}</span></div>
+      <div class="stat-row"><span class="sk">Maior payload</span><span class="sv">${esc(m.largest_payload_pretty || advBytes(m.largest_payload_bytes || 0))}</span></div>
+      <div class="stat-row"><span class="sk">Usuários com estado</span><span class="sv">${Number(m.user_count || 0)}</span></div>
+      <div class="stat-row"><span class="sk">Seu payload salvo</span><span class="sv">${esc(m.current_user_payload_pretty || advBytes(m.current_user_payload_bytes || 0))}</span></div>
+      <div class="stat-row"><span class="sk">Storage buckets</span><span class="sv">${esc(m.storage_total_pretty || advBytes(m.storage_total_bytes || 0))}</span></div>
+      <div class="stat-row"><span class="sk">Objetos no Storage</span><span class="sv">${Number(m.storage_object_count || 0)}</span></div>
+      <div class="row-text">Esses números vêm do banco do próprio projeto e ajudam a separar o peso do MFHUB do restante do Supabase.</div>
+    </div>`;
+}
+function renderAdminModeModal(snapshot){
+  const html = `
     <div class="stack">
       <div class="panel"><div class="panel-title">Sessão</div>
         <div class="stat-row"><span class="sk">Usuário</span><span class="sv">${esc(currentUser || '—')}</span></div>
@@ -3300,17 +3255,54 @@ function openAdminModeModal(){
         <div class="stat-row"><span class="sk">Seção atual</span><span class="sv">${esc(currentSection || 'dashboard')}</span></div>
       </div>
       <div class="panel"><div class="panel-title">Estado do app</div>
-        <div class="stat-row"><span class="sk">Payload</span><span class="sv">${esc(advBytes(payloadBytes))}</span></div>
-        <div class="stat-row"><span class="sk">Revisões</span><span class="sv">${totals.revisions}</span></div>
-        <div class="stat-row"><span class="sk">Nós de manuais</span><span class="sv">${totals.manualsNodes}</span></div>
-        <div class="stat-row"><span class="sk">Anexos</span><span class="sv">${totals.attachments}</span></div>
+        <div class="stat-row"><span class="sk">Payload local</span><span class="sv">${esc(advBytes(snapshot.payloadBytes))}</span></div>
+        <div class="stat-row"><span class="sk">Revisões</span><span class="sv">${snapshot.totals.revisions}</span></div>
+        <div class="stat-row"><span class="sk">Nós de manuais</span><span class="sv">${snapshot.totals.manualsNodes}</span></div>
+        <div class="stat-row"><span class="sk">Anexos locais</span><span class="sv">${snapshot.totals.attachments}</span></div>
         <div class="stat-row"><span class="sk">Tema / fonte</span><span class="sv">${esc((document.documentElement.dataset.theme || 'dark') + ' / ' + getCurrentFontStyle())}</span></div>
       </div>
+      ${renderAdminSupabasePanel(snapshot)}
       <div class="panel"><div class="panel-title">Nuvem</div>
         <div class="row-text">${lastCloudError ? esc(lastCloudError) : 'Nenhum erro recente. Último sync em ' + esc(advFmtDt(advCloudMeta.lastSyncAt)) + '.'}</div>
       </div>
     </div>
-  `, `<button class="btn" onclick="openCloudStatusModal()">Detalhes da nuvem</button><button class="btn primary" onclick="flushCloudSync('manual')">Sincronizar agora</button>`);
+  `;
+  const foot = `<button class="btn" onclick="openCloudStatusModal()">Detalhes da nuvem</button><button class="btn" onclick="refreshAdminMetrics()">Atualizar métricas</button><button class="btn primary" onclick="flushCloudSync('manual')">Sincronizar agora</button>`;
+  const titleEl = document.getElementById('modal-title');
+  if (titleEl?.textContent === 'Modo admin técnico') {
+    document.getElementById('modal-body').innerHTML = html;
+    document.getElementById('modal-foot').innerHTML = foot + '<button class="btn" onclick="closeModal()">Cancelar</button>';
+    return;
+  }
+  openModal('Modo admin técnico', html, foot);
+}
+async function fetchAdminMetrics(){
+  if (!SUPABASE_ENABLED || !supabaseClient) throw new Error('Supabase não configurado neste build.');
+  if (!currentAuthIdentity?.id) throw new Error('Faça login para consultar as métricas do projeto.');
+  const { data, error } = await supabaseClient.rpc(CLOUD_RPC_ADMIN_METRICS);
+  if (error) {
+    const msg = String(error.message || '');
+    if (msg.includes(CLOUD_RPC_ADMIN_METRICS)) {
+      throw new Error('A função SQL mfhub_admin_metrics ainda não foi criada no Supabase. Rode o script SQL que acompanha este pacote.');
+    }
+    throw error;
+  }
+  if (Array.isArray(data)) return data[0] || null;
+  return data || null;
+}
+async function refreshAdminMetrics(){
+  const baseSnapshot = buildAdminMetricsSnapshot();
+  renderAdminModeModal(baseSnapshot);
+  try {
+    const remoteMetrics = await fetchAdminMetrics();
+    renderAdminModeModal(buildAdminMetricsSnapshot(remoteMetrics, ''));
+  } catch (error) {
+    renderAdminModeModal(buildAdminMetricsSnapshot(null, error?.message || 'Falha ao consultar as métricas do Supabase.'));
+  }
+}
+function openAdminModeModal(){
+  renderAdminModeModal(buildAdminMetricsSnapshot());
+  refreshAdminMetrics();
 }
 function openExportCenter(){
   const sections = [
@@ -3620,6 +3612,7 @@ window.undoLastChange = undoLastChange;
 window.openExportCenter = openExportCenter;
 window.exportSectionData = exportSectionData;
 window.openAdminModeModal = openAdminModeModal;
+window.refreshAdminMetrics = refreshAdminMetrics;
 window.openDashboardPrefsModal = openDashboardPrefsModal;
 window.saveDashboardPrefs = saveDashboardPrefs;
 window.openManualNode = openManualNode;
