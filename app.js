@@ -3065,11 +3065,11 @@ function ensureTopbarActions(){
 }
 function renderSidebarIdentityExtra(){
   const displayName = getProfileDisplayName();
-  const email = String(currentAuthIdentity?.email || '');
+  const profileVerse = '"[...] mas o justo viverá pela sua fé." Habacuque 2:4';
   const sidebarUser = document.getElementById('sidebar-user');
   const sidebarEmail = document.getElementById('sidebar-user-email');
   if (sidebarUser) sidebarUser.textContent = displayName.toUpperCase();
-  if (sidebarEmail) sidebarEmail.textContent = email;
+  if (sidebarEmail) sidebarEmail.textContent = profileVerse;
   let meta = document.getElementById('sidebar-user-meta');
   if (meta) {
     const tagline = String(appData?.profile?.tagline || '');
