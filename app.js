@@ -2544,7 +2544,19 @@ function uploadAttachmentsModal(type,id1,id2='',id3='') {
   const count = holder?.attachments?.length || 0;
   openModal('Anexar arquivos', `<div class="row"><label class="lbl">Arquivos</label><input id="up-files" class="input" type="file" multiple></div><div class="muted">${getAttachmentLimitLabel(type)} Já existem ${count} arquivo(s) neste local.</div>`, `<button class="btn primary" onclick="saveUploads('${type}','${id1}','${id2}','${id3}')">Enviar</button>`);
 }
-function saveUploads(type,id1,id2='',id3='') {
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(e?.target?.result || '');
+    reader.onerror = () => reject(new Error(`Falha ao ler ${file?.name || 'arquivo'}.`));
+    reader.readAsDataURL(file);
+  });
+}
+function isStorageQuotaError(error) {
+  const message = String(error?.message || '');
+  return error?.name === 'QuotaExceededError' || error?.code === 22 || error?.code === 1014 || message.includes('quota') || message.includes('storage_quota_exceeded');
+}
+async function saveUploads(type,id1,id2='',id3='') {
   const holder = resolveAttachmentHolder(type,id1,id2,id3);
   if (!holder) return showToast('Não foi possível localizar o local do anexo.');
   const files = Array.from(document.getElementById('up-files')?.files || []);
@@ -2552,33 +2564,37 @@ function saveUploads(type,id1,id2='',id3='') {
   if (!files.length) return showToast('Selecione ao menos um arquivo.');
   const limit = getAttachmentLimit(type);
   if (Number.isFinite(limit) && holder.attachments.length + files.length > limit) return alert(`O limite é de até ${limit} arquivos neste local.`);
-  let done=0;
-  let failed=0;
-  files.forEach(file => {
-    const reader = new FileReader();
-    reader.onload = e => {
-      holder.attachments.push({ id:uid(), name:file.name, type:file.type, data:e.target.result, createdAt:Date.now() });
-      done++;
-      if (done + failed === files.length) {
-        saveUserData();
-        closeModal();
-        renderAll();
-        showToast(failed ? 'Arquivos anexados com algumas falhas.' : (files.length === 1 ? 'Arquivo anexado.' : 'Arquivos anexados.'));
-      }
-    };
-    reader.onerror = () => {
+
+  const originalAttachments = [...holder.attachments];
+  const loadedAttachments = [];
+  let failed = 0;
+
+  for (const file of files) {
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      loadedAttachments.push({ id:uid(), name:file.name, type:file.type, data:dataUrl, createdAt:Date.now() });
+    } catch (error) {
+      console.error('MFHUB attachment read failed:', error);
       failed++;
-      if (done + failed === files.length) {
-        if (done) {
-          saveUserData();
-          closeModal();
-          renderAll();
-        }
-        showToast(done ? 'Arquivos anexados com algumas falhas.' : 'Nenhum arquivo pôde ser lido.');
-      }
-    };
-    reader.readAsDataURL(file);
-  });
+    }
+  }
+
+  if (!loadedAttachments.length) return showToast('Nenhum arquivo pôde ser lido.');
+
+  holder.attachments = [...originalAttachments, ...loadedAttachments];
+  try {
+    saveUserData();
+    closeModal();
+    renderAll();
+    showToast(failed ? 'Arquivos anexados com algumas falhas.' : (loadedAttachments.length === 1 ? 'Arquivo anexado.' : 'Arquivos anexados.'));
+  } catch (error) {
+    holder.attachments = originalAttachments;
+    console.error('MFHUB attachment save failed:', error);
+    if (isStorageQuotaError(error)) {
+      return showToast('Não houve espaço para salvar o anexo neste navegador. Tente arquivos menores ou remova alguns anexos antigos.');
+    }
+    return showToast('Não foi possível salvar o anexo.');
+  }
 }
 
 function focusSectionElement(elementId) {
