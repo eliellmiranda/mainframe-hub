@@ -126,6 +126,10 @@ begin
 end;
 $$;
 
+drop function if exists public.mfhub_put_state(text, jsonb, jsonb, text);
+drop function if exists public.mfhub_put_state(jsonb, text, jsonb);
+drop function if exists public.mfhub_put_state(jsonb, text);
+
 create or replace function public.mfhub_put_state(
   p_payload jsonb,
   p_theme text,
@@ -139,6 +143,7 @@ set search_path = public, auth
 as $$
 declare
   v_uid uuid := auth.uid();
+  v_payload jsonb := coalesce(p_payload, '{}'::jsonb) - 'history';
 begin
   if v_uid is null then
     raise exception 'not_authenticated';
@@ -152,7 +157,7 @@ begin
     streak
   ) values (
     v_uid,
-    coalesce(p_payload, '{}'::jsonb),
+    v_payload,
     case when p_theme in ('dark','light') then p_theme else 'dark' end,
     case when p_font_style in ('share-tech','ibm','vt323','silkscreen') then p_font_style else 'share-tech' end,
     coalesce(p_streak, jsonb_build_object('lastDate','', 'count',0, 'longest',0))
@@ -172,57 +177,8 @@ revoke all on function public.mfhub_put_state(jsonb, text, text, jsonb) from pub
 grant execute on function public.mfhub_get_state() to authenticated;
 grant execute on function public.mfhub_put_state(jsonb, text, text, jsonb) to authenticated;
 
-create or replace function public.mfhub_put_state(
-  p_payload jsonb,
-  p_theme text
-)
-returns void
-language plpgsql
-security definer
-set search_path = public, auth
-as $$
-begin
-  perform public.mfhub_put_state(p_payload, p_theme, 'share-tech', jsonb_build_object('lastDate','', 'count',0, 'longest',0));
-end;
-$$;
-
-create or replace function public.mfhub_put_state(
-  p_payload jsonb,
-  p_theme text,
-  p_streak jsonb
-)
-returns void
-language plpgsql
-security definer
-set search_path = public, auth
-as $$
-begin
-  perform public.mfhub_put_state(p_payload, p_theme, 'share-tech', p_streak);
-end;
-$$;
-
-create or replace function public.mfhub_put_state(
-  p_font_style text,
-  p_payload jsonb,
-  p_streak jsonb,
-  p_theme text
-)
-returns void
-language plpgsql
-security definer
-set search_path = public, auth
-as $$
-begin
-  perform public.mfhub_put_state(p_payload, p_theme, p_font_style, p_streak);
-end;
-$$;
-
-revoke all on function public.mfhub_put_state(jsonb, text) from public, anon;
-revoke all on function public.mfhub_put_state(jsonb, text, jsonb) from public, anon;
-revoke all on function public.mfhub_put_state(text, jsonb, jsonb, text) from public, anon;
-grant execute on function public.mfhub_put_state(jsonb, text) to authenticated;
-grant execute on function public.mfhub_put_state(jsonb, text, jsonb) to authenticated;
-grant execute on function public.mfhub_put_state(text, jsonb, jsonb, text) to authenticated;
+create index if not exists idx_mfhub_user_state_updated_at
+  on public.mfhub_user_state(updated_at desc);
 
 --------------------------------------------------------------------------
 -- PARTE 2 — EMUNAH BANK LAB (emunah-bank-lab.html)

@@ -23,6 +23,7 @@ set search_path = public, auth
 as $$
 declare
   v_uid uuid := auth.uid();
+  v_payload jsonb := coalesce(p_payload, '{}'::jsonb) - 'history';
 begin
   if v_uid is null then
     raise exception 'not_authenticated';
@@ -36,7 +37,7 @@ begin
     streak
   ) values (
     v_uid,
-    coalesce(p_payload, '{}'::jsonb),
+    v_payload,
     case when p_theme in ('dark','light') then p_theme else 'dark' end,
     case when p_font_style in ('share-tech','ibm','vt323','silkscreen') then p_font_style else 'share-tech' end,
     coalesce(p_streak, jsonb_build_object('lastDate','', 'count',0, 'longest',0))
