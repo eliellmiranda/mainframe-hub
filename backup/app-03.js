@@ -128,133 +128,6 @@ function baseData() {
     meta: { seedVersion:0, lastSection:'dashboard', goalSeedVersion:0, selectedGoalDay:getTodayGoalKey() }
   };
 }
-
-const SPACE_ICON_DEFAULTS = { code:'💻', exercise:'⚙️', interview:'💬' };
-const SUBSPACE_ICON_DEFAULTS = { code:'🧩', exercise:'📝', interview:'🎙️' };
-
-function normalizeIcon(value, fallback='📁') {
-  const icon = String(value ?? '').trim();
-  return icon || fallback;
-}
-function getKindLabel(kind) {
-  return kind === 'code' ? 'código' : kind === 'exercise' ? 'exercícios' : 'entrevistas';
-}
-function getItemLabel(kind, plural=true) {
-  if (kind === 'code') return plural ? 'snippets' : 'snippet';
-  if (kind === 'exercise') return plural ? 'exercícios' : 'exercício';
-  return plural ? 'perguntas' : 'pergunta';
-}
-function splitLegacyHierarchyName(name) {
-  const raw = String(name || '').trim();
-  if (!raw) return null;
-  const separators = [' > ', ' — ', ' - '];
-  const sep = separators.find(item => raw.includes(item));
-  if (!sep) return null;
-  const parts = raw.split(sep).map(part => part.trim()).filter(Boolean);
-  if (parts.length < 2) return null;
-  let parent = parts.shift();
-  let child = parts.join(' / ');
-  if (/^exerc[ií]cios$/i.test(parent)) parent = 'Exercícios';
-  if (/^entrevistas$/i.test(parent)) parent = 'Entrevistas';
-  if (/^exemplos\s+/i.test(parent)) parent = parent.replace(/^exemplos\s+/i, '').trim();
-  return parent && child ? { parent, child } : null;
-}
-function ensureSpaceShape(kind, space) {
-  if (!space || typeof space !== 'object') return;
-  space.name = String(space.name || 'Espaço');
-  space.desc = String(space.desc || '');
-  space.icon = normalizeIcon(space.icon, SPACE_ICON_DEFAULTS[kind] || '📁');
-  space.attachments ||= [];
-  space.subspaces ||= [];
-  space.createdAt ||= Date.now();
-  const itemsKey = kind === 'code' ? 'snippets' : 'items';
-  space.subspaces.forEach(sub => {
-    sub.name = String(sub.name || 'Base');
-    sub.desc = String(sub.desc || '');
-    sub.icon = normalizeIcon(sub.icon, SUBSPACE_ICON_DEFAULTS[kind] || '🧩');
-    sub.attachments ||= [];
-    sub[itemsKey] ||= [];
-    sub.createdAt ||= Date.now();
-    if (kind !== 'code') {
-      sub.items = (sub.items || []).map(item => ({
-        ...item,
-        prompt: String(item?.prompt || item?.question || ''),
-        userAnswer: String(item?.userAnswer || ''),
-        modelAnswer: String(item?.modelAnswer || item?.answer || ''),
-        showModel: !!item?.showModel,
-        minimized: !!item?.minimized,
-        createdAt: item?.createdAt || Date.now()
-      }));
-    } else {
-      sub.snippets = (sub.snippets || []).map(snippet => ({
-        ...snippet,
-        title: String(snippet?.title || 'Snippet'),
-        lang: String(snippet?.lang || ''),
-        description: String(snippet?.description || ''),
-        code: String(snippet?.code || ''),
-        createdAt: snippet?.createdAt || Date.now()
-      }));
-    }
-  });
-}
-function migrateLegacyHierarchy(kind) {
-  const list = getSpaceList(kind);
-  if (!Array.isArray(list) || !list.length) return;
-  const itemsKey = kind === 'code' ? 'snippets' : 'items';
-  const originals = [...list];
-  const migrated = [];
-  const getOrCreateSpace = (name, desc='') => {
-    let space = migrated.find(item => item.name === name);
-    if (!space) {
-      space = {
-        id: uid(),
-        name,
-        desc,
-        icon: SPACE_ICON_DEFAULTS[kind] || '📁',
-        attachments: [],
-        subspaces: [],
-        createdAt: Date.now()
-      };
-      migrated.push(space);
-    } else if (!space.desc && desc) {
-      space.desc = desc;
-    }
-    return space;
-  };
-  originals.forEach(space => {
-    ensureSpaceShape(kind, space);
-    const split = splitLegacyHierarchyName(space.name);
-    const baseOnly = (space.subspaces || []).length === 1 && /^base$/i.test(String(space.subspaces[0]?.name || '').trim());
-    if (!split || !baseOnly) {
-      migrated.push(space);
-      return;
-    }
-    const baseSub = space.subspaces[0];
-    const targetSpace = getOrCreateSpace(split.parent, '');
-    let targetSub = (targetSpace.subspaces || []).find(sub => String(sub.name || '').toLowerCase() === split.child.toLowerCase());
-    if (!targetSub) {
-      targetSub = {
-        id: uid(),
-        name: split.child,
-        desc: String(baseSub.desc || space.desc || ''),
-        icon: normalizeIcon(baseSub.icon || space.icon, SUBSPACE_ICON_DEFAULTS[kind] || '🧩'),
-        attachments: [...(space.attachments || []), ...(baseSub.attachments || [])],
-        [itemsKey]: [],
-        createdAt: baseSub.createdAt || space.createdAt || Date.now()
-      };
-      targetSpace.subspaces.push(targetSub);
-    }
-    const existingTitles = new Set((targetSub[itemsKey] || []).map(item => String(item?.title || '').trim().toLowerCase()));
-    (baseSub[itemsKey] || []).forEach(item => {
-      const key = String(item?.title || '').trim().toLowerCase();
-      if (!key || existingTitles.has(key)) return;
-      existingTitles.add(key);
-      targetSub[itemsKey].push(item);
-    });
-  });
-  list.length = 0;
-  migrated.forEach(space => list.push(space));
-}
 function ensureDefaults() {
   appData.courses ||= [];
   appData.docs ||= [];
@@ -275,16 +148,6 @@ function ensureDefaults() {
   appData.lab ||= { url:'', planUrl:'emunah-bank-lab.html', title:'EMUNAH BANK LAB' };
   appData.meta ||= { seedVersion:0, lastSection:'dashboard', goalSeedVersion:0, selectedGoalDay:getTodayGoalKey() };
   appData.meta.selectedGoalDay ||= getTodayGoalKey();
-
-  appData.codeSpaces.forEach(space => ensureSpaceShape('code', space));
-  appData.exerciseSpaces.forEach(space => ensureSpaceShape('exercise', space));
-  appData.interviewSpaces.forEach(space => ensureSpaceShape('interview', space));
-  migrateLegacyHierarchy('exercise');
-  migrateLegacyHierarchy('interview');
-  appData.codeSpaces.forEach(space => ensureSpaceShape('code', space));
-  appData.exerciseSpaces.forEach(space => ensureSpaceShape('exercise', space));
-  appData.interviewSpaces.forEach(space => ensureSpaceShape('interview', space));
-
   appData.courses.forEach(course => {
     course.modules ||= [];
     course.modules.forEach(module => {
@@ -952,24 +815,24 @@ function setMissingSupabaseHelp() {
   setFieldText('forgot-help', 'Sem o arquivo <strong>supabase-config.js</strong>, o envio real do link de redefinição por e-mail não funciona.', true);
 }
 function seedSpace(target, seed, mode) {
-  if (target.some(x=>x.name===seed.name)) return;
+  const existing = new Set(target.map(x => x.name.toLowerCase()));
+  if (existing.has(seed.name.toLowerCase())) return;
   if (mode === 'code') {
     target.push({
-      id: uid(), name: seed.name, desc: seed.desc, icon: SPACE_ICON_DEFAULTS.code, attachments: [], subspaces: [
+      id: uid(), name: seed.name, desc: seed.desc, attachments: [], subspaces: [
         {
-          id: uid(), name:'Base', desc:'Subespaço inicial', icon: SUBSPACE_ICON_DEFAULTS.code, attachments: [],
+          id: uid(), name:'Base', desc:'Subespaço inicial', attachments: [],
           snippets: (seed.snippets||[]).map(s => ({ id:uid(), title:s.title, lang:s.lang||'', description:s.description||'', code:s.code||'', createdAt:Date.now() })),
           createdAt:Date.now()
         }
       ], createdAt:Date.now()
     });
   } else {
-    const kind = mode === 'practice-interview' ? 'interview' : 'exercise';
     target.push({
-      id: uid(), name: seed.name, desc: seed.desc, icon: SPACE_ICON_DEFAULTS[kind], attachments: [], subspaces: [
+      id: uid(), name: seed.name, desc: seed.desc, attachments: [], subspaces: [
         {
-          id: uid(), name:'Base', desc:'Subespaço inicial', icon: SUBSPACE_ICON_DEFAULTS[kind], attachments: [],
-          items: (seed.items||[]).map(it => ({ id:uid(), title:it.title, prompt:it.prompt, userAnswer:'', modelAnswer: String(it.answer || ''), createdAt:Date.now(), showModel:false })),
+          id: uid(), name:'Base', desc:'Subespaço inicial', attachments: [],
+          items: (seed.items||[]).map(it => ({ id:uid(), title:it.title, prompt:it.prompt, userAnswer:'', modelAnswer: it.answer || 'Sem resposta modelo cadastrada ainda.', createdAt:Date.now(), showModel:false })),
           createdAt:Date.now()
         }
       ], createdAt:Date.now()
@@ -980,7 +843,7 @@ function ensureSeedData() {
   if (appData.meta.seedVersion === SEED_VERSION) return;
   SEEDS.codeSpaces.forEach(s => seedSpace(appData.codeSpaces, s, 'code'));
   SEEDS.exercises.forEach(s => seedSpace(appData.exerciseSpaces, s, 'practice'));
-  SEEDS.interviews.forEach(s => seedSpace(appData.interviewSpaces, s, 'practice-interview'));
+  SEEDS.interviews.forEach(s => seedSpace(appData.interviewSpaces, s, 'practice'));
   appData.meta.seedVersion = SEED_VERSION;
   saveUserData();
 }
@@ -1537,7 +1400,7 @@ function updateStatus() {
     reminders: appData.reminders.length,
     goals: Object.values(appData.dailyGoals || {}).reduce((a,list)=>a+(Array.isArray(list)?list.length:0),0),
   };
-  document.getElementById('status-stats').textContent = `${totals.courses} cursos · ${totals.docs} docs · ${totals.code} códigos · ${totals.ex + totals.iv} exercícios · ${totals.linkedin} posts · ${totals.certs} badges · ${totals.tools} ferramentas · ${totals.manuals} manuais · ${totals.notes} notas · ${totals.reminders} lembretes · ${totals.goals} metas`;
+  document.getElementById('status-stats').textContent = `${totals.courses} cursos · ${totals.docs} docs · ${totals.code} códigos · ${totals.ex + totals.iv} questões · ${totals.linkedin} posts · ${totals.certs} badges · ${totals.tools} ferramentas · ${totals.manuals} manuais · ${totals.notes} notas · ${totals.reminders} lembretes · ${totals.goals} metas`;
 }
 
 function renderDashboard() {
@@ -1606,8 +1469,8 @@ function renderDashboard() {
         ['📂','Cursos','courses','Cursos com módulos, submódulos, vídeos, anexos e progresso recalculável.'],
         ['📋','Documentação','docs','Espaços com editor livre e até 5 anexos.'],
         ['💻','Exemplos de código','code','Espaços > subespaços > snippets, edição e anexos.'],
-        ['⚙','Exercícios','exercises','Espaços > subespaços > exercícios com sua resposta e resposta modelo.'],
-        ['💬','Entrevistas','interviews','Espaços > subespaços > perguntas de entrevista com resposta modelo.'],
+        ['⚙','Exercícios','exercises','Espaços > subespaços > questões com sua resposta e resposta modelo.'],
+        ['💬','Entrevistas','interviews','Mesmo fluxo dos exercícios para preparação.'],
         ['🔗','Postagem LinkedIn','linkedin','Rascunhos prontos para revisar e postar depois.'],
         ['🏅','Certificados e badges','certs','Conquistados e a conquistar, com imagem opcional.'],
         ['🧰','Ferramentas','tools','Catálogo de ferramentas com download, site oficial e instruções.'],
@@ -1966,21 +1829,14 @@ function saveDocContent(id) {
   doc.content = document.getElementById('doc-editor').value; saveUserData(); showToast('Documento salvo.');
 }
 
-
-function getSpaceIcon(kind, space) {
-  return normalizeIcon(space?.icon, SPACE_ICON_DEFAULTS[kind] || '📁');
-}
-function getSubspaceIcon(kind, subspace) {
-  return normalizeIcon(subspace?.icon, SUBSPACE_ICON_DEFAULTS[kind] || '🧩');
-}
 function renderCode() {
   const wrap = document.getElementById('section-code');
   const space = appData.codeSpaces.find(s=>s.id===currentDetail.codeSpaceId);
   if (!space) {
     wrap.innerHTML = `
-      <div class="headline"><div><div class="title">Exemplos de código</div><div class="subtitle">Espaços com dois níveis: espaço > subespaço > snippets</div></div><div style="display:flex;gap:10px"><button class="btn" onclick="openImportCenter('code')">Importar</button><button class="btn primary" onclick="openGenericSpaceModal('code')">Novo espaço</button></div></div>
+      <div class="headline"><div><div class="title">Exemplos de código</div><div class="subtitle">Espaços com subespaços, snippets e anexos</div></div><div style="display:flex;gap:10px"><button class="btn" onclick="openImportCenter('code')">Importar</button><button class="btn primary" onclick="openGenericSpaceModal('code')">Novo espaço</button></div></div>
       <div class="grid">
-        ${appData.codeSpaces.map(s=>`<div class="card clickable" id="code-space-${s.id}" onclick="openCodeSpace('${s.id}')"><div class="card-actions"><button class="btn xs" onclick="event.stopPropagation();openGenericSpaceModal('code','${s.id}')">Editar</button><button class="btn xs danger" onclick="event.stopPropagation();deleteGenericSpace('code','${s.id}')">Excluir</button></div><div class="card-icon">${esc(getSpaceIcon('code', s))}</div><div class="card-title">${esc(s.name)}</div><div class="card-meta">${esc(s.desc||'Sem descrição')}<br>Subespaços: ${(s.subspaces||[]).length}</div></div>`).join('')}
+        ${appData.codeSpaces.map(s=>`<div class="card clickable" id="code-space-${s.id}" onclick="openCodeSpace('${s.id}')"><div class="card-actions"><button class="btn xs danger" onclick="event.stopPropagation();deleteGenericSpace('code','${s.id}')">Excluir</button></div><div class="card-icon">💻</div><div class="card-title">${esc(s.name)}</div><div class="card-meta">${esc(s.desc||'Sem descrição')}<br>Subespaços: ${(s.subspaces||[]).length}</div></div>`).join('')}
         <div class="card new clickable" onclick="openGenericSpaceModal('code')"><div><div style="font-size:30px;text-align:center">+</div><div>Novo espaço</div></div></div>
       </div>`;
     return;
@@ -1989,15 +1845,15 @@ function renderCode() {
   if (!sub) {
     wrap.innerHTML = `
       <div class="back" onclick="backToCodeList()">← Voltar</div>
-      <div class="headline"><div id="code-space-view-${space.id}"><div class="title">${esc(space.name)}</div><div class="subtitle">${esc(space.desc||'Espaço de código')}</div></div><div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" onclick="openGenericSpaceModal('code','${space.id}')">Editar espaço</button><button class="btn primary" onclick="openSubspaceModal('code','${space.id}')">Novo subespaço</button></div></div>
+      <div class="headline"><div id="code-space-view-${space.id}"><div class="title">${esc(space.name)}</div><div class="subtitle">${esc(space.desc||'Espaço de código')}</div></div><button class="btn primary" onclick="openSubspaceModal('code','${space.id}')">Novo subespaço</button></div>
       <div class="grid">
-        ${(space.subspaces||[]).map(ss=>`<div class="card clickable" id="code-subspace-${ss.id}" onclick="openCodeSubspace('${space.id}','${ss.id}')"><div class="card-actions"><button class="btn xs" onclick="event.stopPropagation();openSubspaceModal('code','${space.id}','${ss.id}')">Editar</button><button class="btn xs danger" onclick="event.stopPropagation();deleteSubspace('code','${space.id}','${ss.id}')">Excluir</button></div><div class="card-icon">${esc(getSubspaceIcon('code', ss))}</div><div class="card-title">${esc(ss.name)}</div><div class="card-meta">${esc(ss.desc||'Sem descrição')}<br>Snippets: ${(ss.snippets||[]).length} · Arquivos: ${(ss.attachments||[]).length}</div></div>`).join('')}
+        ${(space.subspaces||[]).map(ss=>`<div class="card clickable" id="code-subspace-${ss.id}" onclick="openCodeSubspace('${space.id}','${ss.id}')"><div class="card-actions"><button class="btn xs danger" onclick="event.stopPropagation();deleteSubspace('code','${space.id}','${ss.id}')">Excluir</button></div><div class="card-icon">🧩</div><div class="card-title">${esc(ss.name)}</div><div class="card-meta">${esc(ss.desc||'Sem descrição')}<br>Snippets: ${(ss.snippets||[]).length} · Arquivos: ${(ss.attachments||[]).length}</div></div>`).join('')}
       </div>`;
     return;
   }
   wrap.innerHTML = `
     <div class="back" onclick="backToCodeSpace()">← Voltar</div>
-    <div class="headline"><div id="code-subspace-view-${sub.id}"><div class="title">${esc(sub.name)}</div><div class="subtitle">${esc(sub.desc||'Subespaço')}</div></div><div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" onclick="openSubspaceModal('code','${space.id}','${sub.id}')">Editar subespaço</button><button class="btn" onclick="uploadAttachmentsModal('code-subspace','${space.id}','${sub.id}')">Arquivos</button><button class="btn primary" onclick="openSnippetModal('${space.id}','${sub.id}')">Novo snippet</button></div></div>
+    <div class="headline"><div id="code-subspace-view-${sub.id}"><div class="title">${esc(sub.name)}</div><div class="subtitle">${esc(sub.desc||'Subespaço')}</div></div><div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" onclick="uploadAttachmentsModal('code-subspace','${space.id}','${sub.id}')">Arquivos</button><button class="btn primary" onclick="openSnippetModal('${space.id}','${sub.id}')">Novo snippet</button></div></div>
     <div class="cols-2">
       <div class="stack">
         ${(sub.snippets||[]).length ? sub.snippets.map(sn=>`<div class="panel" id="snippet-${sn.id}"><div class="row-top"><div><div class="row-title">${esc(sn.title)}</div><div class="row-sub">${esc(sn.lang||'Código')} · ${esc(sn.description||'')}</div></div><div class="row-actions"><button class="btn xs" onclick="openSnippetModal('${space.id}','${sub.id}','${sn.id}')">Editar</button><button class="btn xs danger" onclick="deleteSnippet('${space.id}','${sub.id}','${sn.id}')">Excluir</button></div></div><pre class="row-text" style="font-family:'Share Tech Mono',monospace;overflow:auto;background:var(--input);padding:12px;border-radius:12px;margin-top:12px">${esc(sn.code)}</pre></div>`).join('') : '<div class="empty">Nenhum snippet neste subespaço.</div>'}
@@ -2081,8 +1937,6 @@ function backToDocList() { currentDetail.docId = null; renderDocs(); }
 function renderPractice(kind) {
   const sectionId = kind === 'exercise' ? 'section-exercises' : 'section-interviews';
   const title = kind === 'exercise' ? 'Exercícios' : 'Entrevistas';
-  const itemPlural = kind === 'exercise' ? 'Exercícios' : 'Perguntas';
-  const itemSingular = kind === 'exercise' ? 'Exercício' : 'Pergunta';
   const spaces = kind === 'exercise' ? appData.exerciseSpaces : appData.interviewSpaces;
   const spaceIdKey = kind === 'exercise' ? 'exerciseSpaceId' : 'interviewSpaceId';
   const subIdKey = kind === 'exercise' ? 'exerciseSubspaceId' : 'interviewSubspaceId';
@@ -2090,9 +1944,9 @@ function renderPractice(kind) {
   const wrap = document.getElementById(sectionId);
   if (!space) {
     wrap.innerHTML = `
-      <div class="headline"><div><div class="title">${title}</div><div class="subtitle">Espaços com dois níveis: espaço > subespaço > ${itemPlural.toLowerCase()}</div></div><div style="display:flex;gap:10px"><button class="btn" onclick="openImportCenter('${kind}')">Importar</button><button class="btn primary" onclick="openGenericSpaceModal('${kind}')">Novo espaço</button></div></div>
+      <div class="headline"><div><div class="title">${title}</div><div class="subtitle">Espaços com subespaços, sua resposta e resposta modelo com mostrar/esconder</div></div><div style="display:flex;gap:10px"><button class="btn" onclick="openImportCenter('${kind}')">Importar</button><button class="btn primary" onclick="openGenericSpaceModal('${kind}')">Novo espaço</button></div></div>
       <div class="grid">
-        ${spaces.map(s=>`<div class="card clickable" id="${kind}-space-${s.id}" onclick="openPracticeSpace('${kind}','${s.id}')"><div class="card-actions"><button class="btn xs" onclick="event.stopPropagation();openGenericSpaceModal('${kind}','${s.id}')">Editar</button><button class="btn xs danger" onclick="event.stopPropagation();deleteGenericSpace('${kind}','${s.id}')">Excluir</button></div><div class="card-icon">${esc(getSpaceIcon(kind, s))}</div><div class="card-title">${esc(s.name)}</div><div class="card-meta">${esc(s.desc||'Sem descrição')}<br>Subespaços: ${(s.subspaces||[]).length}</div></div>`).join('')}
+        ${spaces.map(s=>`<div class="card clickable" id="${kind}-space-${s.id}" onclick="openPracticeSpace('${kind}','${s.id}')"><div class="card-actions"><button class="btn xs danger" onclick="event.stopPropagation();deleteGenericSpace('${kind}','${s.id}')">Excluir</button></div><div class="card-icon">${kind==='exercise'?'⚙':'💬'}</div><div class="card-title">${esc(s.name)}</div><div class="card-meta">${esc(s.desc||'Sem descrição')}<br>Subespaços: ${(s.subspaces||[]).length}</div></div>`).join('')}
         <div class="card new clickable" onclick="openGenericSpaceModal('${kind}')"><div><div style="font-size:30px;text-align:center">+</div><div>Novo espaço</div></div></div>
       </div>`;
     return;
@@ -2101,9 +1955,9 @@ function renderPractice(kind) {
   if (!sub) {
     wrap.innerHTML = `
       <div class="back" onclick="backToPracticeList('${kind}')">← Voltar</div>
-      <div class="headline"><div id="${kind}-space-view-${space.id}"><div class="title">${esc(space.name)}</div><div class="subtitle">${esc(space.desc||'Espaço')}</div></div><div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" onclick="openGenericSpaceModal('${kind}','${space.id}')">Editar espaço</button><button class="btn primary" onclick="openSubspaceModal('${kind}','${space.id}')">Novo subespaço</button></div></div>
+      <div class="headline"><div id="${kind}-space-view-${space.id}"><div class="title">${esc(space.name)}</div><div class="subtitle">${esc(space.desc||'Espaço')}</div></div><button class="btn primary" onclick="openSubspaceModal('${kind}','${space.id}')">Novo subespaço</button></div>
       <div class="grid">
-        ${(space.subspaces||[]).map(ss=>`<div class="card clickable" id="${kind}-subspace-${ss.id}" onclick="openPracticeSubspace('${kind}','${space.id}','${ss.id}')"><div class="card-actions"><button class="btn xs" onclick="event.stopPropagation();openSubspaceModal('${kind}','${space.id}','${ss.id}')">Editar</button><button class="btn xs danger" onclick="event.stopPropagation();deleteSubspace('${kind}','${space.id}','${ss.id}')">Excluir</button></div><div class="card-icon">${esc(getSubspaceIcon(kind, ss))}</div><div class="card-title">${esc(ss.name)}</div><div class="card-meta">${esc(ss.desc||'Sem descrição')}<br>${itemPlural}: ${(ss.items||[]).length} · Arquivos: ${(ss.attachments||[]).length}</div></div>`).join('')}
+        ${(space.subspaces||[]).map(ss=>`<div class="card clickable" id="${kind}-subspace-${ss.id}" onclick="openPracticeSubspace('${kind}','${space.id}','${ss.id}')"><div class="card-actions"><button class="btn xs danger" onclick="event.stopPropagation();deleteSubspace('${kind}','${space.id}','${ss.id}')">Excluir</button></div><div class="card-icon">🧩</div><div class="card-title">${esc(ss.name)}</div><div class="card-meta">${esc(ss.desc||'Sem descrição')}<br>Questões: ${(ss.items||[]).length} · Arquivos: ${(ss.attachments||[]).length}</div></div>`).join('')}
       </div>`;
     return;
   }
@@ -2112,28 +1966,27 @@ function renderPractice(kind) {
   const answeredCount = allItems.filter(isPracticeAnswered).length;
   wrap.innerHTML = `
     <div class="back" onclick="backToPracticeSpace('${kind}')">← Voltar</div>
-    <div class="headline"><div id="${kind}-subspace-view-${sub.id}"><div class="title">${esc(sub.name)}</div><div class="subtitle">${esc(sub.desc||'Subespaço')}</div></div><div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" onclick="openSubspaceModal('${kind}','${space.id}','${sub.id}')">Editar subespaço</button><button class="btn" onclick="uploadAttachmentsModal('${kind}-subspace','${space.id}','${sub.id}')">Arquivos</button><button class="btn primary" onclick="openPracticeItemModal('${kind}','${space.id}','${sub.id}')">Novo ${itemSingular.toLowerCase()}</button></div></div>
+    <div class="headline"><div id="${kind}-subspace-view-${sub.id}"><div class="title">${esc(sub.name)}</div><div class="subtitle">${esc(sub.desc||'Subespaço')}</div></div><div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" onclick="uploadAttachmentsModal('${kind}-subspace','${space.id}','${sub.id}')">Arquivos</button><button class="btn primary" onclick="openPracticeItemModal('${kind}','${space.id}','${sub.id}')">Nova questão</button></div></div>
     <div class="practice-toolbar">
       ${kind==='exercise' ? `<button class="btn xs" onclick="togglePracticeIndex('exercise')">${currentDetail.exerciseIndexOpen ? 'Ocultar índice' : 'Mostrar índice'}</button>` : ''}
       ${kind==='exercise' ? `<select class="select" onchange="setPracticeFilter('exercise', this.value)">${practiceFilterOptions(kind).map(([value,label])=>`<option value="${value}" ${getPracticeFilter(kind)===value?'selected':''}>${label}</option>`).join('')}</select>` : ''}
-      <span class="goal-pill">Respondidos: ${answeredCount}/${allItems.length}</span>
+      <span class="goal-pill">Respondidas: ${answeredCount}/${allItems.length}</span>
       ${kind==='exercise' ? `<span class="goal-pill">Exibindo: ${filteredItems.length}</span>` : ''}
     </div>
     ${(kind!=='exercise' || currentDetail.exerciseIndexOpen) ? `<div class="practice-index">${allItems.map((item, idx)=>`<button class="practice-index-item ${isPracticeAnswered(item)?'done':''}" onclick="scrollPracticeItem('${kind}','${item.id}')">${idx+1}. ${esc(item.title)}</button>`).join('')}</div>` : ''}
     <div class="cols-2">
       <div class="stack">
-        ${filteredItems.length ? filteredItems.map(item=>renderPracticeItem(kind, space.id, sub.id, item)).join('') : `<div class="empty">Nenhum ${itemSingular.toLowerCase()} encontrado para este filtro.</div>`}
+        ${filteredItems.length ? filteredItems.map(item=>renderPracticeItem(kind, space.id, sub.id, item)).join('') : '<div class="empty">Nenhuma questão encontrada para este filtro.</div>'}
       </div>
       <div class="panel"><div class="panel-title">Arquivos do subespaço (até 5)</div>${renderAttachments(sub.attachments||[], `${kind}-subspace`, space.id, sub.id)}</div>
     </div>`;
 }
 function renderPracticeItem(kind, spaceId, subId, item) {
   const answered = isPracticeAnswered(item);
-  const itemWord = kind === 'exercise' ? 'Exercício' : 'Pergunta';
   return `
   <div class="panel ${item.minimized ? 'minimized' : ''}" id="${kind}-item-${item.id}">
     <div class="row-top">
-      <div><div class="row-title">${esc(item.title)}</div><div class="row-sub">${itemWord} · ${fmtDate(item.createdAt)} · ${answered ? 'respondido' : 'não respondido'}</div></div>
+      <div><div class="row-title">${esc(item.title)}</div><div class="row-sub">${fmtDate(item.createdAt)} · ${answered ? 'respondida' : 'não respondida'}</div></div>
       <div class="row-actions">
         <button class="btn xs" onclick="togglePracticeMinimized('${kind}','${spaceId}','${subId}','${item.id}')">${item.minimized ? 'Expandir' : 'Minimizar'}</button>
         <button class="btn xs" onclick="toggleModelAnswer('${kind}','${spaceId}','${subId}','${item.id}')">${item.showModel ? 'Esconder resposta' : 'Visualizar resposta'}</button>
@@ -2149,7 +2002,7 @@ function renderPracticeItem(kind, spaceId, subId, item) {
       <div style="margin-top:14px">
         <label class="lbl">Resposta modelo</label>
         <div class="${item.showModel ? '' : 'answer-hidden'}" id="model-${item.id}">
-          <textarea class="textarea" placeholder="Sem resposta modelo cadastrada." oninput="updatePracticeModelAnswer('${kind}','${spaceId}','${subId}','${item.id}', this.value)">${esc(item.modelAnswer||'')}</textarea>
+          <textarea class="textarea" oninput="updatePracticeModelAnswer('${kind}','${spaceId}','${subId}','${item.id}', this.value)">${esc(item.modelAnswer||'')}</textarea>
         </div>
         ${item.showModel ? '' : '<div class="empty">Resposta oculta. Clique em “Visualizar resposta”.</div>'}
       </div>
@@ -2167,15 +2020,14 @@ function openPracticeSubspace(kind, spaceId, subId) {
   else { currentDetail.interviewSpaceId=spaceId; currentDetail.interviewSubspaceId=subId; renderInterviews(); }
 }
 function openPracticeItemModal(kind, spaceId, subId) {
-  const itemWord = kind === 'exercise' ? 'Novo exercício' : 'Nova pergunta';
-  openModal(itemWord, `<div class="row"><label class="lbl">Título</label><input id="it-title" class="input"></div><div class="row"><label class="lbl">Enunciado / pergunta</label><textarea id="it-prompt" class="textarea"></textarea></div><div class="row"><label class="lbl">Resposta modelo</label><textarea id="it-model" class="textarea" placeholder="Opcional"></textarea></div>`, `<button class="btn primary" onclick="savePracticeItem('${kind}','${spaceId}','${subId}')">Salvar</button>`);
+  openModal('Nova questão', `<div class="row"><label class="lbl">Título</label><input id="it-title" class="input"></div><div class="row"><label class="lbl">Enunciado / pergunta</label><textarea id="it-prompt" class="textarea"></textarea></div><div class="row"><label class="lbl">Resposta modelo</label><textarea id="it-model" class="textarea"></textarea></div>`, `<button class="btn primary" onclick="savePracticeItem('${kind}','${spaceId}','${subId}')">Salvar</button>`);
 }
 function savePracticeItem(kind, spaceId, subId) {
   const sub = getPracticeSubspace(kind, spaceId, subId); if(!sub) return;
   const title=document.getElementById('it-title').value.trim(); const prompt=document.getElementById('it-prompt').value.trim(); const model=document.getElementById('it-model').value.trim();
   if(!title || !prompt) return;
-  sub.items.push({ id:uid(), title, prompt, userAnswer:'', modelAnswer:model, createdAt:Date.now(), showModel:false });
-  saveUserData(); closeModal(); renderPractice(kind); updateStatus(); showToast(kind === 'exercise' ? 'Exercício salvo.' : 'Pergunta salva.');
+  sub.items.push({ id:uid(), title, prompt, userAnswer:'', modelAnswer:model || 'Sem resposta modelo cadastrada ainda.', createdAt:Date.now(), showModel:false });
+  saveUserData(); closeModal(); renderPractice(kind); updateStatus(); showToast('Questão salva.');
 }
 function getPracticeSubspace(kind, spaceId, subId) {
   const list = kind === 'exercise' ? appData.exerciseSpaces : appData.interviewSpaces;
@@ -2183,9 +2035,9 @@ function getPracticeSubspace(kind, spaceId, subId) {
 }
 function deletePracticeItem(kind, spaceId, subId, itemId) {
   const sub = getPracticeSubspace(kind, spaceId, subId); if(!sub)return;
-  const name = sub.items?.find(i=>i.id===itemId)?.title || 'este item';
+  const name = sub.items?.find(i=>i.id===itemId)?.title || 'esta questão';
   if (!confirm(`Deseja mesmo excluir "${name}"?`)) return;
-  sub.items = (sub.items||[]).filter(i=>i.id!==itemId); saveUserData(); renderPractice(kind); showToast(kind === 'exercise' ? 'Exercício removido.' : 'Pergunta removida.');
+  sub.items = (sub.items||[]).filter(i=>i.id!==itemId); saveUserData(); renderPractice(kind); showToast('Questão removida.');
 }
 function updatePracticeUserAnswer(kind, spaceId, subId, itemId, value) {
   const item = getPracticeSubspace(kind, spaceId, subId)?.items?.find(i=>i.id===itemId); if(!item)return;
@@ -2200,35 +2052,19 @@ function toggleModelAnswer(kind, spaceId, subId, itemId) {
   item.showModel = !item.showModel; saveUserData(); renderPractice(kind);
 }
 
-function openGenericSpaceModal(kind, spaceId='') {
-  const list = getSpaceList(kind);
-  const space = spaceId ? list.find(item => item.id === spaceId) : null;
-  const label = space ? `Editar espaço de ${getKindLabel(kind)}` : kind === 'code' ? 'Novo espaço de código' : kind === 'exercise' ? 'Novo espaço de exercícios' : 'Novo espaço de entrevistas';
-  openModal(label, `
-    <div class="row"><label class="lbl">Nome</label><input id="gs-name" class="input" value="${esc(space?.name || '')}"></div>
-    <div class="row"><label class="lbl">Descrição</label><input id="gs-desc" class="input" value="${esc(space?.desc || '')}"></div>
-    <div class="row"><label class="lbl">Ícone</label><input id="gs-icon" class="input" value="${esc(space?.icon || SPACE_ICON_DEFAULTS[kind] || '📁')}" placeholder="Ex.: ⚙️"></div>
-  `, `<button class="btn primary" onclick="saveGenericSpace('${kind}','${spaceId}')">Salvar</button>`);
+function openGenericSpaceModal(kind) {
+  const label = kind === 'code' ? 'Novo espaço de código' : kind === 'exercise' ? 'Novo espaço de exercícios' : 'Novo espaço de entrevistas';
+  openModal(label, `<div class="row"><label class="lbl">Nome</label><input id="gs-name" class="input"></div><div class="row"><label class="lbl">Descrição</label><input id="gs-desc" class="input"></div>`, `<button class="btn primary" onclick="saveGenericSpace('${kind}')">Salvar</button>`);
 }
 function getSpaceList(kind) {
   if (kind === 'code') return appData.codeSpaces;
   if (kind === 'exercise') return appData.exerciseSpaces;
   return appData.interviewSpaces;
 }
-function saveGenericSpace(kind, spaceId='') {
-  const list = getSpaceList(kind);
-  const name=document.getElementById('gs-name').value.trim();
-  const desc=document.getElementById('gs-desc').value.trim();
-  const icon=normalizeIcon(document.getElementById('gs-icon').value, SPACE_ICON_DEFAULTS[kind] || '📁');
-  if(!name)return;
-  if (spaceId) {
-    const space = list.find(item => item.id === spaceId); if (!space) return;
-    Object.assign(space, { name, desc, icon });
-    ensureSpaceShape(kind, space);
-  } else {
-    list.push({ id:uid(), name, desc, icon, attachments:[], subspaces:[], createdAt:Date.now() });
-  }
-  saveUserData(); closeModal(); renderAll(); showToast(spaceId ? 'Espaço atualizado.' : 'Espaço criado.');
+function saveGenericSpace(kind) {
+  const list = getSpaceList(kind); const name=document.getElementById('gs-name').value.trim(); const desc=document.getElementById('gs-desc').value.trim(); if(!name)return;
+  list.push({ id:uid(), name, desc, attachments:[], subspaces:[], createdAt:Date.now() });
+  saveUserData(); closeModal(); renderAll(); showToast('Espaço criado.');
 }
 function deleteGenericSpace(kind, id) {
   const list = getSpaceList(kind);
@@ -2240,72 +2076,16 @@ function deleteGenericSpace(kind, id) {
   if (kind==='interview') { currentDetail.interviewSpaceId=null; currentDetail.interviewSubspaceId=null; }
   saveUserData(); renderAll(); showToast('Espaço excluído.');
 }
-function openSubspaceModal(kind, spaceId, subId='') {
-  const spaces = getSpaceList(kind);
-  const sourceSpace = spaces.find(s=>s.id===spaceId); if(!sourceSpace)return;
-  const sub = subId ? (sourceSpace.subspaces||[]).find(item => item.id === subId) : null;
-  const title = sub ? 'Editar subespaço' : 'Novo subespaço';
-  openModal(title, `
-    <div class="row"><label class="lbl">Nome</label><input id="sub-name" class="input" value="${esc(sub?.name || '')}"></div>
-    <div class="row"><label class="lbl">Descrição</label><input id="sub-desc" class="input" value="${esc(sub?.desc || '')}"></div>
-    <div class="row"><label class="lbl">Ícone</label><input id="sub-icon" class="input" value="${esc(sub?.icon || SUBSPACE_ICON_DEFAULTS[kind] || '🧩')}" placeholder="Ex.: 🧩"></div>
-    <div class="row"><label class="lbl">Mover para o espaço</label><select id="sub-target-space" class="select">${spaces.map(item => `<option value="${item.id}" ${(item.id===spaceId)?'selected':''}>${esc(item.name)}</option>`).join('')}</select></div>
-  `, `<button class="btn primary" onclick="saveSubspace('${kind}','${spaceId}','${subId}')">Salvar</button>`);
+function openSubspaceModal(kind, spaceId) {
+  openModal('Novo subespaço', `<div class="row"><label class="lbl">Nome</label><input id="sub-name" class="input"></div><div class="row"><label class="lbl">Descrição</label><input id="sub-desc" class="input"></div>`, `<button class="btn primary" onclick="saveSubspace('${kind}','${spaceId}')">Salvar</button>`);
 }
-function saveSubspace(kind, spaceId, subId='') {
-  const spaces = getSpaceList(kind);
-  const sourceSpace = spaces.find(s=>s.id===spaceId); if(!sourceSpace)return;
-  const targetSpaceId = document.getElementById('sub-target-space').value || spaceId;
-  const targetSpace = spaces.find(s=>s.id===targetSpaceId) || sourceSpace;
-  const name=document.getElementById('sub-name').value.trim();
-  const desc=document.getElementById('sub-desc').value.trim();
-  const icon=normalizeIcon(document.getElementById('sub-icon').value, SUBSPACE_ICON_DEFAULTS[kind] || '🧩');
-  if(!name)return;
-  if (subId) {
-    const idx = (sourceSpace.subspaces||[]).findIndex(ss=>ss.id===subId); if(idx<0)return;
-    const existing = sourceSpace.subspaces[idx];
-    existing.name = name;
-    existing.desc = desc;
-    existing.icon = icon;
-    if (targetSpace.id !== sourceSpace.id) {
-      sourceSpace.subspaces.splice(idx, 1);
-      targetSpace.subspaces ||= [];
-      targetSpace.subspaces.push(existing);
-    }
-    if (kind==='code') {
-      currentDetail.codeSpaceId = targetSpace.id;
-      currentDetail.codeSubspaceId = existing.id;
-    } else if (kind==='exercise') {
-      currentDetail.exerciseSpaceId = targetSpace.id;
-      currentDetail.exerciseSubspaceId = existing.id;
-    } else {
-      currentDetail.interviewSpaceId = targetSpace.id;
-      currentDetail.interviewSubspaceId = existing.id;
-    }
-    saveUserData(); closeModal();
-    if (kind==='code') renderCode(); else renderPractice(kind);
-    updateStatus(); showToast(targetSpace.id !== sourceSpace.id ? 'Subespaço movido.' : 'Subespaço atualizado.');
-    return;
-  }
-  const payload = kind==='code'
-    ? { id:uid(), name, desc, icon, attachments:[], snippets:[], createdAt:Date.now() }
-    : { id:uid(), name, desc, icon, attachments:[], items:[], createdAt:Date.now() };
-  targetSpace.subspaces ||= []; targetSpace.subspaces.push(payload);
+function saveSubspace(kind, spaceId) {
+  const space = getSpaceList(kind).find(s=>s.id===spaceId); if(!space)return;
+  const name=document.getElementById('sub-name').value.trim(); const desc=document.getElementById('sub-desc').value.trim(); if(!name)return;
+  const payload = kind==='code' ? { id:uid(), name, desc, attachments:[], snippets:[], createdAt:Date.now() } : { id:uid(), name, desc, attachments:[], items:[], createdAt:Date.now() };
+  space.subspaces ||= []; space.subspaces.push(payload);
   saveUserData(); closeModal();
-  if (kind==='code') {
-    currentDetail.codeSpaceId = targetSpace.id;
-    currentDetail.codeSubspaceId = payload.id;
-    renderCode();
-  } else {
-    if (kind==='exercise') {
-      currentDetail.exerciseSpaceId = targetSpace.id;
-      currentDetail.exerciseSubspaceId = payload.id;
-    } else {
-      currentDetail.interviewSpaceId = targetSpace.id;
-      currentDetail.interviewSubspaceId = payload.id;
-    }
-    renderPractice(kind);
-  }
+  if (kind==='code') renderCode(); else renderPractice(kind);
   updateStatus(); showToast('Subespaço criado.');
 }
 function deleteSubspace(kind, spaceId, subId) {
@@ -2318,6 +2098,8 @@ function deleteSubspace(kind, spaceId, subId) {
   else { currentDetail.interviewSubspaceId=null; renderInterviews(); }
   showToast('Subespaço excluído.');
 }
+
+
 function renderNotes() {
   const wrap = document.getElementById('section-notes');
   wrap.innerHTML = `
@@ -2930,29 +2712,36 @@ function handleSearch(query) {
 }
 
 function openImportCenter(preset='') {
+  const importMode = preset === 'backup' ? 'backup' : 'content';
+  const modeHint = importMode === 'backup'
+    ? '<div class="row-text">Neste modo, o arquivo de backup completo do MFHUB é mesclado por área.</div>'
+    : '<div class="row-text">Neste modo, o tipo selecionado abaixo manda em tudo: se você escolher Exercícios, todo o conteúdo importado vai para Exercícios; se escolher Exemplos de código, tudo vai para Exemplos de código.</div>';
   openModal(preset==='backup' ? 'Importar backup do site' : 'Importar conteúdo', `
-    <div class="row"><label class="lbl">Tipo padrão</label>
-      <select id="imp-type" class="select">
+    <input id="imp-mode" type="hidden" value="${importMode}">
+    <div class="row"><label class="lbl">Tipo de destino</label>
+      <select id="imp-type" class="select" ${importMode==='backup' ? 'disabled' : ''}>
         <option value="code" ${(preset==='code' || preset==='backup')?'selected':''}>Exemplos de código</option>
         <option value="exercise" ${preset==='exercise'?'selected':''}>Exercícios</option>
         <option value="interview" ${preset==='interview'?'selected':''}>Perguntas de entrevista</option>
       </select>
     </div>
+    <div class="panel" style="margin-top:8px">
+      <div class="panel-title">Regra da importação</div>
+      ${modeHint}
+    </div>
     <div class="row"><label class="lbl">Arquivo (.json, .csv, .txt)</label><input id="imp-file" class="input" type="file" accept=".json,.csv,.txt"></div>
     <div class="panel" style="margin-top:8px">
       <div class="panel-title">Backup completo do site</div>
-      <div class="row-text">Você pode importar um backup exportado pelo botão "Exportar backup". O sistema detecta automaticamente o arquivo <code>mfhub.v4</code> e mescla o conteúdo com o que já existe.</div>
+      <div class="row-text">Use o botão próprio de backup quando quiser restaurar e mesclar todas as áreas. Na importação comum, o sistema agora respeita o destino selecionado.</div>
     </div>
     <div class="panel" style="margin-top:8px">
-      <div class="panel-title">Modelo de importação</div>
-      <div class="row-text">O app aceita campos em português e em inglês.</div>
-      <div class="row-text">Código: tipo / kind, espaco / space, subespaco / subspace, iconeEspaco / spaceIcon, iconeSubespaco / subspaceIcon, titulo / title, linguagem / lang, descricao / description, codigo / code</div>
-      <div class="row-text">Exercícios / entrevistas: tipo / kind, espaco / space, subespaco / subspace, iconeEspaco / spaceIcon, iconeSubespaco / subspaceIcon, titulo / title, pergunta / prompt, respostaModelo / modelAnswer</div>
+      <div class="panel-title">Layout CSV sugerido</div>
+      <div class="row-text">Para código: space,subspace,title,lang,description,code\nPara exercícios/entrevistas: space,subspace,title,prompt,answer</div>
     </div>
     <div class="panel" style="margin-top:12px">
-      <div class="panel-title">Exemplo JSON</div>
-      <div class="row-text">[{"tipo":"exercicio","espaco":"COBOL","subespaco":"Básico","iconeEspaco":"⚙️","iconeSubespaco":"📘","titulo":"Exercício 1","pergunta":"Enunciado","respostaModelo":"Resposta modelo"}]</div>
-      <div class="row-text">[{"tipo":"codigo","espaco":"COBOL","subespaco":"Base","iconeEspaco":"💻","iconeSubespaco":"🧩","titulo":"Loop","linguagem":"COBOL","descricao":"Exemplo","codigo":"DISPLAY 'OI'."}]</div>
+      <div class="panel-title">Layout JSON sugerido</div>
+      <div class="row-text">[{"space":"Nome do espaço","subspace":"Nome do subespaço","title":"Título","lang":"COBOL","description":"...","code":"..."}]</div>
+      <div class="row-text">[{"space":"Nome do espaço","subspace":"Nome do subespaço","title":"Questão","prompt":"Enunciado","answer":"Resposta modelo"}]</div>
     </div>
   `, `<button class="btn primary" onclick="importContent()">Importar</button>`);
 }
@@ -2972,157 +2761,175 @@ function simpleCsvParse(text) {
   if (cell.length || row.length) { row.push(cell); rows.push(row); }
   return rows.filter(r => r.some(x => String(x).trim().length));
 }
-function normalizeImportHeaderKey(key) {
-  return String(key || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-}
-function getImportValue(obj, aliases) {
-  for (const alias of aliases) {
-    const normalizedAlias = normalizeImportHeaderKey(alias);
-    for (const [key, value] of Object.entries(obj || {})) {
-      if (normalizeImportHeaderKey(key) === normalizedAlias) return value;
-    }
-  }
-  return '';
-}
-function normalizeImportKind(rawKind, fallback='exercise') {
-  const raw = String(rawKind || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  if (!raw) return fallback;
-  if (['code','codigo','codigos','exemplodecodigo','exemplosdecodigo'].includes(raw)) return 'code';
-  if (['exercise','exercicio','exercicios'].includes(raw)) return 'exercise';
-  if (['interview','entrevista','entrevistas','perguntadeentrevista','perguntasdeentrevista'].includes(raw)) return 'interview';
-  return fallback;
-}
-function normalizeImportedRow(raw, fallbackType='exercise') {
-  const kind = normalizeImportKind(getImportValue(raw, ['tipo','kind','categoria']), fallbackType);
-  if (kind === 'code') {
-    return {
-      kind,
-      space: String(getImportValue(raw, ['espaco','space','area']) || 'Importado').trim() || 'Importado',
-      subspace: String(getImportValue(raw, ['subespaco','subspace','nivel','level']) || 'Base').trim() || 'Base',
-      spaceIcon: String(getImportValue(raw, ['iconeEspaco','spaceIcon']) || '').trim(),
-      subspaceIcon: String(getImportValue(raw, ['iconeSubespaco','subspaceIcon']) || '').trim(),
-      title: String(getImportValue(raw, ['titulo','title']) || 'Snippet').trim() || 'Snippet',
-      lang: String(getImportValue(raw, ['linguagem','lang']) || '').trim(),
-      description: String(getImportValue(raw, ['descricao','description']) || '').trim(),
-      code: String(getImportValue(raw, ['codigo','code']) || '')
-    };
-  }
-  return {
-    kind,
-    space: String(getImportValue(raw, ['espaco','space','area']) || 'Importado').trim() || 'Importado',
-    subspace: String(getImportValue(raw, ['subespaco','subspace','nivel','level']) || 'Base').trim() || 'Base',
-    spaceIcon: String(getImportValue(raw, ['iconeEspaco','spaceIcon']) || '').trim(),
-    subspaceIcon: String(getImportValue(raw, ['iconeSubespaco','subspaceIcon']) || '').trim(),
-    title: String(getImportValue(raw, ['titulo','title']) || (kind === 'exercise' ? 'Exercício' : 'Pergunta')).trim() || (kind === 'exercise' ? 'Exercício' : 'Pergunta'),
-    prompt: String(getImportValue(raw, ['pergunta','prompt','enunciado','question']) || ''),
-    modelAnswer: String(getImportValue(raw, ['respostaModelo','modelAnswer','answer','resposta']) || '')
-  };
-}
-function ensureImportedSpace(kind, spaceName, subspaceName='Base', options={}) {
+function ensureImportedSpace(kind, spaceName, subspaceName='Base') {
   const list = getSpaceList(kind);
-  const normalizedSpace = String(spaceName || 'Importado').trim() || 'Importado';
-  const normalizedSubspace = String(subspaceName || 'Base').trim() || 'Base';
-  let space = list.find(s => String(s.name || '').trim().toLowerCase() === normalizedSpace.toLowerCase());
+  let space = list.find(s => s.name.toLowerCase() === String(spaceName||'Importado').toLowerCase());
   if (!space) {
-    space = { id:uid(), name:normalizedSpace, desc:String(options.spaceDesc || 'Importado'), icon:normalizeIcon(options.spaceIcon, SPACE_ICON_DEFAULTS[kind] || '📁'), attachments:[], subspaces:[], createdAt:Date.now() };
+    space = { id:uid(), name:spaceName||'Importado', desc:'Importado', attachments:[], subspaces:[], createdAt:Date.now() };
     list.push(space);
-  } else {
-    ensureSpaceShape(kind, space);
-    if (options.spaceIcon) space.icon = normalizeIcon(options.spaceIcon, getSpaceIcon(kind, space));
-    if (options.spaceDesc && !String(space.desc || '').trim()) space.desc = String(options.spaceDesc);
   }
-  let sub = (space.subspaces||[]).find(ss => String(ss.name || '').trim().toLowerCase() === normalizedSubspace.toLowerCase());
+  let sub = (space.subspaces||[]).find(ss => ss.name.toLowerCase() === String(subspaceName||'Base').toLowerCase());
   if (!sub) {
     sub = kind==='code'
-      ? { id:uid(), name:normalizedSubspace, desc:String(options.subspaceDesc || 'Importado'), icon:normalizeIcon(options.subspaceIcon, SUBSPACE_ICON_DEFAULTS[kind] || '🧩'), attachments:[], snippets:[], createdAt:Date.now() }
-      : { id:uid(), name:normalizedSubspace, desc:String(options.subspaceDesc || 'Importado'), icon:normalizeIcon(options.subspaceIcon, SUBSPACE_ICON_DEFAULTS[kind] || '🧩'), attachments:[], items:[], createdAt:Date.now() };
+      ? { id:uid(), name:subspaceName||'Base', desc:'Importado', attachments:[], snippets:[], createdAt:Date.now() }
+      : { id:uid(), name:subspaceName||'Base', desc:'Importado', attachments:[], items:[], createdAt:Date.now() };
     space.subspaces.push(sub);
-  } else {
-    if (options.subspaceIcon) sub.icon = normalizeIcon(options.subspaceIcon, getSubspaceIcon(kind, sub));
-    if (options.subspaceDesc && !String(sub.desc || '').trim()) sub.desc = String(options.subspaceDesc);
   }
   return sub;
 }
+function collectSpacesFromImportNode(node, buckets = { code: [], exercise: [], interview: [] }, fallbackBucket = '') {
+  if (!node || typeof node !== 'object') return buckets;
+  const pushSpaceList = (bucket, spaces, itemKey) => {
+    (spaces || []).forEach(space => {
+      const spaceName = space?.name || space?.space || 'Importado';
+      const spaceDesc = space?.desc || space?.description || '';
+      const subspaces = Array.isArray(space?.subspaces) && space.subspaces.length ? space.subspaces : [{
+        name: space?.subspace || 'Base',
+        desc: spaceDesc,
+        [itemKey]: Array.isArray(space?.[itemKey]) ? space[itemKey] : []
+      }];
+      subspaces.forEach(sub => {
+        const items = Array.isArray(sub?.[itemKey]) ? sub[itemKey] : [];
+        items.forEach(entry => {
+          buckets[bucket].push({
+            space: spaceName,
+            subspace: sub?.name || sub?.subspace || 'Base',
+            ...(entry || {})
+          });
+        });
+      });
+    });
+  };
+  pushSpaceList('code', node.codeSpaces, 'snippets');
+  pushSpaceList('exercise', node.exerciseSpaces, 'items');
+  pushSpaceList('interview', node.interviewSpaces, 'items');
+  if (Array.isArray(node.snippets)) buckets.code.push(...node.snippets);
+  if (Array.isArray(node.items)) {
+    const target = fallbackBucket === 'code' ? 'code' : (fallbackBucket || 'exercise');
+    buckets[target].push(...node.items);
+  }
+  if (Array.isArray(node.exercises)) buckets.exercise.push(...node.exercises);
+  if (Array.isArray(node.interviews)) buckets.interview.push(...node.interviews);
+  if (Array.isArray(node.questions)) buckets[fallbackBucket === 'interview' ? 'interview' : 'exercise'].push(...node.questions);
+  if (Array.isArray(node.examples)) buckets.code.push(...node.examples);
+  return buckets;
+}
+function extractForcedImportRows(parsed, forcedType) {
+  if (Array.isArray(parsed)) return parsed;
+  if (!parsed || typeof parsed !== 'object') return [];
+  const buckets = collectSpacesFromImportNode(parsed.data || parsed, { code: [], exercise: [], interview: [] }, forcedType);
+  const combined = [
+    ...(buckets.code || []),
+    ...(buckets.exercise || []),
+    ...(buckets.interview || [])
+  ];
+  if (combined.length) return combined;
+  return Object.values(parsed)
+    .filter(value => Array.isArray(value))
+    .flat();
+}
+function mergeBackupPayload(src) {
+  let merged = 0;
+  const mergeList = (srcList, destList, itemsKey) => {
+    (srcList || []).forEach(srcSpace => {
+      let destSpace = destList.find(s => s.name === srcSpace.name);
+      if (!destSpace) {
+        destSpace = { ...srcSpace, id: uid(), subspaces: [] };
+        destList.push(destSpace);
+      }
+      (srcSpace.subspaces || []).forEach(srcSub => {
+        let destSub = destSpace.subspaces.find(ss => ss.name === srcSub.name);
+        if (!destSub) {
+          destSub = { ...srcSub, id: uid(), [itemsKey]: [] };
+          destSpace.subspaces.push(destSub);
+        }
+        const existingTitles = new Set((destSub[itemsKey] || []).map(i => i.title));
+        (srcSub[itemsKey] || []).forEach(item => {
+          if (!existingTitles.has(item.title)) {
+            destSub[itemsKey].push({ ...item, id: uid() });
+            merged++;
+          }
+        });
+      });
+    });
+  };
+  mergeList(src.exerciseSpaces, appData.exerciseSpaces, 'items');
+  mergeList(src.interviewSpaces, appData.interviewSpaces, 'items');
+  mergeList(src.codeSpaces, appData.codeSpaces, 'snippets');
+  const mergeSimple = (key) => {
+    const existing = new Set((appData[key]||[]).map(x=>x.name||x.title||x.id));
+    (src[key]||[]).forEach(x => {
+      if (!existing.has(x.name||x.title||x.id)) {
+        appData[key].push({ ...x, id: uid() });
+        merged++;
+      }
+    });
+  };
+  ['courses','docs','generalNotes','linkedinPosts','certificates','tools','manuals','reminders'].forEach(mergeSimple);
+  if ((!appData.profile?.photoData) && src.profile?.photoData) appData.profile = { ...src.profile };
+  return merged;
+}
+function importRowsIntoType(rows, type) {
+  let count = 0;
+  (rows || []).forEach(obj => {
+    const spaceName = obj?.space || obj?.spaceName || obj?.category || obj?.name || 'Importado';
+    const subspaceName = obj?.subspace || obj?.subspaceName || obj?.group || 'Base';
+    if (type === 'code') {
+      const sub = ensureImportedSpace('code', spaceName, subspaceName);
+      const title = obj?.title || obj?.name || 'Snippet';
+      const titles = new Set((sub.snippets||[]).map(s=>s.title));
+      if (!titles.has(title)) {
+        sub.snippets.push({
+          id:uid(),
+          title,
+          lang:obj?.lang || obj?.language || '',
+          description:obj?.description || obj?.desc || '',
+          code:obj?.code || obj?.answer || obj?.prompt || '',
+          createdAt:Date.now()
+        });
+        count++;
+      }
+      return;
+    }
+    const sub = ensureImportedSpace(type, spaceName, subspaceName);
+    const title = obj?.title || obj?.name || 'Questão';
+    const titles = new Set((sub.items||[]).map(i=>i.title));
+    if (!titles.has(title)) {
+      sub.items.push({
+        id:uid(),
+        title,
+        prompt:obj?.prompt || obj?.question || obj?.code || '',
+        userAnswer:'',
+        modelAnswer:obj?.answer || obj?.modelAnswer || 'Sem resposta modelo cadastrada ainda.',
+        createdAt:Date.now(),
+        showModel:false
+      });
+      count++;
+    }
+  });
+  return count;
+}
 function importContent() {
   const file = document.getElementById('imp-file').files[0];
-  const selectedType = document.getElementById('imp-type').value;
+  const typeSelect = document.getElementById('imp-type');
+  const type = typeSelect ? typeSelect.value : 'code';
+  const importMode = document.getElementById('imp-mode')?.value || 'content';
   if (!file) return;
   const reader = new FileReader();
   reader.onload = e => {
-    const rawText = String(e.target.result || '');
-    const text = rawText.replace(/^\ufeff/, '');
+    const text = String(e.target.result || '');
     try {
       if (file.name.toLowerCase().endsWith('.json')) {
         const parsed = JSON.parse(text);
-        if (parsed && parsed.version === 'mfhub.v4' && parsed.data) {
-          const src = parsed.data;
-          let merged = 0;
-          const mergeList = (srcList, destList, itemsKey, kind) => {
-            (srcList || []).forEach(srcSpace => {
-              ensureSpaceShape(kind, srcSpace);
-              let destSpace = destList.find(s => s.name === srcSpace.name);
-              if (!destSpace) {
-                destSpace = { ...srcSpace, id: uid(), icon: normalizeIcon(srcSpace.icon, SPACE_ICON_DEFAULTS[kind] || '📁'), subspaces: [] };
-                destList.push(destSpace);
-              }
-              (srcSpace.subspaces || []).forEach(srcSub => {
-                let destSub = destSpace.subspaces.find(ss => ss.name === srcSub.name);
-                if (!destSub) {
-                  destSub = { ...srcSub, id: uid(), icon: normalizeIcon(srcSub.icon, SUBSPACE_ICON_DEFAULTS[kind] || '🧩'), [itemsKey]: [] };
-                  destSpace.subspaces.push(destSub);
-                }
-                const existingTitles = new Set((destSub[itemsKey] || []).map(i => i.title));
-                (srcSub[itemsKey] || []).forEach(item => {
-                  if (!existingTitles.has(item.title)) {
-                    const payload = { ...item, id: uid() };
-                    if (itemsKey === 'items') payload.modelAnswer = String(item?.modelAnswer || item?.answer || '');
-                    destSub[itemsKey].push(payload);
-                    merged++;
-                  }
-                });
-              });
-            });
-          };
-          mergeList(src.exerciseSpaces, appData.exerciseSpaces, 'items', 'exercise');
-          mergeList(src.interviewSpaces, appData.interviewSpaces, 'items', 'interview');
-          mergeList(src.codeSpaces, appData.codeSpaces, 'snippets', 'code');
-          const mergeSimple = (key) => {
-            const existing = new Set((appData[key]||[]).map(x=>x.name||x.title||x.id));
-            (src[key]||[]).forEach(x => {
-              if (!existing.has(x.name||x.title||x.id)) {
-                appData[key].push({ ...x, id: uid() });
-                merged++;
-              }
-            });
-          };
-          ['courses','docs','generalNotes','linkedinPosts','certificates','tools','manuals','reminders'].forEach(mergeSimple);
-          if ((!appData.profile?.photoData) && src.profile?.photoData) appData.profile = { ...src.profile };
-          ensureDefaults();
+        if (importMode === 'backup' && parsed && parsed.version === 'mfhub.v4' && parsed.data) {
+          const merged = mergeBackupPayload(parsed.data);
           saveUserData(); closeModal(); renderAll();
           showToast(`Backup mesclado: ${merged} item(ns) novo(s) adicionado(s).`);
           return;
         }
-        if (!Array.isArray(parsed)) throw new Error('JSON inválido');
-        let count = 0;
-        parsed.forEach(raw => {
-          const obj = normalizeImportedRow(raw, selectedType);
-          if (obj.kind === 'code') {
-            const sub = ensureImportedSpace('code', obj.space, obj.subspace, { spaceIcon: obj.spaceIcon, subspaceIcon: obj.subspaceIcon });
-            const titles = new Set((sub.snippets||[]).map(s=>String(s.title || '').trim().toLowerCase()));
-            if (!titles.has(String(obj.title || 'Snippet').trim().toLowerCase())) {
-              sub.snippets.push({ id:uid(), title:obj.title, lang:obj.lang||'', description:obj.description||'', code:obj.code||'', createdAt:Date.now() });
-              count++;
-            }
-          } else {
-            const sub = ensureImportedSpace(obj.kind, obj.space, obj.subspace, { spaceIcon: obj.spaceIcon, subspaceIcon: obj.subspaceIcon });
-            const titles = new Set((sub.items||[]).map(i=>String(i.title || '').trim().toLowerCase()));
-            if (!titles.has(String(obj.title).trim().toLowerCase())) {
-              sub.items.push({ id:uid(), title:obj.title, prompt:obj.prompt||'', userAnswer:'', modelAnswer:obj.modelAnswer||'', createdAt:Date.now(), showModel:false });
-              count++;
-            }
-          }
-        });
-        ensureDefaults();
+        const rows = extractForcedImportRows(parsed, type);
+        if (!rows.length) throw new Error('JSON sem conteúdo importável');
+        const count = importRowsIntoType(rows, type);
         saveUserData(); closeModal(); renderAll();
         showToast(count > 0 ? `Importação concluída: ${count} item(ns) novo(s).` : 'Nenhum item novo — todos já existiam.');
         return;
@@ -3135,29 +2942,10 @@ function importContent() {
       } else {
         rows = text.split(/\n\s*\n/).map(block => {
           const lines = block.trim().split(/\n/);
-          return { tipo: selectedType, espaco:lines[0]||'Importado', subespaco:lines[1]||'Base', titulo:lines[2]||'Item importado', pergunta:lines.slice(3).join('\n'), respostaModelo:'' };
-        }).filter(item => item.titulo || item.pergunta);
+          return { space:lines[0]||'Importado', subspace:lines[1]||'Base', title:lines[2]||'Item importado', prompt:lines.slice(3).join('\n'), answer:'' };
+        }).filter(row => row.title || row.prompt);
       }
-      let count = 0;
-      rows.forEach(raw => {
-        const obj = normalizeImportedRow(raw, selectedType);
-        if (obj.kind === 'code') {
-          const sub = ensureImportedSpace('code', obj.space, obj.subspace, { spaceIcon: obj.spaceIcon, subspaceIcon: obj.subspaceIcon });
-          const titles = new Set((sub.snippets||[]).map(s=>String(s.title || '').trim().toLowerCase()));
-          if (!titles.has(String(obj.title).trim().toLowerCase())) {
-            sub.snippets.push({ id:uid(), title:obj.title, lang:obj.lang||'', description:obj.description||'', code:obj.code||'', createdAt:Date.now() });
-            count++;
-          }
-        } else {
-          const sub = ensureImportedSpace(obj.kind, obj.space, obj.subspace, { spaceIcon: obj.spaceIcon, subspaceIcon: obj.subspaceIcon });
-          const titles = new Set((sub.items||[]).map(i=>String(i.title || '').trim().toLowerCase()));
-          if (!titles.has(String(obj.title).trim().toLowerCase())) {
-            sub.items.push({ id:uid(), title:obj.title, prompt:obj.prompt||'', userAnswer:'', modelAnswer:obj.modelAnswer||'', createdAt:Date.now(), showModel:false });
-            count++;
-          }
-        }
-      });
-      ensureDefaults();
+      const count = importRowsIntoType(rows, type);
       saveUserData(); closeModal(); renderAll();
       showToast(count > 0 ? `Importação concluída: ${count} item(ns) novo(s).` : 'Nenhum item novo — todos já existiam.');
     } catch (err) {
@@ -3167,6 +2955,7 @@ function importContent() {
   };
   reader.readAsText(file, 'utf-8');
 }
+
 function openModal(title, body, foot='') {
   document.getElementById('modal-title').textContent = title;
   document.getElementById('modal-body').innerHTML = body;
