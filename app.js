@@ -12,7 +12,7 @@ const STREAK_KEY = 'mfhub.streak.v1';
 const CLOUD_RPC_GET = 'mfhub_get_state';
 const CLOUD_RPC_PUT = 'mfhub_put_state';
 const CLOUD_RPC_ADMIN_METRICS = 'mfhub_admin_metrics';
-const CLOUD_SYNC_DEBOUNCE_MS = 6000;
+const CLOUD_SYNC_DEBOUNCE_MS = 700;
 const FONT_STYLE_KEY = 'mfhub.fontstyle.v1';
 const FONT_OPTIONS = [
   { value:'share-tech', label:'Share Tech Mono' },
@@ -356,28 +356,9 @@ function payloadHasUserContent(payload) {
     (p.lab?.url)
   );
 }
-function clonePayloadForCloudSync(payload) {
-  const cloned = JSON.parse(JSON.stringify(payload || baseData()));
-  if (Array.isArray(cloned.history)) cloned.history = [];
-  (function stripInlineAttachmentData(value) {
-    if (!value || typeof value !== 'object') return;
-    if (Array.isArray(value)) {
-      value.forEach(stripInlineAttachmentData);
-      return;
-    }
-    if (Array.isArray(value.attachments)) {
-      value.attachments.forEach(file => {
-        if (!file || typeof file !== 'object') return;
-        if (typeof file.data === 'string' && /^data:/i.test(file.data)) delete file.data;
-      });
-    }
-    Object.values(value).forEach(stripInlineAttachmentData);
-  })(cloned);
-  return cloned;
-}
 function buildCloudArgs() {
   return {
-    p_payload: clonePayloadForCloudSync(appData),
+    p_payload: appData,
     p_theme: document.documentElement.dataset.theme === 'light' ? 'light' : 'dark',
     p_font_style: getCurrentFontStyle(),
     p_streak: getStreakData()
@@ -833,7 +814,7 @@ function ensureSeedData() {
   SEEDS.exercises.forEach(s => seedSpace(appData.exerciseSpaces, s, 'practice'));
   SEEDS.interviews.forEach(s => seedSpace(appData.interviewSpaces, s, 'practice'));
   appData.meta.seedVersion = SEED_VERSION;
-  saveUserData({ skipRevision:true, skipSync:true });
+  saveUserData();
 }
 
 const GOAL_WEEK = [
@@ -1356,7 +1337,7 @@ function goSection(section, pushHistory = true) {
   document.getElementById('topbar-path').textContent = section.toUpperCase();
   document.getElementById('status-section').textContent = section.toUpperCase();
   if (pushHistory) history.pushState({ section }, '', '#' + section);
-  renderCurrentView(section);
+  renderAll();
 }
 
 // Handle browser back / forward buttons
@@ -2027,21 +2008,13 @@ function deletePracticeItem(kind, spaceId, subId, itemId) {
   if (!confirm(`Deseja mesmo excluir "${name}"?`)) return;
   sub.items = (sub.items||[]).filter(i=>i.id!==itemId); saveUserData(); renderPractice(kind); showToast('Questão removida.');
 }
-let contentDraftPersistTimer = null;
-function scheduleContentDraftPersist(reason='editor') {
-  clearTimeout(contentDraftPersistTimer);
-  contentDraftPersistTimer = setTimeout(() => {
-    saveUserData({ skipRevision:true, skipSync:true });
-  }, 400);
-  scheduleCloudSync(reason);
-}
 function updatePracticeUserAnswer(kind, spaceId, subId, itemId, value) {
   const item = getPracticeSubspace(kind, spaceId, subId)?.items?.find(i=>i.id===itemId); if(!item)return;
-  item.userAnswer = value; scheduleContentDraftPersist('practice-answer');
+  item.userAnswer = value; saveUserData();
 }
 function updatePracticeModelAnswer(kind, spaceId, subId, itemId, value) {
   const item = getPracticeSubspace(kind, spaceId, subId)?.items?.find(i=>i.id===itemId); if(!item)return;
-  item.modelAnswer = value; scheduleContentDraftPersist('practice-model');
+  item.modelAnswer = value; saveUserData();
 }
 function toggleModelAnswer(kind, spaceId, subId, itemId) {
   const item = getPracticeSubspace(kind, spaceId, subId)?.items?.find(i=>i.id===itemId); if(!item)return;
@@ -2548,7 +2521,7 @@ function removeAttachment(type,id1,id2,fileId,id3='') {
   if (!holder || !file) return showToast('Arquivo não encontrado.');
   if (!confirm(`Excluir o arquivo "${file.name}"?`)) return;
   holder.attachments = (holder.attachments||[]).filter(a=>a.id!==fileId);
-  saveUserData({ reason:'Removeu anexo' }); refreshCurrentView(); showToast('Arquivo removido.');
+  saveUserData(); renderAll(); showToast('Arquivo removido.');
 }
 function uploadAttachmentsModal(type,id1,id2='',id3='') {
   const holder = resolveAttachmentHolder(type,id1,id2,id3);
@@ -2568,7 +2541,7 @@ function saveUploads(type,id1,id2='',id3='') {
       holder.attachments.push({ id:uid(), name:file.name, type:file.type, data:e.target.result, createdAt:Date.now() });
       done++;
       if (done === files.length) {
-        saveUserData({ reason:'Atualizou anexos' }); closeModal(); refreshCurrentView(); showToast('Arquivos anexados.');
+        saveUserData(); closeModal(); renderAll(); showToast('Arquivos anexados.');
       }
     };
     reader.readAsDataURL(file);
@@ -2895,29 +2868,6 @@ function openModal(title, body, foot='') {
 function closeModal() { document.getElementById('modal-wrap').classList.remove('open'); }
 document.getElementById('modal-wrap').addEventListener('click', e => { if (e.target.id === 'modal-wrap') closeModal(); });
 
-function renderCurrentView(section=currentSection) {
-  const renderers = {
-    dashboard: renderDashboard,
-    goals: renderGoals,
-    reminders: renderReminders,
-    notes: renderNotes,
-    courses: renderCourses,
-    docs: renderDocs,
-    code: renderCode,
-    exercises: renderExercises,
-    interviews: renderInterviews,
-    linkedin: renderLinkedin,
-    certs: renderCerts,
-    tools: renderTools,
-    manuals: renderManuals,
-    lab: renderLab,
-  };
-  (renderers[section] || renderDashboard)();
-  updateStatus();
-  updateFontSelectorValue();
-  renderSidebarIdentity();
-}
-
 function renderAll() {
   renderDashboard(); renderGoals(); renderReminders(); renderNotes(); renderCourses(); renderDocs(); renderCode(); renderExercises(); renderInterviews(); renderLinkedin(); renderCerts(); renderTools(); renderManuals(); renderLab(); updateStatus(); updateFontSelectorValue(); renderSidebarIdentity();
 }
@@ -3126,6 +3076,7 @@ function renderSidebarIdentityExtra(){
     const tagline = String(appData?.profile?.tagline || '');
     const location = String(appData?.profile?.location || '');
     const lines = [tagline, location].filter(Boolean).map(item => `<div>${esc(item)}</div>`);
+    lines.push(`<div style="margin-top:8px"><button class="btn xs" type="button" onclick="openAdminModeModal()">Admin técnico</button></div>`);
     meta.innerHTML = lines.join('');
   }
 }
@@ -3191,7 +3142,7 @@ function openProfileModal(){
         </div>
       </div>
     </div>
-  `, `<button class="btn" onclick="clearProfilePhoto()">Remover foto</button><button class="btn primary" onclick="saveProfileModal()">Salvar perfil</button>`);
+  `, `<button class="btn" onclick="openAdminModeModal()">Admin técnico</button><button class="btn" onclick="clearProfilePhoto()">Remover foto</button><button class="btn primary" onclick="saveProfileModal()">Salvar perfil</button>`);
 }
 openProfilePhotoModal = openProfileModal;
 const _advClearProfilePhoto = clearProfilePhoto;
@@ -3208,13 +3159,14 @@ const _oldEnsureDefaults = ensureDefaults;
 ensureDefaults = function(){
   _oldEnsureDefaults();
   currentDetail.manualNodeId ||= null;
-  appData.history = Array.isArray(appData.history) ? appData.history.slice(0, 2) : [];
+  appData.history = Array.isArray(appData.history) ? appData.history : [];
   appData.profile = Object.assign({}, ADV_PROFILE_DEFAULTS, appData.profile || {});
   if (!Array.isArray(appData.meta.dashboardWidgets) || !appData.meta.dashboardWidgets.length) appData.meta.dashboardWidgets = ADV_DASHBOARD_WIDGETS.slice();
   appData.manuals.forEach(ensureManualStructure);
 };
 const _oldSaveUserData = saveUserData;
 saveUserData = function(options={}){
+  if (!options.skipRevision && appData && currentUser) recordRevision(options.reason || `Atualização em ${currentSection}`);
   _oldSaveUserData(options);
 };
 const _oldRenderSidebarIdentity = renderSidebarIdentity;
@@ -3257,7 +3209,7 @@ function openCloudStatusModal(){
       </div>
       <div class="panel"><div class="panel-title">Erros</div><div class="row-text">${lastCloudError ? esc(lastCloudError) : 'Nenhum erro recente.'}</div></div>
     </div>
-  `, `<button class="btn primary" onclick="flushCloudSync('manual')">Sincronizar agora</button>`);
+  `, `<button class="btn" onclick="openAdminModeModal()">Modo admin</button><button class="btn primary" onclick="flushCloudSync('manual')">Sincronizar agora</button>`);
 }
 function buildAdminMetricsSnapshot(remoteMetrics=null, remoteError=''){
   const payloadBytes = new Blob([JSON.stringify(appData || {})]).size;
@@ -3333,11 +3285,33 @@ function renderAdminModeModal(snapshot){
   openModal('Modo admin técnico', html, foot);
 }
 
-async function fetchAdminMetrics(){ throw new Error('Painel admin desativado neste build para reduzir carga do projeto.');
+async function fetchAdminMetrics(){
+  if (!SUPABASE_ENABLED || !supabaseClient) throw new Error('Supabase não configurado neste build.');
+  if (!currentAuthIdentity?.id) throw new Error('Faça login para consultar as métricas do projeto.');
+  const { data, error } = await supabaseClient.rpc(CLOUD_RPC_ADMIN_METRICS);
+  if (error) {
+    const msg = String(error.message || '');
+    if (msg.includes(CLOUD_RPC_ADMIN_METRICS)) {
+      throw new Error('A função SQL mfhub_admin_metrics ainda não foi criada no Supabase. Rode o script SQL que acompanha este pacote.');
+    }
+    throw error;
+  }
+  if (Array.isArray(data)) return data[0] || null;
+  return data || null;
 }
-async function refreshAdminMetrics(){ showToast('Painel admin desativado para reduzir carga do projeto.'); return null;
+async function refreshAdminMetrics(){
+  const baseSnapshot = buildAdminMetricsSnapshot();
+  renderAdminModeModal(baseSnapshot);
+  try {
+    const remoteMetrics = await fetchAdminMetrics();
+    renderAdminModeModal(buildAdminMetricsSnapshot(remoteMetrics, ''));
+  } catch (error) {
+    renderAdminModeModal(buildAdminMetricsSnapshot(null, error?.message || 'Falha ao consultar as métricas do Supabase.'));
+  }
 }
-function openAdminModeModal(){ showToast('Painel admin desativado para reduzir carga do projeto.');
+function openAdminModeModal(){
+  renderAdminModeModal(buildAdminMetricsSnapshot());
+  refreshAdminMetrics();
 }
 function openExportCenter(){
   const sections = [
@@ -3664,13 +3638,29 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) flushCloudSync('visibility');
 });
 
+function revealLoginFallback(reason='') {
+  try {
+    console.warn('MFHUB auth fallback:', reason || 'session restore timeout');
+  } catch (e) {}
+  showLoginScreen('login');
+}
+
 if (isRecoveryFlow()) {
   showLoginScreen('recovery');
 } else {
-  // Enquanto resolve a sessão, mantém tela de login invisível para evitar o piscar
-  tryRestoreSession().then(restored => {
-    if (!restored) showLoginScreen('login');
-  });
+  // Fail-open: se o Supabase/auth travar, libera a tela de login em poucos segundos.
+  const sessionGuard = setTimeout(() => revealLoginFallback('timeout'), 3500);
+  Promise.resolve()
+    .then(() => tryRestoreSession())
+    .then(restored => {
+      clearTimeout(sessionGuard);
+      if (!restored) showLoginScreen('login');
+    })
+    .catch(err => {
+      clearTimeout(sessionGuard);
+      console.error('Falha ao restaurar sessão:', err);
+      revealLoginFallback(err?.message || 'restore-session-error');
+    });
 }
 
 
