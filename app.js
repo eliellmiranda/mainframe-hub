@@ -575,6 +575,17 @@ function setAuthLoading(btnId, loading, label) {
   if (!loading && btn.dataset.originalLabel) btn.textContent = btn.dataset.originalLabel;
   if (loading && !btn.dataset.originalLabel) btn.dataset.originalLabel = btn.textContent;
 }
+function withTimeout(promise, ms, message='Tempo de resposta excedido.') {
+  let timer = null;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error(message)), ms);
+    })
+  ]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
+}
 async function doLogin() {
   const email = document.getElementById('login-user').value.trim().toLowerCase();
   const pass = document.getElementById('login-pass').value;
@@ -583,7 +594,17 @@ async function doLogin() {
   if (!requireSupabase('login-error')) return;
   if (!email || !pass) return setFieldText('login-error', 'E-mail e senha são obrigatórios.');
   setAuthLoading('btn-login', true, 'Entrando...');
-  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password: pass });
+  let data, error;
+  try {
+    ({ data, error } = await withTimeout(
+      supabaseClient.auth.signInWithPassword({ email, password: pass }),
+      12000,
+      'O Supabase demorou demais para responder ao login.'
+    ));
+  } catch (err) {
+    setAuthLoading('btn-login', false);
+    return setFieldText('login-error', (err && err.message) || 'O login demorou demais para responder.');
+  }
   setAuthLoading('btn-login', false);
   if (error) return setFieldText('login-error', error.message || 'Não foi possível entrar.');
   if (remember) saveRememberedLogin(email); else clearRememberedLogin();
@@ -720,7 +741,17 @@ async function logout() {
 async function tryRestoreSession() {
   if (!SUPABASE_ENABLED) return false;
   const recovery = isRecoveryFlow();
-  const { data, error } = await supabaseClient.auth.getSession();
+  let data, error;
+  try {
+    ({ data, error } = await withTimeout(
+      supabaseClient.auth.getSession(),
+      5000,
+      'A restauração de sessão demorou demais.'
+    ));
+  } catch (err) {
+    console.warn('session-restore-timeout', err?.message || err);
+    return false;
+  }
   if (error) {
     console.error(error);
     return false;
@@ -3638,29 +3669,16 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) flushCloudSync('visibility');
 });
 
-function revealLoginFallback(reason='') {
-  try {
-    console.warn('MFHUB auth fallback:', reason || 'session restore timeout');
-  } catch (e) {}
-  showLoginScreen('login');
-}
-
 if (isRecoveryFlow()) {
   showLoginScreen('recovery');
 } else {
-  // Fail-open: se o Supabase/auth travar, libera a tela de login em poucos segundos.
-  const sessionGuard = setTimeout(() => revealLoginFallback('timeout'), 3500);
-  Promise.resolve()
-    .then(() => tryRestoreSession())
-    .then(restored => {
-      clearTimeout(sessionGuard);
-      if (!restored) showLoginScreen('login');
-    })
-    .catch(err => {
-      clearTimeout(sessionGuard);
-      console.error('Falha ao restaurar sessão:', err);
-      revealLoginFallback(err?.message || 'restore-session-error');
-    });
+  // Enquanto resolve a sessão, mantém tela de login invisível para evitar o piscar
+  tryRestoreSession().then(restored => {
+    if (!restored) showLoginScreen('login');
+  }).catch(err => {
+    console.warn('session-restore-failed', err?.message || err);
+    showLoginScreen('login');
+  });
 }
 
 
