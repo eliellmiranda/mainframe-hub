@@ -16,6 +16,7 @@ declare
   v_user_count bigint := 0;
   v_current_user_payload_bytes bigint := 0;
   v_storage_total_bytes bigint := 0;
+  v_wal_size_bytes bigint := 0;
   v_storage_object_count bigint := 0;
 begin
   if v_uid is null then
@@ -24,6 +25,7 @@ begin
 
   select pg_database_size(current_database()) into v_database_size_bytes;
   select pg_total_relation_size('public.mfhub_user_state') into v_mfhub_table_size_bytes;
+  select coalesce(sum(size), 0)::bigint into v_wal_size_bytes from pg_ls_waldir();
 
   select
     count(*)::bigint,
@@ -52,6 +54,8 @@ begin
     'database_size_bytes', v_database_size_bytes,
     'database_size_pretty', pg_size_pretty(v_database_size_bytes),
     'mfhub_table_size_bytes', v_mfhub_table_size_bytes,
+    'wal_size_bytes', v_wal_size_bytes,
+    'wal_size_pretty', pg_size_pretty(v_wal_size_bytes),
     'mfhub_table_size_pretty', pg_size_pretty(v_mfhub_table_size_bytes),
     'payload_total_bytes', v_payload_total_bytes,
     'payload_total_pretty', pg_size_pretty(v_payload_total_bytes),

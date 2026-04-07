@@ -3075,7 +3075,9 @@ function renderSidebarIdentityExtra(){
   if (meta) {
     const tagline = String(appData?.profile?.tagline || '');
     const location = String(appData?.profile?.location || '');
-    meta.innerHTML = [tagline, location].filter(Boolean).map(item => `<div>${esc(item)}</div>`).join('');
+    const lines = [tagline, location].filter(Boolean).map(item => `<div>${esc(item)}</div>`);
+    lines.push(`<div style="margin-top:8px"><button class="btn xs" type="button" onclick="openAdminModeModal()">Admin técnico</button></div>`);
+    meta.innerHTML = lines.join('');
   }
 }
 async function saveProfileModal(){
@@ -3140,7 +3142,7 @@ function openProfileModal(){
         </div>
       </div>
     </div>
-  `, `<button class="btn" onclick="clearProfilePhoto()">Remover foto</button><button class="btn primary" onclick="saveProfileModal()">Salvar perfil</button>`);
+  `, `<button class="btn" onclick="openAdminModeModal()">Admin técnico</button><button class="btn" onclick="clearProfilePhoto()">Remover foto</button><button class="btn primary" onclick="saveProfileModal()">Salvar perfil</button>`);
 }
 openProfilePhotoModal = openProfileModal;
 const _advClearProfilePhoto = clearProfilePhoto;
@@ -3218,6 +3220,10 @@ function buildAdminMetricsSnapshot(remoteMetrics=null, remoteError=''){
   };
   return { payloadBytes, totals, remoteMetrics: remoteMetrics || null, remoteError: remoteError || '' };
 }
+function advStatRow(label, value){
+  return `<div class="stat-row"><span class="sk">${esc(label)}:</span><span class="sv">${typeof value === 'string' ? value : esc(String(value ?? '—'))}</span></div>`;
+}
+
 function renderAdminSupabasePanel(snapshot){
   if (!SUPABASE_ENABLED) {
     return `<div class="panel"><div class="panel-title">Supabase</div><div class="row-text">Supabase não está configurado neste build.</div></div>`;
@@ -3234,32 +3240,34 @@ function renderAdminSupabasePanel(snapshot){
   const m = snapshot.remoteMetrics;
   return `
     <div class="panel"><div class="panel-title">Supabase</div>
-      <div class="stat-row"><span class="sk">Banco atual</span><span class="sv">${esc(m.database_size_pretty || advBytes(m.database_size_bytes || 0))}</span></div>
-      <div class="stat-row"><span class="sk">Tabela MFHUB</span><span class="sv">${esc(m.mfhub_table_size_pretty || advBytes(m.mfhub_table_size_bytes || 0))}</span></div>
-      <div class="stat-row"><span class="sk">Payloads MFHUB</span><span class="sv">${esc(m.payload_total_pretty || advBytes(m.payload_total_bytes || 0))}</span></div>
-      <div class="stat-row"><span class="sk">Maior payload</span><span class="sv">${esc(m.largest_payload_pretty || advBytes(m.largest_payload_bytes || 0))}</span></div>
-      <div class="stat-row"><span class="sk">Usuários com estado</span><span class="sv">${Number(m.user_count || 0)}</span></div>
-      <div class="stat-row"><span class="sk">Seu payload salvo</span><span class="sv">${esc(m.current_user_payload_pretty || advBytes(m.current_user_payload_bytes || 0))}</span></div>
-      <div class="stat-row"><span class="sk">Storage buckets</span><span class="sv">${esc(m.storage_total_pretty || advBytes(m.storage_total_bytes || 0))}</span></div>
-      <div class="stat-row"><span class="sk">Objetos no Storage</span><span class="sv">${Number(m.storage_object_count || 0)}</span></div>
-      <div class="row-text">Esses números vêm do banco do próprio projeto e ajudam a separar o peso do MFHUB do restante do Supabase.</div>
+      ${advStatRow('Banco atual', esc(m.database_size_pretty || advBytes(m.database_size_bytes || 0)))}
+      ${advStatRow('WAL atual', esc(m.wal_size_pretty || advBytes(m.wal_size_bytes || 0)))}
+      ${advStatRow('Tabela MFHUB', esc(m.mfhub_table_size_pretty || advBytes(m.mfhub_table_size_bytes || 0)))}
+      ${advStatRow('Payloads MFHUB', esc(m.payload_total_pretty || advBytes(m.payload_total_bytes || 0)))}
+      ${advStatRow('Maior payload', esc(m.largest_payload_pretty || advBytes(m.largest_payload_bytes || 0)))}
+      ${advStatRow('Usuários com estado', Number(m.user_count || 0))}
+      ${advStatRow('Seu payload salvo', esc(m.current_user_payload_pretty || advBytes(m.current_user_payload_bytes || 0)))}
+      ${advStatRow('Storage buckets', esc(m.storage_total_pretty || advBytes(m.storage_total_bytes || 0)))}
+      ${advStatRow('Objetos no Storage', Number(m.storage_object_count || 0))}
+      <div class="row-text">Banco e WAL vêm do PostgreSQL do próprio projeto. O campo <strong>System</strong> do dashboard da Supabase continua sendo infraestrutura da plataforma e não sai por esta função SQL.</div>
     </div>`;
 }
+
 function renderAdminModeModal(snapshot){
   const html = `
     <div class="stack">
       <div class="panel"><div class="panel-title">Sessão</div>
-        <div class="stat-row"><span class="sk">Usuário</span><span class="sv">${esc(currentUser || '—')}</span></div>
-        <div class="stat-row"><span class="sk">Auth ID</span><span class="sv">${esc(currentAuthIdentity?.id || '—')}</span></div>
-        <div class="stat-row"><span class="sk">Email</span><span class="sv">${esc(currentAuthIdentity?.email || '—')}</span></div>
-        <div class="stat-row"><span class="sk">Seção atual</span><span class="sv">${esc(currentSection || 'dashboard')}</span></div>
+        ${advStatRow('Usuário', currentUser || '—')}
+        ${advStatRow('Auth ID', currentAuthIdentity?.id || '—')}
+        ${advStatRow('Email', currentAuthIdentity?.email || '—')}
+        ${advStatRow('Seção atual', currentSection || 'dashboard')}
       </div>
       <div class="panel"><div class="panel-title">Estado do app</div>
-        <div class="stat-row"><span class="sk">Payload local</span><span class="sv">${esc(advBytes(snapshot.payloadBytes))}</span></div>
-        <div class="stat-row"><span class="sk">Revisões</span><span class="sv">${snapshot.totals.revisions}</span></div>
-        <div class="stat-row"><span class="sk">Nós de manuais</span><span class="sv">${snapshot.totals.manualsNodes}</span></div>
-        <div class="stat-row"><span class="sk">Anexos locais</span><span class="sv">${snapshot.totals.attachments}</span></div>
-        <div class="stat-row"><span class="sk">Tema / fonte</span><span class="sv">${esc((document.documentElement.dataset.theme || 'dark') + ' / ' + getCurrentFontStyle())}</span></div>
+        ${advStatRow('Payload local', advBytes(snapshot.payloadBytes))}
+        ${advStatRow('Revisões', snapshot.totals.revisions)}
+        ${advStatRow('Nós de manuais', snapshot.totals.manualsNodes)}
+        ${advStatRow('Anexos locais', snapshot.totals.attachments)}
+        ${advStatRow('Tema / fonte', (document.documentElement.dataset.theme || 'dark') + ' / ' + getCurrentFontStyle())}
       </div>
       ${renderAdminSupabasePanel(snapshot)}
       <div class="panel"><div class="panel-title">Nuvem</div>
@@ -3276,6 +3284,7 @@ function renderAdminModeModal(snapshot){
   }
   openModal('Modo admin técnico', html, foot);
 }
+
 async function fetchAdminMetrics(){
   if (!SUPABASE_ENABLED || !supabaseClient) throw new Error('Supabase não configurado neste build.');
   if (!currentAuthIdentity?.id) throw new Error('Faça login para consultar as métricas do projeto.');
