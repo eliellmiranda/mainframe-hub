@@ -2821,7 +2821,7 @@ function importContent() {
           };
           ['courses','docs','generalNotes','linkedinPosts','certificates','tools','manuals','reminders'].forEach(mergeSimple);
           if ((!appData.profile?.photoData) && src.profile?.photoData) appData.profile = { ...src.profile };
-          saveUserData({ reason:'Importou backup' }); closeModal(); renderAll(); flushCloudSync('import');
+          saveUserData(); closeModal(); renderAll();
           showToast(`Backup mesclado: ${merged} item(ns) novo(s) adicionado(s).`);
           return;
         }
@@ -2845,7 +2845,7 @@ function importContent() {
             }
           }
         });
-        saveUserData({ reason:'Importou conteúdo' }); closeModal(); renderAll(); flushCloudSync('import');
+        saveUserData(); closeModal(); renderAll();
         showToast(count > 0 ? `Importação concluída: ${count} item(ns) novo(s).` : 'Nenhum item novo — todos já existiam.');
         return;
       }
@@ -2880,7 +2880,7 @@ function importContent() {
           }
         }
       });
-      saveUserData({ reason:'Importou conteúdo' }); closeModal(); renderAll(); flushCloudSync('import');
+      saveUserData(); closeModal(); renderAll();
       showToast(count > 0 ? `Importação concluída: ${count} item(ns) novo(s).` : 'Nenhum item novo — todos já existiam.');
     } catch (err) {
       console.error(err);
@@ -2925,83 +2925,6 @@ const ADV_PROFILE_DEFAULTS = {
 const ADV_DASHBOARD_WIDGETS = ['today','streak'];
 const ADV_MAX_REVISIONS = 18;
 let advCloudMeta = { lastSyncAt:'', lastSyncReason:'', pendingReasons:[], payloadBytes:0 };
-
-const ADV_HISTORY_SOFT_LIMIT_BYTES = 900000;
-const ADV_HISTORY_HARD_LIMIT_BYTES = 1600000;
-const ADV_LOCAL_WINS_SKEW_MS = 15000;
-const ADV_LOCAL_PROTECT_MS = 12 * 60 * 60 * 1000;
-function advEstimateJsonBytes(value){
-  try { return new Blob([JSON.stringify(value ?? null)]).size; } catch (error) { return 0; }
-}
-function advCountContent(payload){
-  const p = Object.assign(baseData(), payload || {});
-  const countNested = (spaces=[], key='items') => (spaces || []).reduce((acc, space) => acc + (space.subspaces || []).reduce((sum, sub) => sum + ((sub[key] || []).length), 0), 0);
-  const attachmentRefs =
-    (p.courses || []).reduce((acc, course) => acc + (course.modules || []).reduce((sum, module) => {
-      const direct = (module.attachments || []).length;
-      const subs = (module.submodules || []).reduce((subAcc, sub) => subAcc + (sub.attachments || []).length, 0);
-      return sum + direct + subs;
-    }, 0), 0) +
-    (p.docs || []).reduce((acc, doc) => acc + (doc.attachments || []).length, 0) +
-    (p.manuals || []).reduce((acc, manual) => acc + (manual.nodes || []).reduce((sum, node) => sum + (node.attachments || []).length, 0), 0);
-  const codeSnippets = countNested(p.codeSpaces, 'snippets');
-  const exerciseItems = countNested(p.exerciseSpaces, 'items');
-  const interviewItems = countNested(p.interviewSpaces, 'items');
-  const totalItems =
-    exerciseItems + interviewItems + codeSnippets +
-    (p.courses || []).length + (p.docs || []).length + (p.generalNotes || []).length +
-    (p.linkedinPosts || []).length + (p.certificates || []).length + (p.tools || []).length +
-    (p.manuals || []).length + (p.reminders || []).length;
-  return { totalItems, exerciseItems, interviewItems, codeSnippets, attachmentRefs };
-}
-function advStampLocalMeta(reason=''){
-  if (!appData) return advCountContent(baseData());
-  appData.meta ||= {};
-  const nowIso = new Date().toISOString();
-  const stats = advCountContent(appData);
-  appData.meta.lastLocalChangeAt = nowIso;
-  appData.meta.lastChangeReason = String(reason || '').slice(0, 140);
-  appData.meta.lastLocalStats = stats;
-  if (/import|mescl|backup/i.test(String(reason || '')) || stats.totalItems >= 500 || stats.exerciseItems >= 500) {
-    appData.meta.lastImportAt = nowIso;
-    appData.meta.protectCloudOverwriteUntil = new Date(Date.now() + ADV_LOCAL_PROTECT_MS).toISOString();
-  }
-  return stats;
-}
-function advPruneRevisionHistory(stats=null){
-  if (!appData) return { bytes:0, keep:0 };
-  appData.history = Array.isArray(appData.history) ? appData.history : [];
-  const currentStats = stats || advCountContent(appData);
-  const bytes = advEstimateJsonBytes(serializeAppDataForRevision());
-  let keep = ADV_MAX_REVISIONS;
-  if (bytes >= ADV_HISTORY_HARD_LIMIT_BYTES || currentStats.totalItems >= 1500 || currentStats.exerciseItems >= 1500) keep = 2;
-  else if (bytes >= ADV_HISTORY_SOFT_LIMIT_BYTES || currentStats.totalItems >= 700 || currentStats.exerciseItems >= 700) keep = 4;
-  if (appData.history.length > keep) appData.history.length = keep;
-  return { bytes, keep };
-}
-function advShouldRecordRevision(reason='', stats=null){
-  const currentStats = stats || advCountContent(appData);
-  if (currentStats.totalItems >= 2500 || currentStats.exerciseItems >= 2500) {
-    return /restaur|desfaz|import|backup|mescl/i.test(String(reason || ''));
-  }
-  return true;
-}
-function advShouldPreferLocalState(localPayload, remotePayload, remoteUpdatedAt=''){
-  if (!payloadHasUserContent(localPayload)) return false;
-  const localMeta = localPayload?.meta || {};
-  const remoteMeta = remotePayload?.meta || {};
-  const protectUntil = Date.parse(localMeta.protectCloudOverwriteUntil || 0) || 0;
-  if (protectUntil && Date.now() < protectUntil) return true;
-  const localTs = Date.parse(localMeta.lastLocalChangeAt || localMeta.lastImportAt || 0) || 0;
-  const remoteTs = Date.parse(remoteUpdatedAt || remoteMeta.lastCloudPushAt || remoteMeta.lastLocalChangeAt || 0) || 0;
-  if (localTs && remoteTs && localTs > (remoteTs + ADV_LOCAL_WINS_SKEW_MS)) return true;
-  const localStats = advCountContent(localPayload);
-  const remoteStats = advCountContent(remotePayload);
-  if (localStats.exerciseItems >= remoteStats.exerciseItems + 25) return true;
-  if (localStats.totalItems >= remoteStats.totalItems + 25) return true;
-  if (localStats.attachmentRefs >= remoteStats.attachmentRefs + 3) return true;
-  return false;
-}
 
 function advClone(value){ return JSON.parse(JSON.stringify(value)); }
 function advFmtDt(value){ return value ? new Date(value).toLocaleString('pt-BR') : '—'; }
@@ -3260,7 +3183,7 @@ baseData = function(){
   const data = _oldBaseData();
   data.profile = Object.assign({}, ADV_PROFILE_DEFAULTS, data.profile || {});
   data.history = Array.isArray(data.history) ? data.history : [];
-  data.meta = Object.assign({ dashboardWidgets: ADV_DASHBOARD_WIDGETS.slice(), lastLocalChangeAt:'', lastCloudPullAt:'', lastCloudPushAt:'', lastRemoteUpdatedAt:'', lastImportAt:'', protectCloudOverwriteUntil:'', lastChangeReason:'', lastLocalStats:null }, data.meta || {});
+  data.meta = Object.assign({ dashboardWidgets: ADV_DASHBOARD_WIDGETS.slice() }, data.meta || {});
   return data;
 };
 const _oldEnsureDefaults = ensureDefaults;
@@ -3274,17 +3197,8 @@ ensureDefaults = function(){
 };
 const _oldSaveUserData = saveUserData;
 saveUserData = function(options={}){
-  const reason = options.reason || `Atualização em ${currentSection}`;
-  let stats = null;
-  if (appData && currentUser) {
-    stats = advStampLocalMeta(reason);
-    if (!options.skipRevision && advShouldRecordRevision(reason, stats)) recordRevision(reason);
-    advPruneRevisionHistory(stats);
-  }
+  if (!options.skipRevision && appData && currentUser) recordRevision(options.reason || `Atualização em ${currentSection}`);
   _oldSaveUserData(options);
-  if (!options.skipSync && canUseCloudSync() && /import|mescl|backup/i.test(String(reason || ''))) {
-    setTimeout(() => { flushCloudSync('import'); }, 60);
-  }
 };
 const _oldRenderSidebarIdentity = renderSidebarIdentity;
 renderSidebarIdentity = function(){
@@ -3309,56 +3223,9 @@ pushCloudState = async function(reason='manual'){
 };
 const _oldBootstrapCloudState = bootstrapCloudState;
 bootstrapCloudState = async function(){
-  if (!currentUser) return;
-  ensureCloudStatusElement();
-  if (!canUseCloudSync()) {
-    setCloudStatus('local', SUPABASE_ENABLED ? 'Nuvem sem sessão' : 'Nuvem indisponível');
-    return;
-  }
-  try {
-    setCloudStatus('syncing', 'Nuvem carregando…');
-    const remote = await fetchCloudRow();
-    const localHadContent = payloadHasUserContent(appData);
-    if (!remote) {
-      if (localHadContent) {
-        await pushCloudState('bootstrap');
-        advCloudMeta.lastSyncReason ||= 'bootstrap';
-      } else {
-        setCloudStatus('synced', 'Nuvem ✓');
-      }
-      return;
-    }
-    const remotePayload = Object.assign(baseData(), remote.payload || {});
-    const preferLocal = advShouldPreferLocalState(appData, remotePayload, remote.updated_at || '');
-    if ((!payloadHasUserContent(remotePayload) && localHadContent) || (localHadContent && preferLocal)) {
-      await pushCloudState(preferLocal ? 'bootstrap-local-wins' : 'bootstrap');
-      advCloudMeta.lastSyncReason ||= preferLocal ? 'bootstrap-local-wins' : 'bootstrap';
-      return;
-    }
-    appData = remotePayload;
-    ensureDefaults();
-    appData.meta ||= {};
-    appData.meta.lastCloudPullAt = new Date().toISOString();
-    appData.meta.lastRemoteUpdatedAt = String(remote.updated_at || '');
-    appData.meta.protectCloudOverwriteUntil = '';
-    advPruneRevisionHistory();
-    writeLS(userDataKey(currentUser), appData);
-    if (remote.theme) setTheme(remote.theme, { skipSync:true });
-    if (remote.font_style) setFontStyle(remote.font_style, { skipSync:true });
-    const mergedStreak = mergeStreakData(getStreakData(), remote.streak);
-    writeLS(getStreakStorageKey(), mergedStreak);
-    ensureSeedData();
-    ensureDailyGoalsSeeded();
-    renderAll();
-    setCloudStatus('synced', 'Nuvem ✓');
-    advCloudMeta.lastSyncReason ||= 'bootstrap';
-    if (JSON.stringify(mergedStreak) !== JSON.stringify(normalizeStreakData(remote.streak))) scheduleCloudSync('streak-merge');
-  } catch (error) {
-    console.error('MFHUB cloud bootstrap failed:', error);
-    lastCloudError = error?.message || 'Falha ao carregar os dados da nuvem.';
-    setCloudStatus('error', 'Nuvem falha');
-    showToast('Falha na nuvem: ' + lastCloudError);
-  }
+  const result = await _oldBootstrapCloudState();
+  if (!lastCloudError && canUseCloudSync()) advCloudMeta.lastSyncReason ||= 'bootstrap';
+  return result;
 };
 function openCloudStatusModal(){
   const pending = Array.from(new Set(advCloudMeta.pendingReasons)).join(', ') || 'nenhuma';
