@@ -383,14 +383,16 @@ textarea.ann:focus{border-color:var(--green);outline:none;color:var(--text)}
 
 /* ── HOTFIX HEADER / LOGO / HUD ── */
 #app{
-  grid-template-rows:auto 1fr !important;
+  --header-row-height: 240px;
+  grid-template-rows:var(--header-row-height) 1fr !important;
   grid-template-columns:260px minmax(0,1fr) !important;
 }
 #header{
   position:relative !important;
   top:auto !important;
   z-index:20 !important;
-  min-height:150px;
+  height:var(--header-row-height) !important;
+  min-height:240px;
   display:grid !important;
   grid-template-columns:minmax(240px,290px) minmax(180px,320px) auto !important;
   grid-template-areas:
@@ -398,7 +400,9 @@ textarea.ann:focus{border-color:var(--green);outline:none;color:var(--text)}
     "logo hud hud";
   align-items:start !important;
   gap:1rem 1.15rem !important;
-  padding:1rem 1.4rem 1rem !important;
+  padding:1.1rem 1.4rem 1.35rem !important;
+  align-content:start !important;
+  overflow:hidden !important;
   backdrop-filter:none !important;
 }
 .h-logo{
@@ -443,14 +447,18 @@ textarea.ann:focus{border-color:var(--green);outline:none;color:var(--text)}
 #main{
   overflow:visible !important;
   min-width:0;
-  padding-top:1.2rem !important;
+  padding-top:1.8rem !important;
 }
 #sidebar{
   overflow-y:auto;
 }
 @media (max-width:1100px){
+  #app{
+    --header-row-height: 290px;
+  }
   #header{
-    min-height:unset;
+    height:var(--header-row-height) !important;
+    min-height:290px;
     grid-template-columns:minmax(220px,280px) 1fr !important;
     grid-template-areas:
       "logo right"
@@ -463,10 +471,13 @@ textarea.ann:focus{border-color:var(--green);outline:none;color:var(--text)}
 }
 @media (max-width:720px){
   #app{
+    --header-row-height: 360px;
     grid-template-columns:1fr !important;
-    grid-template-rows:auto auto 1fr !important;
+    grid-template-rows:var(--header-row-height) auto 1fr !important;
   }
   #header{
+    height:var(--header-row-height) !important;
+    min-height:360px;
     grid-template-columns:1fr !important;
     grid-template-areas:
       "logo"
