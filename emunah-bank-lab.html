@@ -279,6 +279,68 @@ textarea.ann:focus{border-color:var(--green);outline:none;color:var(--text)}
   .cmd-composer-row{flex-direction:column}
   .cmd-input-group{min-width:100%}
 }
+
+/* ── ROADMAP / GAMIFICAÇÃO ── */
+.board-grid{display:grid;gap:1rem}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.8rem}
+.kpi-card{background:var(--bg1);border:1px solid var(--border);border-radius:var(--rl);padding:1rem}
+.kpi-label{font-family:var(--mono);font-size:calc(.62rem + 2pt);color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:.35rem}
+.kpi-value{font-family:var(--mono);font-size:calc(1.2rem + 2pt);font-weight:700;color:var(--text)}
+.kpi-sub{font-size:calc(.72rem + 2pt);color:var(--text2);margin-top:.2rem}
+.hero-card{background:linear-gradient(135deg, rgba(74,222,128,.12), rgba(96,165,250,.1));border:1px solid rgba(74,222,128,.22);border-radius:var(--rl);padding:1.1rem}
+.hero-row{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;flex-wrap:wrap}
+.hero-title{font-family:var(--mono);font-size:calc(1.05rem + 2pt);font-weight:700;color:var(--text)}
+.hero-sub{font-size:calc(.8rem + 2pt);color:var(--text2);margin-top:.3rem;line-height:1.6}
+.level-badge{display:inline-flex;align-items:center;gap:.45rem;padding:.35rem .65rem;border-radius:999px;border:1px solid rgba(74,222,128,.22);background:rgba(74,222,128,.08);font-family:var(--mono);font-size:calc(.65rem + 2pt);color:var(--green)}
+.quest-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.8rem}
+.quest-card{background:var(--bg1);border:1px solid var(--border);border-radius:var(--rl);padding:.9rem}
+.quest-head{display:flex;align-items:flex-start;justify-content:space-between;gap:.6rem;margin-bottom:.45rem}
+.quest-tag{font-family:var(--mono);font-size:calc(.58rem + 2pt);padding:2px 6px;border-radius:999px;background:rgba(96,165,250,.12);color:var(--blue);border:1px solid rgba(96,165,250,.25)}
+.quest-title{font-size:calc(.82rem + 2pt);font-weight:600;color:var(--text)}
+.quest-meta{font-size:calc(.7rem + 2pt);color:var(--text3);line-height:1.5}
+.phase-summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.9rem}
+.phase-summary-card{background:var(--bg1);border:1px solid var(--border);border-radius:var(--rl);padding:.95rem}
+.phase-summary-top{display:flex;align-items:flex-start;justify-content:space-between;gap:.6rem;margin-bottom:.5rem}
+.phase-pill{display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:28px;border-radius:8px;font-family:var(--mono);font-weight:700;color:#081008}
+.phase-summary-title{font-size:calc(.84rem + 2pt);font-weight:600;color:var(--text)}
+.phase-summary-sub{font-size:calc(.7rem + 2pt);color:var(--text3);margin-top:.15rem}
+.phase-summary-stats{font-family:var(--mono);font-size:calc(.64rem + 2pt);color:var(--text2);margin-top:.45rem}
+.day-card{background:var(--bg1);border:1px solid var(--border);border-radius:var(--rl);margin-bottom:.75rem;overflow:hidden}
+.day-card.done{border-color:rgba(74,222,128,.24);background:rgba(74,222,128,.04)}
+.day-head{display:flex;align-items:flex-start;gap:.85rem;padding:.9rem 1rem;cursor:pointer}
+.day-check{width:22px;height:22px;border-radius:6px;border:2px solid var(--border2);display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;font-family:var(--mono);font-size:calc(.7rem + 2pt)}
+.day-check.done{background:var(--green);border-color:var(--green);color:#081008}
+.day-main{flex:1;min-width:0}
+.day-topline{display:flex;align-items:center;gap:.45rem;flex-wrap:wrap}
+.day-chip{font-family:var(--mono);font-size:calc(.58rem + 2pt);font-weight:700;padding:2px 6px;border-radius:999px;background:rgba(37,99,235,.12);color:var(--blue);border:1px solid rgba(37,99,235,.25)}
+.day-title{font-size:calc(.84rem + 2pt);font-weight:600;color:var(--text)}
+.day-meta{font-size:calc(.72rem + 2pt);color:var(--text3);margin-top:.18rem;line-height:1.5}
+.day-progress{display:flex;align-items:center;gap:.55rem;margin-top:.5rem}
+.day-progress .prog-outer{max-width:none;height:5px}
+.day-progress .prog-inner{background:linear-gradient(90deg,var(--green),var(--blue))}
+.day-body{padding:0 1rem 1rem 3.1rem;border-top:1px solid var(--border)}
+.task-list{display:grid;gap:.4rem;margin-top:.85rem}
+.task-row{display:flex;gap:.6rem;align-items:flex-start;padding:.45rem .55rem;border:1px solid var(--border);border-radius:var(--r);background:rgba(0,0,0,.14)}
+.task-box{width:18px;height:18px;border-radius:4px;border:1.5px solid var(--border2);display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;font-family:var(--mono);font-size:calc(.62rem + 2pt);margin-top:1px}
+.task-box.done{background:var(--green);border-color:var(--green);color:#081008}
+.task-text{font-size:calc(.76rem + 2pt);color:var(--text);line-height:1.55}
+.day-info-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.7rem;margin-top:.8rem}
+.info-box{padding:.65rem .75rem;border-radius:var(--r);border:1px solid var(--border);background:rgba(0,0,0,.14)}
+.info-box .lbl{display:block;margin-bottom:.3rem;font-size:calc(.58rem + 2pt);color:var(--text3)}
+.info-box .val{font-size:calc(.75rem + 2pt);color:var(--text);line-height:1.55}
+.day-note{margin-top:.8rem}
+.day-note textarea{min-height:110px}
+.inline-actions{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.8rem}
+.nav-split{margin:.35rem .7rem .15rem;padding:.35rem .4rem 0;border-top:1px solid var(--border)}
+.legacy-chips{display:flex;gap:.5rem;flex-wrap:wrap;margin:1rem 0}
+.legacy-chip{padding:.4rem .7rem;border-radius:999px;border:1px solid var(--border2);background:transparent;color:var(--text2);font-family:var(--mono);font-size:calc(.64rem + 2pt);cursor:pointer}
+.legacy-chip.active{background:var(--bg3);border-color:var(--green);color:var(--green)}
+@media (max-width:760px){
+  .day-body{padding:0 .8rem .9rem .8rem}
+  .day-head{padding:.85rem .8rem}
+  .hero-row{flex-direction:column}
+}
+
 </style>
 </head>
 <body>
@@ -387,7 +449,7 @@ textarea.ann:focus{border-color:var(--green);outline:none;color:var(--text)}
 // ═══════════════════════════════════════════════════════════════
 // PHASES DATA
 // ═══════════════════════════════════════════════════════════════
-const PH=[
+const LEGACY_PH=[
 {id:'fx',num:'!',title:'Correções Imediatas',sub:'Prioridade antes de tudo',alert:true,
  desc:'Três problemas bloqueiam qualquer execução de ponta a ponta. Corrija antes de avançar nas fases do orquestrador.',
  steps:[
@@ -514,6 +576,776 @@ const PH=[
    done:'LABMENU abre no TSO e opção 1 chama EBCHKLAB.'}
 ]}
 ];
+
+
+const ROADMAP_PHASES = [
+  {
+    id: 1,
+    title: "Base Técnica",
+    subtitle: "Executar cadeia ponta a ponta",
+    roadmap: "Fases 1–3",
+    color: "#2563eb",
+    days: [
+      {
+        day: 1,
+        title: "Corrigir lancamentos_d0.txt",
+        step: "F1-P1",
+        tasks: [
+          "Abrir lancamentos_d0.txt no Notepad++ com régua",
+          "Mapear campos contra CPLCT001 (120 bytes)",
+          "Reescrever os 10 registros usando contas válidas (000100000001 a 000100000020)",
+          "Manter diversidade de cenários: PIX, TED, ATM, POS, APP, INTERNET, RH, BATCH",
+          "Conferir que cada linha tem exatamente 120 bytes com FILLER de espaços",
+        ],
+        effort: "1–2h",
+        deliverable: "lancamentos_d0.txt corrigido",
+        risk: "Sem isso, 100% dos lançamentos são rejeitados",
+      },
+      {
+        day: 2,
+        title: "Validar contas.txt contra CPCNT001",
+        step: "F1-P2",
+        tasks: [
+          "Abrir contas.txt no Notepad++ com régua ativa",
+          "Conferir 100 bytes por registro",
+          "Mapear: AG(1-4), CONTA(5-12), CLI(13-17), TIPO(18), STATUS(19), DATA(20-27), SALDO(28-40), LIMITE(41-51), FILLER(52-100)",
+          "Verificar CNT-STATUS = A para todas as contas",
+          "Verificar sinal zoned decimal no CNT-SALDO (PIC S9(11)V99)",
+        ],
+        effort: "1h",
+        deliverable: "contas.txt validado, anotações de conferência",
+        risk: "Sinal errado causa S0C7 na postagem",
+      },
+      {
+        day: 3,
+        title: "Corrigir DISP nos JCLs (parte 1)",
+        step: "F1-P3a",
+        tasks: [
+          "EBJCLLD.jcl: alterar CLIENTE e CONTA de DISP=SHR para DISP=OLD",
+          "EBJVALD.jcl: alterar VALIDOS (ESDS) de DISP=SHR para DISP=OLD",
+          "EBJPOST.jcl: alterar CONTA de DISP=SHR para DISP=OLD",
+          "Manter DISP=SHR onde é leitura pura (MOVTIN, CLIENTE no EBJPOST)",
+          "Revisar comentários de cada DD alterado",
+        ],
+        effort: "1h",
+        deliverable: "3 JCLs corrigidos localmente",
+        risk: "DISP=SHR impede OPEN I-O/OUTPUT em VSAM",
+      },
+      {
+        day: 4,
+        title: "Corrigir DISP nos JCLs (parte 2) + NOTIFY",
+        step: "F1-P3b + F1-P8",
+        tasks: [
+          "Adicionar NOTIFY=&SYSUID no JOB card de todos os JCLs: EBSEED, EBJCLLD, EBJVALD, EBJPOST, EBJSALD, EBJEXTR, EBJCONC, EBJEOD, EBJLOAD",
+          "Conferir que o padrão segue: //JOBx JOB ,'desc',CLASS=A,MSGCLASS=X,MSGLEVEL=(1,1),NOTIFY=&SYSUID",
+          "Publicar JCLs corrigidos via Zowe CLI",
+        ],
+        effort: "1–1.5h",
+        deliverable: "Todos os JCLs com NOTIFY e DISP corretos",
+        risk: "Convenção do projeto exige NOTIFY — sem ele, não sabe quando job termina",
+      },
+      {
+        day: 5,
+        title: "Adicionar DD SALDOUT no EBJSALD",
+        step: "F1-P4",
+        tasks: [
+          "Analisar EBSALD01: espera SALDIN, CONTA, SALDOUT",
+          "Definir: SALDOUT será SEQ ou KSDS? (decisão de design)",
+          "Adicionar DD SALDOUT no EBJSALD.jcl com DCB, SPACE e DISP adequados",
+          "Verificar LRECL do FD SALDO-OUT no programa (120 bytes)",
+          "Publicar JCL atualizado",
+        ],
+        effort: "1–1.5h",
+        deliverable: "EBJSALD.jcl completo com todos os DDs",
+        risk: "Sem SALDOUT → ABEND no OPEN (S013-14)",
+      },
+      {
+        day: 6,
+        title: "Construir JCL real do EBJEXTR",
+        step: "F1-P5",
+        tasks: [
+          "Substituir IEFBR14 por PGM=EBEXTR01",
+          "Adicionar DDs: STEPLIB, MOVTIN (ESDS/SHR), EXTROUT (GDG +1), SYSOUT, SYSPRINT",
+          "Definir DCB do GDG: RECFM=FB, LRECL=132 (versão atual), BLKSIZE=0",
+          "Documentar pré-requisito: DEFINE GDG via IDCAMS",
+          "Publicar JCL",
+        ],
+        effort: "1–2h",
+        deliverable: "EBJEXTR.jcl funcional",
+        risk: "GDG base precisa existir antes da primeira execução",
+      },
+      {
+        day: 7,
+        title: "Construir JCL real do EBJEOD",
+        step: "F1-P6",
+        tasks: [
+          "Substituir placeholder por job funcional",
+          "Opção simples: IDCAMS LISTCAT para verificar CONCIL.SEQ + IEBGENER para registro de controle",
+          "Adicionar DD AUDIT para registro de fechamento",
+          "Controle de RC com COND ou IF/THEN/ELSE",
+          "Publicar JCL",
+        ],
+        effort: "1–2h",
+        deliverable: "EBJEOD.jcl funcional (versão simples)",
+        risk: "Job de fechamento precisa detectar se conciliação rodou",
+      },
+      {
+        day: 8,
+        title: "Criar datasets faltantes (SEQ + GDG)",
+        step: "F1-P7",
+        tasks: [
+          "Criar JCL com IDCAMS para DEFINE GDG base ARQ.EXTRATO.GDG (LIMIT 5 SCRATCH)",
+          "Garantir existência de ARQ.CONCIL.SEQ, ARQ.REJEITO.SEQ, ARQ.AUDIT.SEQ",
+          "Opção: criar via IEFBR14 com DCB ou via IDCAMS",
+          "Submeter JCL de criação e confirmar via LISTCAT",
+          "Atualizar EBCHKLAB.rexx com novos datasets",
+        ],
+        effort: "1–2h",
+        deliverable: "Todos os datasets do mapa existem no catálogo",
+        risk: "Datasets ausentes causam JCL ERROR antes do programa rodar",
+      },
+      {
+        day: 9,
+        title: "Publicar copybooks e fontes COBOL",
+        step: "F1-P9a",
+        tasks: [
+          "Publicar todos os 7 copybooks para DEV.COPY via Zowe CLI",
+          "Publicar os 6 fontes COBOL para DEV.COBOL",
+          "Conferir presença dos membros no PDS remoto (zowe files list members)",
+          "Anotar versões publicadas",
+        ],
+        effort: "1h",
+        deliverable: "Copybooks e fontes no mainframe prontos para compile",
+        risk: "Copybook desatualizado causa erro de compilação",
+      },
+      {
+        day: 10,
+        title: "Compilar e linkar (parte 1)",
+        step: "F1-P9b",
+        tasks: [
+          "Submeter compile+link de EBCLLOAD via IGYWCL",
+          "Verificar RC (0 ou 4 = ok, 8+ = erro)",
+          "Submeter compile+link de EBVALI01",
+          "Submeter compile+link de EBPOST01",
+          "Conferir módulos no LOADLIB (zowe files list members)",
+        ],
+        effort: "1.5–2h",
+        deliverable: "3 módulos no LOADLIB",
+        risk: "RC 8 no compile = erro de sintaxe ou copybook faltando",
+      },
+      {
+        day: 11,
+        title: "Compilar e linkar (parte 2)",
+        step: "F1-P9c",
+        tasks: [
+          "Submeter compile+link de EBSALD01",
+          "Submeter compile+link de EBEXTR01",
+          "Submeter compile+link de EBCONC01",
+          "Conferir os 6 módulos no LOADLIB",
+          "Resolver qualquer RC 8+ pendente",
+        ],
+        effort: "1.5–2h",
+        deliverable: "6 módulos no LOADLIB, prontos para execução",
+        risk: "Erro de link = referência externa não resolvida",
+      },
+      {
+        day: 12,
+        title: "Preparar ambiente e executar carga seed",
+        step: "F1-P10a",
+        tasks: [
+          "Executar IDCAMS DELETE/DEFINE para KSDS de clientes e contas (estado limpo)",
+          "Upload de clientes.txt para SEED.CLIENTES.SEQ",
+          "Upload de contas.txt para SEED.CONTAS.SEQ",
+          "Submeter EBSEED — verificar RC 0",
+          "Ler spool: contadores de gravação, auditoria",
+        ],
+        effort: "1.5–2h",
+        deliverable: "KSDS populados com 20 clientes e 20 contas",
+        risk: "Upload em modo TEXT pode truncar FILLER",
+      },
+      {
+        day: 13,
+        title: "Executar cadeia: EBJLOAD + EBJVALD",
+        step: "F1-P10b",
+        tasks: [
+          "Upload de lancamentos_d0.txt para ARQ.ENTRADA.SEQ",
+          "Submeter EBJLOAD (PRECHECK) — esperar RC 0",
+          "Submeter EBJVALD (validação) — verificar registros válidos no ESDS, rejeitos no SEQ",
+          "Ler spool: contadores, mensagens, RC",
+          "Se houver erro, diagnosticar e corrigir antes de prosseguir",
+        ],
+        effort: "1.5–2h",
+        deliverable: "Lançamentos validados no ESDS",
+        risk: "Contas inexistentes = tudo rejeitado (por isso o dia 1 é crítico)",
+      },
+      {
+        day: 14,
+        title: "Executar cadeia: EBJPOST + EBJSALD",
+        step: "F1-P10c",
+        tasks: [
+          "Submeter EBJPOST — verificar saldos atualizados no KSDS, auditoria gravada",
+          "Submeter EBJSALD — verificar arquivo de saldo gerado",
+          "Ler spool de ambos: contadores, RC, mensagens de erro",
+          "Se EBJPOST falhar, verificar DISP=OLD na CONTA",
+          "Se EBJSALD falhar, verificar DD SALDOUT",
+        ],
+        effort: "1.5–2h",
+        deliverable: "Contas com saldo atualizado, relatório de saldo gerado",
+        risk: "DISP=SHR causa FILE STATUS 90 — já corrigido no dia 3",
+      },
+      {
+        day: 15,
+        title: "Executar cadeia: EBJEXTR + EBJCONC + EBJEOD",
+        step: "F1-P10d",
+        tasks: [
+          "Submeter EBJEXTR — verificar GDG G0001V00 criado",
+          "Submeter EBJCONC — verificar relatório de conciliação",
+          "Submeter EBJEOD — verificar RC 0, registro de controle na auditoria",
+          "Ler spool dos 3 jobs",
+          "Se algum falhar, diagnosticar e reexecutar",
+        ],
+        effort: "1.5–2h",
+        deliverable: "Cadeia completa executada sem intervenção",
+        risk: "GDG inexistente = JCL ERROR no EBJEXTR",
+      },
+      {
+        day: 16,
+        title: "Documentar evidência da Fase 1",
+        step: "F1-P11",
+        tasks: [
+          "Criar EVIDENCIA-FASE1.md",
+          "Registrar RC de cada job da cadeia",
+          "Capturar contadores (lidos, gravados, rejeitados) de cada programa",
+          "Salvar conteúdo do arquivo de auditoria",
+          "Salvar relatório de conciliação",
+          "Registrar lições aprendidas e problemas encontrados",
+        ],
+        effort: "1.5h",
+        deliverable: "Documento de evidência completo da Fase 1",
+        risk: "Sem evidência não tem portfólio",
+      },
+    ],
+  },
+  {
+    id: 2,
+    title: "Realidade Bancária",
+    subtitle: "Sustentação, incidentes e fechamento real",
+    roadmap: "Fases 4–6",
+    color: "#059669",
+    days: [
+      {
+        day: 17,
+        title: "EBCONC01 — análise e design",
+        step: "F2-P1a",
+        tasks: [
+          "Documentar o que a conciliação deve fazer vs o que faz hoje",
+          "Definir entradas (MOVTIN, CONTA, REJEITOS) e saída (CONCOUT, AUDIT)",
+          "Escrever pseudocódigo da lógica de cruzamento de totais",
+          "Definir formato do relatório de conciliação",
+        ],
+        effort: "1.5h",
+        deliverable: "Design document do EBCONC01 novo",
+      },
+      {
+        day: 18,
+        title: "EBCONC01 — codificar (parte 1)",
+        step: "F2-P1b",
+        tasks: [
+          "IDENTIFICATION, ENVIRONMENT, FILE-CONTROL com 4 arquivos",
+          "DATA DIVISION com COPY CPLCT001, COPY CPCNT001, COPY CPREJ001",
+          "Acumuladores: total créditos, total débitos, qtd válidos, qtd rejeitados",
+          "Lógica de leitura do ESDS e acumulação",
+        ],
+        effort: "1.5–2h",
+        deliverable: "EBCONC01 parcial — leitura e acumulação",
+      },
+      {
+        day: 19,
+        title: "EBCONC01 — codificar (parte 2)",
+        step: "F2-P1c",
+        tasks: [
+          "Lógica de leitura do KSDS de contas (soma de saldos)",
+          "Lógica de leitura do arquivo de rejeitos (contagem)",
+          "Comparação: líquido aplicado vs variação de saldos",
+          "Comparação: processados + rejeitados vs total recebido",
+          "Gravação do relatório e RETURN-CODE",
+        ],
+        effort: "1.5–2h",
+        deliverable: "EBCONC01 completo",
+      },
+      {
+        day: 20,
+        title: "EBCONC01 — JCL, compile e teste",
+        step: "F2-P1d",
+        tasks: [
+          "Atualizar EBJCONC.jcl com DDs novos (CONTA, REJEITOS, AUDIT)",
+          "Publicar fonte e copybooks",
+          "Compilar e linkar",
+          "Executar com massa da Fase 1 e conferir relatório",
+          "Ajustar se necessário",
+        ],
+        effort: "1.5–2h",
+        deliverable: "EBCONC01 funcional com conciliação real",
+      },
+      {
+        day: 21,
+        title: "EBEXTR01 — reescrever com CPEXT001",
+        step: "F2-P2a",
+        tasks: [
+          "Substituir FD de 132 bytes por COPY CPEXT001 (100 bytes)",
+          "Adicionar leitura do KSDS de contas para buscar saldo após movimento",
+          "Montar registro estruturado: EXT-CHAVE, EXT-DATA, EXT-NSEQ, EXT-TIPO, EXT-VALOR, EXT-SALDO-APOS, EXT-CANAL",
+          "Adicionar FILE STATUS em todo I/O",
+        ],
+        effort: "1.5–2h",
+        deliverable: "EBEXTR01 parcial com layout novo",
+      },
+      {
+        day: 22,
+        title: "EBEXTR01 — completar, compilar e testar",
+        step: "F2-P2b",
+        tasks: [
+          "Adicionar auditoria (CPAUD001)",
+          "Adicionar RETURN-CODE",
+          "Atualizar EBJEXTR.jcl: LRECL=100, DD CONTA, DD AUDIT",
+          "Compilar, linkar e executar",
+          "Conferir conteúdo do GDG gerado",
+        ],
+        effort: "1.5–2h",
+        deliverable: "EBEXTR01 funcional com extrato estruturado",
+      },
+      {
+        day: 23,
+        title: "EBSALD01 — reescrever com CPSLD001",
+        step: "F2-P3",
+        tasks: [
+          "Decidir entre opção A (varredura KSDS) ou B (consulta pontual)",
+          "Reescrever usando COPY CPSLD001 na saída",
+          "Adicionar FILE STATUS, auditoria, RETURN-CODE",
+          "Atualizar EBJSALD.jcl (remover/ajustar SALDIN se opção A)",
+          "Compilar, linkar e testar",
+        ],
+        effort: "2h",
+        deliverable: "EBSALD01 com consolidação real",
+      },
+      {
+        day: 24,
+        title: "EBBACK01 — criar programa de backup",
+        step: "F2-P4a",
+        tasks: [
+          "Criar EBBACK01.cbl: lê KSDS de contas, grava SEQ de backup",
+          "COPY CPCNT001 para ler o KSDS",
+          "START na primeira chave, READ NEXT até EOF",
+          "Contar registros, gravar auditoria com CPAUD001",
+          "FILE STATUS em todo I/O, RETURN-CODE",
+        ],
+        effort: "1.5–2h",
+        deliverable: "EBBACK01.cbl completo",
+      },
+      {
+        day: 25,
+        title: "EBBACK01 — JCL, compile e teste",
+        step: "F2-P4b",
+        tasks: [
+          "Criar EBJBACK.jcl com DDs: CONTA (SHR), BKPCONTA (NEW), AUDIT (MOD)",
+          "Publicar fonte e JCL via Zowe CLI",
+          "Compilar e linkar",
+          "Executar e conferir: backup gerado, contagem bate com KSDS",
+        ],
+        effort: "1.5h",
+        deliverable: "EBBACK01 funcional, backup gerado",
+      },
+      {
+        day: 26,
+        title: "EBREPR01 — criar programa (parte 1)",
+        step: "F2-P5a",
+        tasks: [
+          "Criar EBREPR01.cbl: ENVIRONMENT com REPRIN, CONTA, REJEITOS, AUDIT",
+          "DATA DIVISION com COPY CPLCT001 (entrada), CPCNT001 (KSDS), CPREJ001 (rejeitos), CPAUD001 (audit)",
+          "Lógica de validação: conta existe? ativa? tipo válido? valor > 0?",
+        ],
+        effort: "1.5–2h",
+        deliverable: "EBREPR01 parcial — leitura e validação",
+      },
+      {
+        day: 27,
+        title: "EBREPR01 — criar programa (parte 2)",
+        step: "F2-P5b",
+        tasks: [
+          "Lógica de atualização: READ CONTA → atualiza CNT-SALDO → REWRITE",
+          "Gravar auditoria com AU-COD-EVENTO = REPROC01",
+          "Gravar rejeitos em dataset separado (ARQ.REPR.REJEITO.SEQ)",
+          "RETURN-CODE: 0 = ok, 4 = rejeitos, 8 = erro I/O",
+        ],
+        effort: "1.5–2h",
+        deliverable: "EBREPR01 completo",
+      },
+      {
+        day: 28,
+        title: "EBREPR01 — JCL, compile e teste",
+        step: "F2-P5c",
+        tasks: [
+          "Criar EBJREPR.jcl",
+          "Publicar fonte e JCL",
+          "Compilar e linkar",
+          "Criar massa de reprocessamento (registros corrigidos a partir de rejeitos)",
+          "Executar e conferir: saldos atualizados, auditoria com REPROC01",
+        ],
+        effort: "1.5–2h",
+        deliverable: "EBREPR01 funcional",
+      },
+      {
+        day: 29,
+        title: "EBJEOD real — cadeia multi-step",
+        step: "F2-P6",
+        tasks: [
+          "Reescrever EBJEOD.jcl com 4 steps: STEPBKP → STEPSLD → STEPEXT → STEPCNC",
+          "COND=(8,LT) em cada step após backup",
+          "Publicar JCL",
+          "Executar cadeia completa via EBJEOD",
+          "Conferir spool de todos os steps, RC de cada um",
+        ],
+        effort: "2h",
+        deliverable: "EBJEOD funcional como cadeia de fechamento",
+      },
+      {
+        day: 30,
+        title: "Fortalecer programas — FILE STATUS e auditoria",
+        step: "F2-P9a",
+        tasks: [
+          "EBEXTR01: adicionar checagem de FILE STATUS após OPEN/READ/WRITE/CLOSE",
+          "EBSALD01: mesmo tratamento",
+          "Ambos: adicionar gravação de auditoria com CPAUD001",
+          "Ambos: adicionar RETURN-CODE ao final",
+        ],
+        effort: "2h",
+        deliverable: "2 programas com padrão de produção",
+      },
+      {
+        day: 31,
+        title: "Fortalecer programas — PIC e COPY",
+        step: "F2-P9b",
+        tasks: [
+          "EBCONC01 e EBEXTR01: corrigir MV-VALOR de PIC 9(11)V99 para PIC S9(11)V99",
+          "Substituir FD redeclarado por COPY CPLCT001 em EBCONC01 e EBEXTR01",
+          "Recompilar e relinkar os 2 programas",
+          "Reexecutar cadeia para validar que nada quebrou",
+        ],
+        effort: "1.5–2h",
+        deliverable: "Programas usando copybooks corretamente",
+      },
+      {
+        day: 32,
+        title: "Criar massa de teste — cenários 1-3",
+        step: "F2-P7a",
+        tasks: [
+          "Cenário missing-input: documentar procedimento (deletar ARQ.ENTRADA.SEQ)",
+          "Cenário invalid-layout: criar lancamentos_invalido.txt com erros controlados",
+          "Cenário duplicate-key: criar clientes_dupkey.txt com CLI-ID duplicado",
+          "Salvar massas na pasta data/testes/",
+        ],
+        effort: "1.5h",
+        deliverable: "3 massas de teste prontas",
+      },
+      {
+        day: 33,
+        title: "Criar massa de teste — cenários 4-6",
+        step: "F2-P7b",
+        tasks: [
+          "Cenário wrong-disp: criar versão do EBJPOST com DISP=SHR deliberado",
+          "Cenário saldo-inconsistente: criar lancamento com débito > saldo",
+          "Cenário reprocess-required: preparar massa corrigida a partir de rejeitos",
+          "Salvar massas e JCLs alterados",
+        ],
+        effort: "1.5h",
+        deliverable: "3 massas de teste adicionais",
+      },
+      {
+        day: 34,
+        title: "Executar cenários de incidente (1-3)",
+        step: "F2-P8a",
+        tasks: [
+          "Restaurar baseline (DELETE/DEFINE, seed, limpar auditoria)",
+          "Executar missing-input → ler spool → seguir runbook → corrigir",
+          "Restaurar baseline",
+          "Executar invalid-layout → ler rejeitos → seguir runbook",
+          "Documentar evidência de cada cenário",
+        ],
+        effort: "2h",
+        deliverable: "3 cenários executados e documentados",
+      },
+      {
+        day: 35,
+        title: "Executar cenários de incidente (4-6)",
+        step: "F2-P8b",
+        tasks: [
+          "Executar wrong-disp → capturar erro de alocação → seguir runbook",
+          "Executar saldo-inconsistente → verificar comportamento do EBPOST01",
+          "Executar reprocess-required → rodar EBJREPR → conferir saldos",
+          "Documentar evidência de cada cenário",
+        ],
+        effort: "2h",
+        deliverable: "3 cenários adicionais executados",
+      },
+      {
+        day: 36,
+        title: "Documentar fechamento EOD",
+        step: "F2-P10",
+        tasks: [
+          "Criar DOC-FECHAMENTO-EOD.md",
+          "Grade batch com horário, job, programa, DD, dataset, RC esperado",
+          "Regras de bloqueio",
+          "Procedimento de rerun e rollback",
+          "Referência aos parâmetros EBBATCHP e EBAUDITP",
+        ],
+        effort: "1.5h",
+        deliverable: "Documentação corporativa do EOD",
+      },
+      {
+        day: 37,
+        title: "Validar DEV / HML / PRD",
+        step: "F2-P11",
+        tasks: [
+          "Verificar e corrigir EBSUBJCL.rexx (default → DEV.JCL)",
+          "Documentar fluxo de promoção DEV → HML → PRD",
+          "Executar cenário normal-day em HML (se possível)",
+          "Conferir que JCLs de HML/PRD usam datasets corretos",
+          "Criar seed de saldos se necessário (F2-P12)",
+        ],
+        effort: "2h",
+        deliverable: "Ambientes validados, EBSUBJCL corrigido",
+      },
+      {
+        day: 38,
+        title: "Evidência e revisão da Fase 2",
+        step: "F2-REVIEW",
+        tasks: [
+          "Criar EVIDENCIA-FASE2.md com todos os cenários executados",
+          "Conferir critério de conclusão: cada cenário reproduzido, diagnosticado e resolvido",
+          "Conferir: EBBACK01 e EBREPR01 funcionais",
+          "Conferir: EBJEOD com cadeia multi-step",
+          "Listar pendências para a Fase 3",
+        ],
+        effort: "1.5h",
+        deliverable: "Documento de evidência da Fase 2 completo",
+      },
+    ],
+  },
+  {
+    id: 3,
+    title: "Diferencial e Portfólio",
+    subtitle: "DB2, CICS, Pix, automação e portfólio final",
+    roadmap: "Fases 7–9",
+    color: "#7c3aed",
+    days: [
+      {
+        day: 39,
+        title: "DB2 — DDL e design",
+        step: "F3-P1a",
+        tasks: [
+          "Escrever DDL da tabela TBAUDIT01 (compatível com CPAUD001)",
+          "Documentar mapeamento CPAUD001 → colunas DB2",
+          "Planejar EBAUDB01 (INSERT batch) e EBAUDC01 (SELECT cursor)",
+          "Estudar JCL de precompilação DB2 (DSNHPC → IGYCRCTL → IEWL)",
+        ],
+        effort: "1.5h",
+        deliverable: "DDL pronto, design dos 2 programas",
+      },
+      {
+        day: 40,
+        title: "DB2 — EBAUDB01 codificar",
+        step: "F3-P1b",
+        tasks: [
+          "Criar EBAUDB01.cbl com EXEC SQL INSERT",
+          "Tratamento de SQLCODE: 0 (ok), -803 (duplicado), outros (erro)",
+          "COMMIT a cada 100 registros",
+          "ROLLBACK em caso de erro",
+          "RETURN-CODE baseado em resultado",
+        ],
+        effort: "2h",
+        deliverable: "EBAUDB01.cbl completo",
+      },
+      {
+        day: 41,
+        title: "DB2 — EBAUDC01 codificar",
+        step: "F3-P1c",
+        tasks: [
+          "Criar EBAUDC01.cbl com DECLARE CURSOR",
+          "SELECT por programa e data (parâmetros)",
+          "OPEN → FETCH loop → CLOSE",
+          "Tratamento de SQLCODE 0, +100 (fim), negativos",
+          "Gerar relatório de consulta no SYSPRINT",
+        ],
+        effort: "2h",
+        deliverable: "EBAUDC01.cbl completo",
+      },
+      {
+        day: 42,
+        title: "DB2 — JCL e tentativa de compile",
+        step: "F3-P1d",
+        tasks: [
+          "Criar JCL de precompilação+compile+link para DB2",
+          "Verificar se o zXplore suporta DB2 para o userid",
+          "Se suportar: submeter compile, criar tabela, testar INSERT/SELECT",
+          "Se não suportar: documentar o código como conceitual e anotar limitação",
+        ],
+        effort: "2h",
+        deliverable: "Programas DB2 compilados (ou documentados como conceitual)",
+      },
+      {
+        day: 43,
+        title: "CICS conceitual — documento parte 1",
+        step: "F3-P2a",
+        tasks: [
+          "Criar DOC-CICS-CONCEITUAL.md",
+          "Fluxo online: consulta de saldo (transação EBCS, programa EBCICS01)",
+          "Tabela comparativa: online vs batch",
+          "Atomicidade aplicada: exemplo de transferência com SYNCPOINT",
+        ],
+        effort: "1.5h",
+        deliverable: "Documento conceitual CICS parte 1",
+      },
+      {
+        day: 44,
+        title: "CICS conceitual — código + documento parte 2",
+        step: "F3-P2b",
+        tasks: [
+          "Escrever código COBOL conceitual do EBCICS01 com EXEC CICS",
+          "RECEIVE MAP, READ DATASET, SEND MAP, RETURN",
+          "Tratamento de RESP/RESP2",
+          "Documentar que não compila no zXplore — é demonstração de domínio de sintaxe",
+        ],
+        effort: "1.5h",
+        deliverable: "EBCICS01.cbl conceitual + documento completo",
+      },
+      {
+        day: 45,
+        title: "Documentar Pix no contexto do lab",
+        step: "F3-P3a",
+        tasks: [
+          "Criar DOC-PIX-EMUNAH.md",
+          "Fluxo funcional: canal → validação → liquidação → registro → auditoria → conciliação",
+          "Impacto em cada módulo (EBVALI01 a EBCONC01)",
+          "O que é online e o que é batch no Pix",
+        ],
+        effort: "1.5h",
+        deliverable: "Documento Pix parte 1",
+      },
+      {
+        day: 46,
+        title: "Pix parte 2 + integração API",
+        step: "F3-P3b + F3-P4",
+        tasks: [
+          "Completar seção Open Finance no DOC-PIX-EMUNAH.md",
+          "Criar DOC-INTEGRACAO-API.md",
+          "z/OS Connect, IBM MQ, Connect:Direct, arquivo de troca",
+          "O lab já usa arquivo de troca — formalizar como interface",
+        ],
+        effort: "1.5h",
+        deliverable: "2 documentos conceituais completos",
+      },
+      {
+        day: 47,
+        title: "Corrigir REXX e criar EBRESET",
+        step: "F3-P5",
+        tasks: [
+          "Corrigir EBSUBJCL: default para DEV.JCL",
+          "Atualizar EBCHKLAB com todos os 15+ datasets do mapa",
+          "Criar EBRESET.rexx: DELETE/DEFINE KSDS, limpar SEQ, recarregar seed",
+          "Testar os 3 scripts no TSO",
+        ],
+        effort: "2h",
+        deliverable: "3 scripts REXX funcionais",
+      },
+      {
+        day: 48,
+        title: "Script de geração de massa (Python)",
+        step: "F3-P6",
+        tasks: [
+          "Criar gerar_lancamentos.py com parâmetros: --qtd, --erros, --data, --output",
+          "Gerar registros de 120 bytes conforme CPLCT001",
+          "Usar contas válidas de contas.txt, tipos C/D, canais variados",
+          "Injetar erros controlados quando --erros > 0",
+          "Testar: gerar arquivo, conferir com régua, upload via Zowe CLI",
+        ],
+        effort: "2h",
+        deliverable: "gerar_lancamentos.py funcional",
+      },
+      {
+        day: 49,
+        title: "Script de coleta de evidências",
+        step: "F3-P7",
+        tasks: [
+          "Criar coletar_evidencia.sh (ou .py)",
+          "Listar jobs recentes, capturar spool, baixar auditoria, rejeitos, conciliação",
+          "Gerar pasta evidencias/YYYYMMDD/ com tudo",
+          "Gerar resumo.md automático com RC de cada job",
+          "Testar ciclo completo: executar cadeia → rodar script → conferir pasta",
+        ],
+        effort: "2h",
+        deliverable: "Script de coleta funcional",
+      },
+      {
+        day: 50,
+        title: "README de portfólio",
+        step: "F3-P8",
+        tasks: [
+          "Criar README.md na raiz do repositório",
+          "Cabeçalho, stack, 6 capacidades",
+          "Arquitetura (3 camadas), mapa de módulos",
+          "Grade batch, programas, cenários de incidente",
+          "Como executar (passo a passo)",
+          "Estrutura de diretórios",
+        ],
+        effort: "2h",
+        deliverable: "README profissional completo",
+      },
+      {
+        day: 51,
+        title: "Estudo de caso",
+        step: "F3-P9",
+        tasks: [
+          "Criar ESTUDO-DE-CASO.md",
+          "Contexto → Problema → Solução → Tecnologias → Fluxo funcional → Fluxo técnico",
+          "Evidências → Aprendizados → Relação com mercado",
+          "Revisar e ajustar tom para portfólio",
+        ],
+        effort: "2h",
+        deliverable: "Estudo de caso profissional",
+      },
+      {
+        day: 52,
+        title: "ITIL aplicado ao lab",
+        step: "F3-P10",
+        tasks: [
+          "Criar DOC-ITIL-EMUNAH.md",
+          "Incidente vs Change vs Problem com exemplos do lab",
+          "Fluxo de Change: DEV → HML → PRD com aprovação",
+          "SLA simulado, mapa de responsabilidades",
+        ],
+        effort: "1.5h",
+        deliverable: "Documento ITIL aplicado",
+      },
+      {
+        day: 53,
+        title: "Preparação para entrevista",
+        step: "F3-P11",
+        tasks: [
+          "Criar DOC-ENTREVISTA.md",
+          "Respostas para perguntas comuns com exemplos do lab",
+          "Roteiro de demonstração de 5 minutos",
+          "Revisar todo o repositório como se fosse um recrutador",
+          "Fazer commit final no Git com tudo organizado",
+        ],
+        effort: "2h",
+        deliverable: "Material de entrevista + repositório finalizado",
+      },
+    ],
+  },
+];
+const ROADMAP_WEEKS_ESTIMATE = Math.ceil(ROADMAP_PHASES.flatMap(p => p.days).length / 5.5);
+let ROADMAP_OPEN = {};
+let ACTIVE_LEGACY = 'fx';
 
 // ═══════════════════════════════════════════════════════════════
 // TOOLS DATA (sidebar tool items)
@@ -683,7 +1515,7 @@ function doLogout(){localStorage.removeItem(K.SESSION);location.reload();}
 // ═══════════════════════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════════════════════
-let CU='',PROG={},ANN={},DIARY=[],CMDS=[],CPHASE='fx',CVIEW='phase';
+let CU='',PROG={},ANN={},DIARY=[],CMDS=[],CPHASE='dashboard',CVIEW='dashboard';
 let diaryPendingFiles=[];
 let cmdPendingFiles=[];
 
@@ -705,7 +1537,9 @@ async function startApp(u){
   document.getElementById('app').classList.remove('hidden');
   document.getElementById('huser').textContent=u;
   document.getElementById('cu').textContent=u;
-  buildSidebar();showPhase('fx');updateProg();
+  buildSidebar();
+  renderDashboard();
+  updateProg();
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -713,15 +1547,36 @@ async function startApp(u){
 // ═══════════════════════════════════════════════════════════════
 function buildSidebar(){
   const nav=document.getElementById('pnav');nav.innerHTML='';
-  PH.forEach(ph=>{
-    const pct=getPhPct(ph.id);
+
+  const dash=document.createElement('div');
+  dash.className='pni'+(CVIEW==='dashboard'?' active':'');
+  dash.id='n-dashboard';
+  dash.innerHTML=`<div class="pnb">⌂</div><div class="pni-info"><div class="pni-t">Dashboard</div><div class="pni-s">Visão geral gamificada</div></div>`;
+  dash.onclick=()=>{CVIEW='dashboard';CPHASE='dashboard';renderDashboard();highlightSidebar();};
+  nav.appendChild(dash);
+
+  const split=document.createElement('div');
+  split.className='nav-split';
+  split.innerHTML=`<div class="sbl" style="padding:.35rem .4rem 0">Plano diário</div>`;
+  nav.appendChild(split);
+
+  ROADMAP_PHASES.forEach(ph=>{
+    const pct=getRoadmapPhasePct(ph.id);
     const el=document.createElement('div');
-    el.className='pni'+(ph.id===CPHASE&&CVIEW==='phase'?' active':'')+(ph.alert?' has-alert':'');
-    el.id=`n-${ph.id}`;
-    el.innerHTML=`<div class="pnb">${ph.num}</div><div class="pni-info"><div class="pni-t">${esc(ph.title)}</div><div class="pni-s">${esc(ph.sub)}</div></div><div class="mini-prog"><div class="mini-bar" id="mb-${ph.id}" style="width:${pct}%"></div></div>`;
-    el.onclick=()=>{CVIEW='phase';showPhase(ph.id);highlightSidebar();};
+    el.className='pni'+(CVIEW==='roadmap'&&String(CPHASE)===String(ph.id)?' active':'');
+    el.id=`n-roadmap-${ph.id}`;
+    el.innerHTML=`<div class="pnb">${ph.id}</div><div class="pni-info"><div class="pni-t">${esc(ph.title)}</div><div class="pni-s">${esc(ph.subtitle)}</div></div><div class="mini-prog"><div class="mini-bar" id="mb-roadmap-${ph.id}" style="width:${pct}%"></div></div>`;
+    el.onclick=()=>{CVIEW='roadmap';CPHASE=String(ph.id);renderRoadmapPhase(ph.id);highlightSidebar();};
     nav.appendChild(el);
   });
+
+  const legacy=document.createElement('div');
+  legacy.className='pni'+(CVIEW==='legacy'?' active':'');
+  legacy.id='n-legacy';
+  legacy.innerHTML=`<div class="pnb">L</div><div class="pni-info"><div class="pni-t">Mapa legado</div><div class="pni-s">Detalhamento técnico preservado</div></div>`;
+  legacy.onclick=()=>{CVIEW='legacy';CPHASE='legacy';showLegacyPhase(ACTIVE_LEGACY||LEGACY_PH[0]?.id||'fx');highlightSidebar();};
+  nav.appendChild(legacy);
+
   const tnav=document.getElementById('tnav');tnav.innerHTML='';
   TOOLS.forEach(t=>{
     const el=document.createElement('div');
@@ -734,7 +1589,12 @@ function buildSidebar(){
 }
 function highlightSidebar(){
   document.querySelectorAll('.pni').forEach(el=>el.classList.remove('active'));
-  const active=document.getElementById(`n-${CPHASE}`);
+  let activeId='';
+  if(CVIEW==='dashboard')activeId='n-dashboard';
+  else if(CVIEW==='roadmap')activeId=`n-roadmap-${CPHASE}`;
+  else if(CVIEW==='legacy')activeId='n-legacy';
+  else if(CVIEW==='tool')activeId=`n-${CPHASE}`;
+  const active=document.getElementById(activeId);
   if(active)active.classList.add('active');
 }
 
@@ -981,6 +1841,7 @@ function toggleCmdCard(id){
 // TOOL ROUTER
 // ═══════════════════════════════════════════════════════════════
 function renderTool(tid){
+  CVIEW='tool';CPHASE=tid;highlightSidebar();
   if(tid==='t-diary')renderDiaryPage();
   else if(tid==='t-cmds')renderCmdsPage();
 }
@@ -1020,24 +1881,30 @@ document.addEventListener('keydown',e=>{
 // ═══════════════════════════════════════════════════════════════
 // PHASE RENDERING (original)
 // ═══════════════════════════════════════════════════════════════
-function showPhase(pid){
-  CPHASE=pid;CVIEW='phase';
-  highlightSidebar();
-  const ph=PH.find(p=>p.id===pid),pct=getPhPct(pid);
-  document.getElementById('pc').innerHTML=`
-    <div class="legend">
-      <div class="leg-item"><div class="leg-dot" style="background:var(--green)"></div>Concluído</div>
-      <div class="leg-item"><div class="leg-dot" style="background:var(--teal)"></div>Já existe</div>
-      <div class="leg-item"><div class="leg-dot" style="background:var(--amber)"></div>Corrigir</div>
-      <div class="leg-item"><div class="leg-dot" style="background:var(--red)"></div>Implementar</div>
-      <div class="leg-item"><div class="leg-dot" style="background:var(--purple)"></div>Achado novo</div>
+function showLegacyPhase(pid){
+  ACTIVE_LEGACY=pid;CVIEW='legacy';CPHASE='legacy';highlightSidebar();
+  const ph=LEGACY_PH.find(p=>p.id===pid);if(!ph)return;
+  const pct=getLegacyPhPct(pid);
+  const chips=LEGACY_PH.map(item=>`<button class="legacy-chip${item.id===pid?' active':''}" onclick="showLegacyPhase('${item.id}')">${esc(item.title)}</button>`).join('');
+  const pc=document.getElementById('pc');
+  pc.innerHTML=`<div class="board-grid">
+    <div class="hero-card">
+      <div class="hero-row">
+        <div>
+          <div class="hero-title">Mapa legado do lab</div>
+          <div class="hero-sub">O detalhamento técnico anterior foi preservado aqui para consulta, comparação e reaproveitamento. Use este mapa como camada de referência enquanto o plano diário novo guia a execução.</div>
+        </div>
+        <div class="level-badge">Preservado · ${pct}% marcado</div>
+      </div>
+      <div class="legacy-chips">${chips}</div>
     </div>
     <div class="ph-hdr">
-      <div class="ph-num-row"><div class="ph-big">${ph.num}</div><div class="ph-title">${esc(ph.title)}</div></div>
+      <div class="ph-num-row"><div class="ph-big">${esc(ph.num)}</div><div class="ph-title">${esc(ph.title)}</div></div>
       <div class="ph-desc">${esc(ph.desc)}</div>
-      <div class="ph-prog-row"><div class="ph-bar-outer"><div class="ph-bar-inner" style="width:${pct}%"></div></div><span class="ph-pct">${pct}% concluído</span></div>
+      <div class="ph-prog-row"><div class="ph-bar-outer"><div class="ph-bar-inner" style="width:${pct}%"></div></div><span class="ph-pct">${pct}% marcado</span></div>
     </div>
-    ${ph.steps.map(s=>renderStep(s)).join('')}`;
+    ${ph.steps.map(s=>renderLegacyStep(s)).join('')}
+  </div>`;
   ph.steps.forEach(s=>{
     document.getElementById(`sh-${s.id}`)?.addEventListener('click',()=>toggleStep(s.id));
     const ck=document.getElementById(`ck-${s.id}`);if(ck)ck.addEventListener('click',e=>{e.stopPropagation();toggleDone(s.id);});
@@ -1054,9 +1921,202 @@ function showPhase(pid){
     }
   });
 }
+
+function roadmapDayKey(phaseId,dayNum){return `roadmap_day_${phaseId}_${dayNum}`;}
+function roadmapTaskKey(phaseId,dayNum,taskIdx){return `roadmap_task_${phaseId}_${dayNum}_${taskIdx}`;}
+function isDoneKey(key){return !!PROG[key];}
+function markProgressKey(key,done){if(done){if(!PROG[key])PROG[key]=new Date().toISOString().slice(0,10);}else delete PROG[key];}
+function getRoadmapPhase(phaseId){return ROADMAP_PHASES.find(p=>String(p.id)===String(phaseId));}
+function getRoadmapFlatDays(){return ROADMAP_PHASES.flatMap(p=>p.days.map(d=>Object.assign({},d,{phase:p.id,phaseTitle:p.title,phaseColor:p.color,phaseSubtitle:p.subtitle,roadmap:p.roadmap})));}
+function getRoadmapDayStats(day,phaseId){
+  const total=(day.tasks||[]).length;
+  const done=(day.tasks||[]).filter((_,idx)=>isDoneKey(roadmapTaskKey(phaseId,day.day,idx))).length;
+  const complete=isDoneKey(roadmapDayKey(phaseId,day.day))||(total>0&&done===total);
+  return {total,done,complete,pct:total?Math.round(done/total*100):0};
+}
+function syncRoadmapDayCompletion(phaseId,day){
+  const stats=getRoadmapDayStats(day,phaseId);
+  if(stats.total>0&&stats.done===stats.total)markProgressKey(roadmapDayKey(phaseId,day.day),true);
+  else if(!stats.complete||stats.done<stats.total)delete PROG[roadmapDayKey(phaseId,day.day)];
+}
+function getRoadmapTotals(){
+  const flat=getRoadmapFlatDays();
+  const daysTotal=flat.length;
+  const daysDone=flat.filter(d=>getRoadmapDayStats(d,d.phase).complete).length;
+  const tasksTotal=flat.reduce((sum,d)=>sum+(d.tasks||[]).length,0);
+  const tasksDone=flat.reduce((sum,d)=>sum+getRoadmapDayStats(d,d.phase).done,0);
+  return {daysTotal,daysDone,tasksTotal,tasksDone,pct:daysTotal?Math.round(daysDone/daysTotal*100):0,taskPct:tasksTotal?Math.round(tasksDone/tasksTotal*100):0};
+}
+function getRoadmapPhasePct(phaseId){
+  const phase=getRoadmapPhase(phaseId);if(!phase||!phase.days.length)return 0;
+  const done=phase.days.filter(day=>getRoadmapDayStats(day,phase.id).complete).length;
+  return Math.round(done/phase.days.length*100);
+}
+function getRoadmapAnnotationCount(){return Object.values(ANN).filter(v=>String(v||'').trim()).length;}
+function getRoadmapXP(){
+  const t=getRoadmapTotals();
+  return t.tasksDone*10+t.daysDone*40+Math.min(getRoadmapAnnotationCount(),25)*5+Math.min(DIARY.length,25)*3+Math.min(CMDS.length,25)*2;
+}
+function getRoadmapLevel(){
+  const xp=getRoadmapXP();
+  const levels=[
+    {name:'Operador Aprendiz',min:0},
+    {name:'Analista de Pipeline',min:300},
+    {name:'Guardião Batch',min:700},
+    {name:'Conciliador Mainframe',min:1200},
+    {name:'Pleno de Sustentação',min:1800},
+    {name:'Arquiteto do Lab',min:2600}
+  ];
+  let current=levels[0],next=null;
+  levels.forEach((lvl,idx)=>{if(xp>=lvl.min){current=lvl;next=levels[idx+1]||null;}});
+  return {xp,current,next};
+}
+function getRoadmapStreak(){
+  const dates=Object.keys(PROG)
+    .filter(key=>key.startsWith('roadmap_day_')&&PROG[key])
+    .map(key=>String(PROG[key]).slice(0,10))
+    .filter(Boolean);
+  if(!dates.length)return 0;
+  const unique=[...new Set(dates)].sort().reverse();
+  let streak=1;
+  for(let i=0;i<unique.length-1;i++){
+    const current=new Date(unique[i]+'T00:00:00');
+    const next=new Date(unique[i+1]+'T00:00:00');
+    const diff=Math.round((current-next)/86400000);
+    if(diff===1)streak+=1;else break;
+  }
+  return streak;
+}
+function toggleRoadmapOpen(phaseId,dayNum){
+  const key=`${phaseId}-${dayNum}`;
+  ROADMAP_OPEN[key]=!ROADMAP_OPEN[key];
+  refreshCurrentView();
+}
+function toggleRoadmapTask(phaseId,dayNum,taskIdx){
+  const phase=getRoadmapPhase(phaseId);if(!phase)return;
+  const day=phase.days.find(item=>item.day===dayNum);if(!day)return;
+  const key=roadmapTaskKey(phaseId,dayNum,taskIdx);
+  markProgressKey(key,!isDoneKey(key));
+  syncRoadmapDayCompletion(phaseId,day);
+  saveP();
+  refreshCurrentView();
+}
+function toggleRoadmapDay(phaseId,dayNum){
+  const phase=getRoadmapPhase(phaseId);if(!phase)return;
+  const day=phase.days.find(item=>item.day===dayNum);if(!day)return;
+  const next=!getRoadmapDayStats(day,phaseId).complete;
+  (day.tasks||[]).forEach((_,idx)=>markProgressKey(roadmapTaskKey(phaseId,dayNum,idx),next));
+  markProgressKey(roadmapDayKey(phaseId,dayNum),next);
+  saveP();
+  refreshCurrentView();
+}
+function saveRoadmapNote(phaseId,dayNum,value){
+  ANN[roadmapDayKey(phaseId,dayNum)]=value;
+  localStorage.setItem(K.ann(CU),JSON.stringify(ANN));
+}
+function getNextRoadmapDays(limit=3){return getRoadmapFlatDays().filter(day=>!getRoadmapDayStats(day,day.phase).complete).slice(0,limit);}
+function renderRoadmapDayCard(phase,day){
+  const stats=getRoadmapDayStats(day,phase.id);
+  const open=!!ROADMAP_OPEN[`${phase.id}-${day.day}`];
+  const noteKey=roadmapDayKey(phase.id,day.day);
+  return `<div class="day-card${stats.complete?' done':''}">
+    <div class="day-head" onclick="toggleRoadmapOpen(${phase.id},${day.day})">
+      <div class="day-check ${stats.complete?'done':''}" onclick="event.stopPropagation();toggleRoadmapDay(${phase.id},${day.day})">${stats.complete?'✓':''}</div>
+      <div class="day-main">
+        <div class="day-topline"><span class="day-chip">D${day.day}</span><span class="day-chip">${esc(day.step)}</span><span class="day-title">${esc(day.title)}</span></div>
+        <div class="day-meta">${esc(phase.title)} · ${esc(day.effort)}${stats.complete&&PROG[noteKey]?` · nota feita`:''}${stats.complete&&PROG[roadmapDayKey(phase.id,day.day)]?` · concluído em ${esc(String(PROG[roadmapDayKey(phase.id,day.day)]).slice(0,10))}`:''}</div>
+        <div class="day-progress"><div class="prog-outer"><div class="prog-inner" style="width:${stats.pct}%"></div></div><span class="ph-pct">${stats.done}/${stats.total} tarefas</span></div>
+      </div>
+      <div class="sex ${open?'open':''}">▼</div>
+    </div>
+    ${open?`<div class="day-body">
+      <div class="task-list">${(day.tasks||[]).map((task,idx)=>`<div class="task-row"><div class="task-box ${isDoneKey(roadmapTaskKey(phase.id,day.day,idx))?'done':''}" onclick="toggleRoadmapTask(${phase.id},${day.day},${idx})">${isDoneKey(roadmapTaskKey(phase.id,day.day,idx))?'✓':''}</div><div class="task-text">${esc(task)}</div></div>`).join('')}</div>
+      <div class="day-info-grid">
+        <div class="info-box"><span class="lbl">Entrega esperada</span><div class="val">${esc(day.deliverable||'—')}</div></div>
+        <div class="info-box"><span class="lbl">Risco principal</span><div class="val">${esc(day.risk||'Sem risco crítico registrado.')}</div></div>
+      </div>
+      <div class="day-note"><label class="fl">Anotações do dia</label><textarea oninput="saveRoadmapNote(${phase.id},${day.day},this.value)" placeholder="Decisões, bloqueios, RC, observações e links deste dia...">${esc(ANN[noteKey]||'')}</textarea></div>
+      <div class="inline-actions"><button class="btn btn-s" onclick="toggleRoadmapDay(${phase.id},${day.day})">${stats.complete?'Reabrir dia':'Concluir dia inteiro'}</button></div>
+    </div>`:''}
+  </div>`;
+}
+function renderRoadmapPhase(phaseId){
+  const phase=getRoadmapPhase(phaseId);if(!phase)return;
+  CVIEW='roadmap';CPHASE=String(phaseId);highlightSidebar();
+  const done=phase.days.filter(day=>getRoadmapDayStats(day,phase.id).complete).length;
+  const pct=getRoadmapPhasePct(phase.id);
+  document.getElementById('pc').innerHTML=`<div class="board-grid">
+    <div class="hero-card">
+      <div class="hero-row">
+        <div>
+          <div class="hero-title">Fase ${phase.id} · ${esc(phase.title)}</div>
+          <div class="hero-sub">${esc(phase.subtitle)} · ${esc(phase.roadmap)}. Aqui o foco é fechar cada dia como uma missão prática, com tarefas claras, entrega e risco principal.</div>
+        </div>
+        <div class="level-badge">${done}/${phase.days.length} dias · ${pct}%</div>
+      </div>
+    </div>
+    ${phase.days.map(day=>renderRoadmapDayCard(phase,day)).join('')}
+  </div>`;
+}
+function renderDashboard(){
+  CVIEW='dashboard';CPHASE='dashboard';highlightSidebar();
+  const totals=getRoadmapTotals();
+  const level=getRoadmapLevel();
+  const streak=getRoadmapStreak();
+  const nextDays=getNextRoadmapDays(4);
+  const nextMain=nextDays[0]||null;
+  const phasesHtml=ROADMAP_PHASES.map(phase=>{
+    const pct=getRoadmapPhasePct(phase.id);
+    const done=phase.days.filter(day=>getRoadmapDayStats(day,phase.id).complete).length;
+    return `<div class="phase-summary-card">
+      <div class="phase-summary-top">
+        <div><div class="phase-summary-title">Fase ${phase.id} · ${esc(phase.title)}</div><div class="phase-summary-sub">${esc(phase.subtitle)}</div></div>
+        <div class="phase-pill" style="background:${phase.color}">${phase.id}</div>
+      </div>
+      <div class="prog-outer"><div class="prog-inner" style="width:${pct}%;background:${phase.color}"></div></div>
+      <div class="phase-summary-stats">${done}/${phase.days.length} dias concluídos · ${pct}%</div>
+      <div class="inline-actions"><button class="btn btn-s" onclick="renderRoadmapPhase(${phase.id})">Abrir fase</button></div>
+    </div>`;
+  }).join('');
+  const queueHtml=nextDays.length?nextDays.map(day=>`<div class="quest-card"><div class="quest-head"><span class="quest-tag">F${day.phase} · D${day.day}</span><span class="quest-meta">${esc(day.effort)}</span></div><div class="quest-title">${esc(day.title)}</div><div class="quest-meta">${esc(day.step)} · ${esc(day.deliverable||'Sem entrega cadastrada')}</div><div class="inline-actions"><button class="btn btn-s" onclick="renderRoadmapPhase(${day.phase});toggleRoadmapOpen(${day.phase},${day.day})">Abrir missão</button></div></div>`).join(''):`<div class="quest-card"><div class="quest-title">Plano concluído</div><div class="quest-meta">Todas as missões diárias foram fechadas. Use o mapa legado, diário e comandos para consolidar o portfólio.</div></div>`;
+  document.getElementById('pc').innerHTML=`<div class="board-grid">
+    <div class="hero-card">
+      <div class="hero-row">
+        <div>
+          <div class="hero-title">Plano Emunah Bank Lab</div>
+          <div class="hero-sub">${totals.daysTotal} dias · ~${ROADMAP_WEEKS_ESTIMATE} semanas · 1–2h por dia. O plano diário veio da fonte nova, mas o mapa técnico anterior foi mantido como referência para não perder nenhum detalhe do lab.</div>
+        </div>
+        <div class="level-badge">${esc(level.current.name)} · ${level.xp} XP</div>
+      </div>
+    </div>
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="kpi-label">Progresso geral</div><div class="kpi-value">${totals.pct}%</div><div class="kpi-sub">${totals.daysDone}/${totals.daysTotal} dias</div></div>
+      <div class="kpi-card"><div class="kpi-label">Tarefas fechadas</div><div class="kpi-value">${totals.tasksDone}/${totals.tasksTotal}</div><div class="kpi-sub">${totals.taskPct}% das tarefas</div></div>
+      <div class="kpi-card"><div class="kpi-label">Sequência</div><div class="kpi-value">${streak}</div><div class="kpi-sub">dias de avanço registrados</div></div>
+      <div class="kpi-card"><div class="kpi-label">Produção do lab</div><div class="kpi-value">${DIARY.length + CMDS.length}</div><div class="kpi-sub">registros de diário + comandos</div></div>
+    </div>
+    <div class="quest-grid">
+      ${nextMain?`<div class="quest-card"><div class="quest-head"><span class="quest-tag">Missão atual</span><span class="quest-meta">F${nextMain.phase} · D${nextMain.day}</span></div><div class="quest-title">${esc(nextMain.title)}</div><div class="quest-meta">${esc(nextMain.phaseTitle)} · ${esc(nextMain.effort)} · ${esc(nextMain.step)}</div><div class="inline-actions"><button class="btn btn-s" onclick="renderRoadmapPhase(${nextMain.phase});toggleRoadmapOpen(${nextMain.phase},${nextMain.day})">Continuar</button><button class="btn btn-s" onclick="CVIEW='legacy';CPHASE='legacy';showLegacyPhase(ACTIVE_LEGACY||LEGACY_PH[0]?.id||'fx')">Ver mapa legado</button></div></div>`:''}
+      <div class="quest-card"><div class="quest-head"><span class="quest-tag">Leitura do plano</span><span class="quest-meta">Gamificado</span></div><div class="quest-title">Como usar</div><div class="quest-meta">Feche tarefas, conclua o dia, anote RCs e decisões, e use Diário/Comandos para registrar execução real.</div></div>
+    </div>
+    <div class="phase-summary-grid">${phasesHtml}</div>
+    <div>
+      <div class="cfg-title" style="margin-bottom:.8rem">// FILA DE MISSÕES</div>
+      <div class="quest-grid">${queueHtml}</div>
+    </div>
+  </div>`;
+}
+function refreshCurrentView(){
+  if(CVIEW==='dashboard')renderDashboard();
+  else if(CVIEW==='roadmap')renderRoadmapPhase(Number(CPHASE));
+  else if(CVIEW==='legacy')showLegacyPhase(ACTIVE_LEGACY||LEGACY_PH[0]?.id||'fx');
+  else if(CVIEW==='tool')renderTool(CPHASE);
+  else renderDashboard();
+}
+
 function badgeHtml(b){const m={exist:['sb-exist','JÁ EXISTE'],fix:['sb-fix','CORRIGIR'],miss:['sb-miss','IMPLEMENTAR'],new:['sb-new','ACHADO NOVO']};const[c,l]=m[b]||m.miss;return`<span class="sbadge ${c}">${l}</span>`;}
 function ckState(done,badge){if(done)return['done','✓'];if(badge==='exist')return['exist','✓'];if(badge==='fix')return['warn','!'];return['',''];}
-function renderStep(s){
+function renderLegacyStep(s){
   const done=!!PROG[s.id],badge=s.badge||'miss';
   const[ckCls,ckTxt]=ckState(done,badge);
   const scCls=done?'completed':badge==='exist'?'s-exist':badge==='fix'?'s-fix':'';
@@ -1127,37 +2187,38 @@ function toggleAnnPreview(id){APV[id]=!APV[id];applyAnnPreviewState(id);}
 function toggleDone(id){
   PROG[id]=!PROG[id];
   const ck=document.getElementById(`ck-${id}`),sc=document.getElementById(`sc-${id}`);
-  const badge=PH.flatMap(p=>p.steps).find(s=>s.id===id)?.badge||'miss';
+  const badge=LEGACY_PH.flatMap(p=>p.steps).find(s=>s.id===id)?.badge||'miss';
   if(ck){const[cls,txt]=ckState(PROG[id],badge);ck.className=`ck ${cls}`;ck.textContent=txt;if(PROG[id])ck.style.color='var(--bg)';}
   if(sc){sc.className='sc'+(PROG[id]?' completed':badge==='exist'?' s-exist':badge==='fix'?' s-fix':'');}
   saveP();
 }
 let ATIM={};
 function autoSave(id,val){clearTimeout(ATIM[id]);ATIM[id]=setTimeout(()=>{saveA(id,val);const el=document.getElementById(`as-${id}`);if(el){el.classList.add('show');setTimeout(()=>el.classList.remove('show'),1800);}},800);}
-function allSteps(){return PH.flatMap(p=>p.steps.map(s=>s.id));}
-function getPhPct(pid){const ph=PH.find(p=>p.id===pid);if(!ph||!ph.steps.length)return 0;return Math.round(ph.steps.filter(s=>PROG[s.id]).length/ph.steps.length*100);}
+function allLegacySteps(){return LEGACY_PH.flatMap(p=>p.steps.map(s=>s.id));}
+function getLegacyPhPct(pid){const ph=LEGACY_PH.find(p=>p.id===pid);if(!ph||!ph.steps.length)return 0;return Math.round(ph.steps.filter(s=>PROG[s.id]).length/ph.steps.length*100);}
 function updateProg(){
-  const all=allSteps(),done=all.filter(id=>PROG[id]).length,pct=all.length?Math.round(done/all.length*100):0;
+  const totals=getRoadmapTotals();
   const gb=document.getElementById('gbar'),gl=document.getElementById('glbl');
-  if(gb)gb.style.width=pct+'%';if(gl)gl.textContent=`${done}/${all.length} passos`;
-  PH.forEach(ph=>{
-    const p=getPhPct(ph.id);
-    const mb=document.getElementById(`mb-${ph.id}`);if(mb)mb.style.width=p+'%';
+  if(gb)gb.style.width=totals.pct+'%';
+  if(gl)gl.textContent=`${totals.daysDone}/${totals.daysTotal} dias`;
+  ROADMAP_PHASES.forEach(ph=>{
+    const p=getRoadmapPhasePct(ph.id);
+    const mb=document.getElementById(`mb-roadmap-${ph.id}`);if(mb)mb.style.width=p+'%';
   });
-  const ac=Object.values(ANN).filter(v=>v&&v.trim()).length;
+  const ac=getRoadmapAnnotationCount();
   const cp=document.getElementById('cprog'),ca=document.getElementById('cann');
   const cd=document.getElementById('cdiary'),cc=document.getElementById('ccmds');
-  if(cp)cp.textContent=`${done}/${all.length} (${pct}%)`;
+  if(cp)cp.textContent=`${totals.daysDone}/${totals.daysTotal} dias · ${totals.tasksDone}/${totals.tasksTotal} tarefas (${totals.pct}%)`;
   if(ca)ca.textContent=`${ac} anotações`;
   if(cd)cd.textContent=`${DIARY.length} registros`;
   if(cc)cc.textContent=`${CMDS.length} comandos`;
 }
 let SO=false;
 function toggleSettings(){SO=!SO;document.getElementById('settings').classList.toggle('open',SO);}
-function clearProg(){if(!confirm('Limpar todo o progresso? Irreversível.'))return;PROG={};saveP();if(CVIEW==='phase')showPhase(CPHASE);}
-function clearAnn(){if(!confirm('Limpar anotações? Irreversível.'))return;ANN={};localStorage.setItem(K.ann(CU),'{}');if(CVIEW==='phase')showPhase(CPHASE);updateProg();}
-function clearDiary(){if(!confirm('Limpar diário? Irreversível.'))return;DIARY=[];saveDiary();if(CVIEW==='tool'&&CPHASE==='t-diary')renderTool('t-diary');updateProg();}
-function clearCmds(){if(!confirm('Limpar comandos? Irreversível.'))return;CMDS=[];saveCmds();if(CVIEW==='tool'&&CPHASE==='t-cmds')renderTool('t-cmds');updateProg();}
+function clearProg(){if(!confirm('Limpar todo o progresso? Irreversível.'))return;PROG={};saveP();refreshCurrentView();}
+function clearAnn(){if(!confirm('Limpar anotações? Irreversível.'))return;ANN={};localStorage.setItem(K.ann(CU),'{}');updateProg();refreshCurrentView();}
+function clearDiary(){if(!confirm('Limpar diário? Irreversível.'))return;DIARY=[];saveDiary();updateProg();refreshCurrentView();}
+function clearCmds(){if(!confirm('Limpar comandos? Irreversível.'))return;CMDS=[];saveCmds();updateProg();refreshCurrentView();}
 async function exportData(){
   const diaryClone=JSON.parse(JSON.stringify(DIARY));
   const assets=await collectDiaryAssetsForExport(diaryClone);
@@ -1177,7 +2238,7 @@ function importData(){
         if(d.diary){DIARY=d.diary;await migrateDiaryFilesToIndexedDb(DIARY);}
         if(d.commands)CMDS=d.commands;
         saveP();localStorage.setItem(K.ann(CU),JSON.stringify(ANN));saveDiary();saveCmds();
-        if(CVIEW==='phase')showPhase(CPHASE);else renderTool(CPHASE);
+        refreshCurrentView();
         alert('Importado.');
       }catch(err){console.error(err);alert('Arquivo inválido.');}
     };r.readAsText(f);
