@@ -1973,7 +1973,7 @@ function buildSidebar(){
   const legacy=document.createElement('div');
   legacy.className='pni'+(CVIEW==='legacy'?' active':'');
   legacy.id='n-legacy';
-  legacy.innerHTML=`<div class="pnb">L</div><div class="pni-info"><div class="pni-t">Mapa legado</div><div class="pni-s">Detalhamento técnico preservado</div></div>`;
+  legacy.innerHTML=`<div class="pnb">L</div><div class="pni-info"><div class="pni-t">Mapa legado</div><div class="pni-s">Detalhamento técnico preservado · Ctrl + \\</div></div>`;
   legacy.onclick=()=>{CVIEW='legacy';CPHASE='legacy';showLegacyPhase(ACTIVE_LEGACY||LEGACY_PH[0]?.id||'fx');highlightSidebar();};
   nav.appendChild(legacy);
 
@@ -2263,12 +2263,35 @@ function closeDiaryModal(){
   document.getElementById('diary-modal').classList.remove('open');
 }
 
+function openLegacyTree(){
+  CVIEW='legacy';
+  CPHASE='legacy';
+  showLegacyPhase(ACTIVE_LEGACY||LEGACY_PH[0]?.id||'fx');
+  highlightSidebar();
+}
+
+function isTreeShortcut(e){
+  if(!(e.ctrlKey||e.metaKey) || e.altKey) return false;
+  return e.key==='\\' || e.code==='Backslash' || e.code==='IntlBackslash';
+}
+
 document.addEventListener('keydown',e=>{
-  if(e.ctrlKey&&(e.key==="'"||e.key==="Dead"||e.code==="Quote")){
+  if(isTreeShortcut(e)){
+    e.preventDefault();
+    closeDiaryModal();
+    if(SO){
+      SO=false;
+      document.getElementById('settings').classList.remove('open');
+    }
+    openLegacyTree();
+    return;
+  }
+  if((e.ctrlKey||e.metaKey)&&(e.key==="'"||e.key==="Dead"||e.code==="Quote")){
     e.preventDefault();
     const modal=document.getElementById('diary-modal');
     if(modal.classList.contains('open'))closeDiaryModal();
     else openDiaryModal();
+    return;
   }
   if(e.key==='Escape'){
     const modal=document.getElementById('diary-modal');
