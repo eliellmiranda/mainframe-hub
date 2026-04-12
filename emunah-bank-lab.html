@@ -845,6 +845,8 @@ html,body{
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════════════
 // PHASES DATA
@@ -1760,10 +1762,23 @@ const TOOLS=[
 // STORAGE KEYS
 // ═══════════════════════════════════════════════════════════════
 const K={
-  USERS:'ebl_users',SESSION:'ebl_sess',REMEMBER:'ebl_rem',
-  prog:u=>`ebl_p_${u}`,ann:u=>`ebl_a_${u}`,
-  diary:u=>`ebl_diary_${u}`,cmds:u=>`ebl_cmds_${u}`,tree:u=>`ebl_tree_${u}`
+  USERS:'ebl_users_legacy',
+  SESSION:'ebl_session_token',
+  SESSION_USER:'ebl_session_user',
+  REMEMBER:'ebl_remember_user',
+  LEGACY_SESSION:'ebl_sess',
+  LEGACY_REMEMBER:'ebl_rem',
+  prog:u=>`ebl_p_${u}`,
+  ann:u=>`ebl_a_${u}`,
+  diary:u=>`ebl_diary_${u}`,
+  cmds:u=>`ebl_cmds_${u}`,
+  tree:u=>`ebl_tree_${u}`
 };
+const CLOUD_SYNC_DEBOUNCE_MS=900;
+const SUPABASE_URL=String(window.MFHUB_SUPABASE_URL||'').trim();
+const SUPABASE_ANON_KEY=String(window.MFHUB_SUPABASE_ANON_KEY||'').trim();
+const SUPABASE_ENABLED=!!(window.supabase&&SUPABASE_URL&&SUPABASE_ANON_KEY);
+const supabaseClient=SUPABASE_ENABLED?window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY):null;
 
 const ATT_DB='ebl_assets_db',ATT_STORE='files';
 let ATT_DB_PROMISE=null;
@@ -1852,67 +1867,200 @@ async function restoreDiaryAssetsFromBackup(assets=[]){
 }
 
 // ═══════════════════════════════════════════════════════════════
-// AUTH
+// AUTH + CLOUD SYNC
 // ═══════════════════════════════════════════════════════════════
 async function sha(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');}
-function gU(){return JSON.parse(localStorage.getItem(K.USERS)||'{}');}
-function sU(u){localStorage.setItem(K.USERS,JSON.stringify(u));}
 function sf(f){['login','register','reset'].forEach(x=>document.getElementById(`f-${x}`).classList.toggle('hidden',x!==f));clearMsgs();}
 function clearMsgs(){['le','re','rs','rese','ress'].forEach(id=>{const el=document.getElementById(id);if(el){el.classList.add('hidden');el.textContent='';};});}
-function showE(id,msg){const el=document.getElementById(id);el.textContent=msg;el.classList.remove('hidden');}
-function showOk(id,msg){const el=document.getElementById(id);el.textContent=msg;el.classList.remove('hidden');}
+function showE(id,msg){const el=document.getElementById(id);if(!el)return;el.textContent=msg;el.classList.remove('hidden');}
+function showOk(id,msg){const el=document.getElementById(id);if(!el)return;el.textContent=msg;el.classList.remove('hidden');}
+function readJsonLS(key,fallback){try{const raw=localStorage.getItem(key);return raw?JSON.parse(raw):fallback;}catch{return fallback;}}
+function setAuthSession(token,username,rememberUser){
+  if(token)localStorage.setItem(K.SESSION,token);
+  if(username)localStorage.setItem(K.SESSION_USER,String(username).toUpperCase());
+  if(rememberUser&&username)localStorage.setItem(K.REMEMBER,String(username).toUpperCase());
+  else localStorage.removeItem(K.REMEMBER);
+  localStorage.removeItem(K.LEGACY_SESSION);
+  localStorage.removeItem(K.LEGACY_REMEMBER);
+}
+function clearAuthSession(){
+  localStorage.removeItem(K.SESSION);
+  localStorage.removeItem(K.SESSION_USER);
+  localStorage.removeItem(K.LEGACY_SESSION);
+}
+function getStoredSessionToken(){return String(localStorage.getItem(K.SESSION)||'').trim();}
+function getStoredUsernameHint(){return String(localStorage.getItem(K.REMEMBER)||localStorage.getItem(K.SESSION_USER)||localStorage.getItem(K.LEGACY_REMEMBER)||'').trim().toUpperCase();}
+async function eblRpc(fn,params={}){
+  if(!SUPABASE_ENABLED)throw new Error('Supabase não configurado neste HTML. Verifique supabase-config.js.');
+  const {data,error}=await supabaseClient.rpc(fn,params);
+  if(error)throw error;
+  return data||{};
+}
 async function doLogin(){
+  clearMsgs();
   const u=document.getElementById('lu').value.trim().toUpperCase();
   const p=document.getElementById('lp').value;
   const r=document.getElementById('lr').checked;
   if(!u||!p)return showE('le','Preencha todos os campos.');
-  const users=gU();
-  if(!users[u])return showE('le','Usuário não encontrado.');
-  if(users[u]!==await sha(p))return showE('le','Senha incorreta.');
-  localStorage.setItem(K.SESSION,u);
-  r?localStorage.setItem(K.REMEMBER,u):localStorage.removeItem(K.REMEMBER);
-  startApp(u);
+  try{
+    const data=await eblRpc('ebl_login',{p_username:u,p_password_hash:await sha(p),p_remember:r});
+    if(!data?.ok)return showE('le',data?.error||'Falha no login.');
+    setAuthSession(String(data.token||''),String(data.username||u),r);
+    await startApp(String(data.username||u),{token:String(data.token||''),payload:data.payload||{}});
+  }catch(err){
+    console.error(err);
+    showE('le',String(err?.message||'Falha ao conectar ao servidor.'));
+  }
 }
-const INVITE_CODE='@elielmainframe';
 async function doRegister(){
+  clearMsgs();
   const u=document.getElementById('ru').value.trim().toUpperCase();
   const p=document.getElementById('rp').value,p2=document.getElementById('rp2').value;
   const inv=document.getElementById('rinv').value.trim();
   if(!u||!p||!p2||!inv)return showE('re','Preencha todos os campos.');
-  if(inv!==INVITE_CODE)return showE('re','Código de convite inválido.');
   if(p.length<6)return showE('re','Senha: mín. 6 chars.');
   if(p!==p2)return showE('re','Senhas não coincidem.');
-  const users=gU();
-  if(users[u])return showE('re','ID já existe.');
-  users[u]=await sha(p);sU(users);
-  showOk('rs',`Conta ${u} criada!`);
-  setTimeout(()=>{sf('login');document.getElementById('lu').value=u;},1400);
+  try{
+    const data=await eblRpc('ebl_register',{p_username:u,p_password_hash:await sha(p),p_invite_code:inv});
+    if(!data?.ok)return showE('re',data?.error||'Falha no cadastro.');
+    showOk('rs',`Conta ${data.username||u} criada e conectada.`);
+    setAuthSession(String(data.token||''),String(data.username||u),true);
+    setTimeout(async()=>{await startApp(String(data.username||u),{token:String(data.token||''),payload:data.payload||{}});},350);
+  }catch(err){
+    console.error(err);
+    showE('re',String(err?.message||'Falha ao conectar ao servidor.'));
+  }
 }
 async function doReset(){
+  clearMsgs();
   const u=document.getElementById('resu').value.trim().toUpperCase();
   const o=document.getElementById('reso').value,n=document.getElementById('resn').value,n2=document.getElementById('resn2').value;
   if(!u||!o||!n||!n2)return showE('rese','Preencha todos.');
-  const users=gU();
-  if(!users[u])return showE('rese','Usuário não encontrado.');
-  if(users[u]!==await sha(o))return showE('rese','Senha atual incorreta.');
   if(n.length<6)return showE('rese','Mín. 6 chars.');
   if(n!==n2)return showE('rese','Senhas não coincidem.');
-  users[u]=await sha(n);sU(users);
-  showOk('ress','Senha alterada!');setTimeout(()=>sf('login'),1400);
+  try{
+    const data=await eblRpc('ebl_reset_password',{p_username:u,p_old_password_hash:await sha(o),p_new_password_hash:await sha(n)});
+    if(!data?.ok)return showE('rese',data?.error||'Falha ao redefinir a senha.');
+    showOk('ress','Senha alterada! Faça login novamente.');
+    setTimeout(()=>{sf('login');document.getElementById('lu').value=u;},900);
+  }catch(err){
+    console.error(err);
+    showE('rese',String(err?.message||'Falha ao conectar ao servidor.'));
+  }
+}
+let CTOKEN='';
+let cloudSyncTimer=null;
+let cloudSyncInFlight=false;
+let cloudSyncQueued=false;
+let lastCloudSyncHash='';
+let lastCloudSyncError='';
+function normalizePayload(payload={}){
+  const src=(payload&&typeof payload==='object')?payload:{};
+  const hasTree=Object.prototype.hasOwnProperty.call(src,'tree');
+  return {
+    progress:(src.progress&&typeof src.progress==='object'&&!Array.isArray(src.progress))?src.progress:{},
+    annotations:(src.annotations&&typeof src.annotations==='object'&&!Array.isArray(src.annotations))?src.annotations:{},
+    diary:Array.isArray(src.diary)?src.diary:[],
+    commands:Array.isArray(src.commands)?src.commands:[],
+    tree:hasTree?normalizeTreeNodes(Array.isArray(src.tree)?src.tree:[]):defaultLocalTree()
+  };
+}
+function saveLocalPayload(user,payload){
+  if(!user)return;
+  const p=normalizePayload(payload);
+  localStorage.setItem(K.prog(user),JSON.stringify(p.progress||{}));
+  localStorage.setItem(K.ann(user),JSON.stringify(p.annotations||{}));
+  localStorage.setItem(K.diary(user),JSON.stringify(p.diary||[]));
+  localStorage.setItem(K.cmds(user),JSON.stringify(p.commands||[]));
+  localStorage.setItem(K.tree(user),JSON.stringify(p.tree||[]));
+}
+function loadLocalPayload(user){
+  return normalizePayload({
+    progress:readJsonLS(K.prog(user),{}),
+    annotations:readJsonLS(K.ann(user),{}),
+    diary:readJsonLS(K.diary(user),[]),
+    commands:readJsonLS(K.cmds(user),[]),
+    tree:readJsonLS(K.tree(user),null)
+  });
+}
+function payloadSignature(payload){return JSON.stringify(normalizePayload(payload));}
+function mergeByLongerText(localObj={},remoteObj={}){
+  const merged={};
+  const keys=new Set([...Object.keys(localObj||{}),...Object.keys(remoteObj||{})]);
+  keys.forEach(key=>{
+    const localVal=String(localObj?.[key]||'');
+    const remoteVal=String(remoteObj?.[key]||'');
+    merged[key]=remoteVal.length>=localVal.length?remoteVal:localVal;
+  });
+  return merged;
+}
+function mergePayload(localPayload,remotePayload){
+  const local=normalizePayload(localPayload||{}),remote=normalizePayload(remotePayload||{});
+  return normalizePayload({
+    progress:Object.assign({},local.progress||{},remote.progress||{}),
+    annotations:mergeByLongerText(local.annotations||{},remote.annotations||{}),
+    diary:(remote.diary||[]).length>=(local.diary||[]).length?remote.diary:local.diary,
+    commands:(remote.commands||[]).length>=(local.commands||[]).length?remote.commands:local.commands,
+    tree:(remote.tree||[]).length?remote.tree:((local.tree||[]).length?local.tree:defaultLocalTree())
+  });
+}
+function buildPayload(){return normalizePayload({progress:PROG,annotations:ANN,diary:DIARY,commands:CMDS,tree:LTREE});}
+function applyPayload(payload){const p=normalizePayload(payload);PROG=p.progress;ANN=p.annotations;DIARY=p.diary;CMDS=p.commands;LTREE=p.tree;}
+function scheduleCloudSync(reason='state',immediate=false){
+  if(!CU||!CTOKEN||!SUPABASE_ENABLED)return;
+  clearTimeout(cloudSyncTimer);
+  if(immediate){flushCloudSync(reason);return;}
+  cloudSyncTimer=setTimeout(()=>flushCloudSync(reason),CLOUD_SYNC_DEBOUNCE_MS);
+}
+async function flushCloudSync(reason='manual'){
+  if(!CU||!CTOKEN||!SUPABASE_ENABLED)return;
+  if(cloudSyncInFlight){cloudSyncQueued=true;return;}
+  const payload=buildPayload();
+  const sig=payloadSignature(payload);
+  if(sig===lastCloudSyncHash&&reason!=='force')return;
+  cloudSyncInFlight=true;
+  try{
+    const data=await eblRpc('ebl_put_payload',{p_token:CTOKEN,p_payload:payload});
+    if(!data?.ok)throw new Error(data?.error||'Falha ao sincronizar as alterações.');
+    lastCloudSyncHash=sig;
+    lastCloudSyncError='';
+    saveLocalPayload(CU,payload);
+  }catch(err){
+    lastCloudSyncError=String(err?.message||'Falha ao sincronizar.');
+    console.warn('[EBL sync]',reason,lastCloudSyncError,err);
+  }finally{
+    cloudSyncInFlight=false;
+    if(cloudSyncQueued){cloudSyncQueued=false;scheduleCloudSync('queued');}
+  }
+}
+function loadUD(u,payloadOverride=null){
+  const local=loadLocalPayload(u);
+  const merged=payloadOverride?mergePayload(local,payloadOverride):local;
+  applyPayload(merged);
+  return {local,merged};
 }
 async function changePass(){
-  const u=CU,o=document.getElementById('cop').value,n=document.getElementById('cnp').value,n2=document.getElementById('cnp2').value;
+  const o=document.getElementById('cop').value,n=document.getElementById('cnp').value,n2=document.getElementById('cnp2').value;
   const msg=document.getElementById('cpm');msg.classList.remove('hidden');
   if(!o||!n||!n2){msg.style.color='var(--red)';msg.textContent='Preencha todos.';return;}
   if(n!==n2){msg.style.color='var(--red)';msg.textContent='Senhas não coincidem.';return;}
-  const users=gU();
-  if(users[u]!==await sha(o)){msg.style.color='var(--red)';msg.textContent='Senha atual incorreta.';return;}
-  users[u]=await sha(n);sU(users);
-  msg.style.color='var(--green)';msg.textContent='Senha alterada.';
-  ['cop','cnp','cnp2'].forEach(id=>document.getElementById(id).value='');
+  if(n.length<6){msg.style.color='var(--red)';msg.textContent='Mín. 6 chars.';return;}
+  try{
+    const data=await eblRpc('ebl_change_password',{p_token:CTOKEN,p_old_password_hash:await sha(o),p_new_password_hash:await sha(n)});
+    if(!data?.ok){msg.style.color='var(--red)';msg.textContent=data?.error||'Falha ao alterar a senha.';return;}
+    msg.style.color='var(--green)';msg.textContent='Senha alterada.';
+    ['cop','cnp','cnp2'].forEach(id=>document.getElementById(id).value='');
+  }catch(err){
+    console.error(err);
+    msg.style.color='var(--red)';msg.textContent=String(err?.message||'Falha ao conectar ao servidor.');
+  }
 }
-function doLogout(){localStorage.removeItem(K.SESSION);location.reload();}
-
+async function doLogout(){
+  const token=CTOKEN||getStoredSessionToken();
+  try{if(token&&SUPABASE_ENABLED)await eblRpc('ebl_logout',{p_token:token});}catch(err){console.warn('[EBL logout]',err);}
+  clearAuthSession();
+  location.reload();
+}
 // ═══════════════════════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════════════════════
@@ -1977,30 +2125,32 @@ function normalizeTreeNodes(nodes){
     return item;
   });
 }
-function loadUD(u){
-  PROG=JSON.parse(localStorage.getItem(K.prog(u))||'{}');
-  ANN=JSON.parse(localStorage.getItem(K.ann(u))||'{}');
-  DIARY=JSON.parse(localStorage.getItem(K.diary(u))||'[]');
-  CMDS=JSON.parse(localStorage.getItem(K.cmds(u))||'[]');
-  LTREE=normalizeTreeNodes(JSON.parse(localStorage.getItem(K.tree(u))||'null')||defaultLocalTree());
-}
-function saveP(){localStorage.setItem(K.prog(CU),JSON.stringify(PROG));updateProg();}
-function saveA(sid,val){ANN[sid]=val;localStorage.setItem(K.ann(CU),JSON.stringify(ANN));}
-function saveDiary(){localStorage.setItem(K.diary(CU),JSON.stringify(DIARY));}
-function saveCmds(){localStorage.setItem(K.cmds(CU),JSON.stringify(CMDS));}
-function saveTree(){localStorage.setItem(K.tree(CU),JSON.stringify(LTREE));}
+function saveP(){saveLocalPayload(CU,buildPayload());updateProg();scheduleCloudSync('progress');}
+function saveA(sid,val){ANN[sid]=val;saveLocalPayload(CU,buildPayload());scheduleCloudSync('annotations');}
+function saveDiary(){saveLocalPayload(CU,buildPayload());scheduleCloudSync('diary');}
+function saveCmds(){saveLocalPayload(CU,buildPayload());scheduleCloudSync('commands');}
+function saveTree(){saveLocalPayload(CU,buildPayload());scheduleCloudSync('tree');}
 
-async function startApp(u){
-  CU=u;loadUD(u);
-  if(await migrateDiaryFilesToIndexedDb(DIARY))saveDiary();
+async function startApp(u,options={}){
+  CU=String(u||'').trim().toUpperCase();
+  CTOKEN=String(options?.token||CTOKEN||getStoredSessionToken()||'');
+  const remotePayload=options?.payload?normalizePayload(options.payload):null;
+  const remoteSig=remotePayload?payloadSignature(remotePayload):'';
+  const {merged}=loadUD(CU,remotePayload);
+  saveLocalPayload(CU,merged);
+  if(await migrateDiaryFilesToIndexedDb(DIARY))saveLocalPayload(CU,buildPayload());
   document.getElementById('auth-screen').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
-  document.getElementById('huser').textContent=u;
-  document.getElementById('cu').textContent=u;
+  document.getElementById('huser').textContent=CU;
+  document.getElementById('cu').textContent=CU;
   buildSidebar();
   renderDashboard();
   updateProg();
   renderLevelHud();
+  const currentSig=payloadSignature(buildPayload());
+  lastCloudSyncHash=remoteSig;
+  if(CTOKEN&&currentSig!==remoteSig)scheduleCloudSync('start-merge',true);
+  else lastCloudSyncHash=currentSig;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -2661,8 +2811,7 @@ function toggleRoadmapDay(phaseId,dayNum){
   refreshCurrentView();
 }
 function saveRoadmapNote(phaseId,dayNum,value){
-  ANN[roadmapDayKey(phaseId,dayNum)]=value;
-  localStorage.setItem(K.ann(CU),JSON.stringify(ANN));
+  saveA(roadmapDayKey(phaseId,dayNum),value);
 }
 function getNextRoadmapDays(limit=3){return getRoadmapFlatDays().filter(day=>!getRoadmapDayStats(day,day.phase).complete).slice(0,limit);}
 function renderRoadmapDayCard(phase,day){
@@ -2891,7 +3040,7 @@ function updateProg(){
 let SO=false;
 function toggleSettings(){SO=!SO;document.getElementById('settings').classList.toggle('open',SO);}
 function clearProg(){if(!confirm('Limpar todo o progresso? Irreversível.'))return;PROG={};saveP();refreshCurrentView();}
-function clearAnn(){if(!confirm('Limpar anotações? Irreversível.'))return;ANN={};localStorage.setItem(K.ann(CU),'{}');updateProg();refreshCurrentView();}
+function clearAnn(){if(!confirm('Limpar anotações? Irreversível.'))return;ANN={};saveLocalPayload(CU,buildPayload());updateProg();refreshCurrentView();scheduleCloudSync('clear-annotations',true);}
 function clearDiary(){if(!confirm('Limpar diário? Irreversível.'))return;DIARY=[];saveDiary();updateProg();refreshCurrentView();}
 function clearCmds(){if(!confirm('Limpar comandos? Irreversível.'))return;CMDS=[];saveCmds();updateProg();refreshCurrentView();}
 async function exportData(){
@@ -2914,7 +3063,7 @@ function importData(){
         if(d.diary){DIARY=d.diary;await migrateDiaryFilesToIndexedDb(DIARY);}
         if(d.commands)CMDS=d.commands;
         if(d.tree)LTREE=normalizeTreeNodes(d.tree);
-        saveP();localStorage.setItem(K.ann(CU),JSON.stringify(ANN));saveDiary();saveCmds();saveTree();
+        saveLocalPayload(CU,buildPayload());updateProg();scheduleCloudSync('import',true);
         refreshCurrentView();
         alert('Importado.');
       }catch(err){console.error(err);alert('Arquivo inválido.');}
@@ -2926,13 +3075,29 @@ function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/<
 // ═══════════════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════════════
-(function init(){
-  const rem=localStorage.getItem(K.REMEMBER),sess=localStorage.getItem(K.SESSION),u=rem||sess;
-  if(u){const users=gU();if(users[u]){startApp(u);return;}}
-  if(!Object.keys(gU()).length)sf('register');
-  else{sf('login');if(rem)document.getElementById('lu').value=rem;}
+(async function init(){
   document.getElementById('lp')?.addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
   document.getElementById('lu')?.addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('lp').focus();});
+  const remembered=getStoredUsernameHint();
+  if(remembered)document.getElementById('lu').value=remembered;
+  sf('login');
+  if(!SUPABASE_ENABLED){
+    showE('le','Supabase não configurado neste HTML. Verifique supabase-config.js.');
+    return;
+  }
+  const token=getStoredSessionToken();
+  if(!token)return;
+  try{
+    const data=await eblRpc('ebl_get_payload',{p_token:token});
+    if(!data?.ok||!data?.username)throw new Error(data?.error||'Sessão expirada.');
+    await startApp(String(data.username||''),{token,payload:data.payload||{}});
+  }catch(err){
+    console.warn('[EBL init]',err);
+    clearAuthSession();
+    sf('login');
+    showE('le',String(err?.message||'Sessão expirada. Faça login novamente.'));
+    if(remembered)document.getElementById('lu').value=remembered;
+  }
 })();
 </script>
 </body>
