@@ -736,6 +736,69 @@ html,body{
   #main{padding:16px 14px 26px !important;}
 }
 
+
+
+/* ── SESSION + RESPONSIVIDADE HOTFIX 2026-04-12 ── */
+.sync-pill{
+  display:inline-flex;align-items:center;justify-content:center;gap:.35rem;
+  min-height:32px;padding:.32rem .7rem;border-radius:999px;
+  border:1px solid rgba(255,138,34,.24);background:rgba(255,138,34,.09);
+  color:var(--green);font-family:var(--mono);font-size:calc(.62rem + 2pt);
+  font-weight:700;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;
+}
+.sync-pill::before{content:'';width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.85;flex-shrink:0}
+.sync-pill.local{
+  color:var(--amber);border-color:rgba(251,191,36,.28);background:rgba(251,191,36,.10);
+}
+.sync-pill.local::before{opacity:1}
+
+@media (max-width: 980px){
+  #header{gap:10px 12px !important}
+  .h-right{gap:.55rem !important}
+  .sync-pill{order:-1}
+}
+
+@media (max-width: 640px){
+  #auth-screen{padding:1rem !important;align-items:flex-start !important}
+  .auth-box{max-width:100% !important}
+  .auth-logo{margin-bottom:1.3rem !important}
+  .auth-brand-logo{width:min(250px,82vw) !important}
+  .auth-links{flex-direction:column;align-items:flex-start;gap:.45rem !important}
+
+  #header{
+    position:sticky !important;top:0 !important;padding:10px 12px 12px !important;
+  }
+  .h-right{
+    display:grid !important;grid-template-columns:repeat(2,minmax(0,1fr));
+    width:100% !important;justify-self:stretch !important;gap:.5rem !important;
+  }
+  .sync-pill{grid-column:1 / -1;width:100% !important}
+  .h-user{grid-column:1 / -1;text-align:center}
+  .h-btn{width:100%;text-align:center;justify-content:center}
+  .h-shortcut{display:none !important}
+
+  #sidebar{
+    position:sticky;top:0;z-index:3;background:var(--bg1);
+    padding:.5rem .55rem !important;gap:.45rem !important;scrollbar-width:none;
+  }
+  #sidebar::-webkit-scrollbar{display:none}
+  .sbl{display:none !important}
+  .sidebar-actions{display:grid !important;grid-template-columns:1fr 1fr;gap:.45rem;padding:0 !important}
+  .sidebar-actions .h-btn{padding:.55rem .6rem !important;font-size:calc(.6rem + 2pt) !important;text-align:center !important}
+  .pni{min-width:86px !important;flex:1 0 auto}
+  .pni-t{font-size:calc(.7rem + 2pt) !important}
+
+  #main{padding:14px 12px 24px !important}
+  .board-grid,.phase-summary-grid,.quest-grid,.kpi-grid,.day-info-grid,.step-grid{grid-template-columns:1fr !important}
+  .hero-row,.diary-composer-top,.diary-bottom,.cmd-composer-row,.inline-actions,.ann-actions{flex-direction:column !important;align-items:stretch !important}
+  .diary-save-btn{margin-left:0 !important;width:100% !important}
+  .day-head,.sh,.cmd-card-hdr,.diary-entry-hdr{padding:.75rem .8rem !important}
+  .day-body,.cmd-card-body,.diary-entry-body,.sb2{padding-left:.8rem !important;padding-right:.8rem !important}
+  .day-body[id^="tree-body-"]{padding-left:.8rem !important}
+  textarea.ann,.diary-textarea,.cmd-input-group textarea{min-height:140px !important}
+  pre{font-size:calc(.64rem + 2pt) !important;line-height:1.55 !important}
+}
+
 </style>
 </head>
 <body>
@@ -1889,7 +1952,11 @@ function clearAuthSession(){
   localStorage.removeItem(K.LEGACY_SESSION);
 }
 function getStoredSessionToken(){return String(localStorage.getItem(K.SESSION)||'').trim();}
+function getStoredSessionUser(){return String(localStorage.getItem(K.SESSION_USER)||'').trim().toUpperCase();}
 function getStoredUsernameHint(){return String(localStorage.getItem(K.REMEMBER)||localStorage.getItem(K.SESSION_USER)||localStorage.getItem(K.LEGACY_REMEMBER)||'').trim().toUpperCase();}
+function getBestStoredUser(){return String(getStoredSessionUser()||getStoredUsernameHint()||'').trim().toUpperCase();}
+function isInvalidSessionMessage(msg=''){const s=String(msg||'').toLowerCase();return s.includes('sessão inválida')||s.includes('sessao inválida')||s.includes('sessão expirada')||s.includes('sessao expirada')||s.includes('invalid')||s.includes('expired');}
+function setSessionMode(mode='cloud',detail=''){const el=document.getElementById('session-pill');if(!el)return;const local=mode!=='cloud';el.classList.toggle('local',local);el.textContent=local?'MODO LOCAL':'SYNC ONLINE';el.title=detail||(local?'Dados locais carregados. A sincronização volta quando o servidor responder.':'Sincronização ativa com o servidor');}
 async function eblRpc(fn,params={}){
   if(!SUPABASE_ENABLED)throw new Error('Supabase não configurado neste HTML. Verifique supabase-config.js.');
   const {data,error}=await supabaseClient.rpc(fn,params);
@@ -2025,8 +2092,10 @@ async function flushCloudSync(reason='manual'){
     lastCloudSyncHash=sig;
     lastCloudSyncError='';
     saveLocalPayload(CU,payload);
+    setSessionMode('cloud','Sincronização ativa com o servidor.');
   }catch(err){
     lastCloudSyncError=String(err?.message||'Falha ao sincronizar.');
+    setSessionMode('local',lastCloudSyncError);
     console.warn('[EBL sync]',reason,lastCloudSyncError,err);
   }finally{
     cloudSyncInFlight=false;
@@ -2134,6 +2203,8 @@ function saveTree(){saveLocalPayload(CU,buildPayload());scheduleCloudSync('tree'
 async function startApp(u,options={}){
   CU=String(u||'').trim().toUpperCase();
   CTOKEN=String(options?.token||CTOKEN||getStoredSessionToken()||'');
+  const sessionMode=options?.sessionMode==='local'?'local':'cloud';
+  const sessionNote=String(options?.sessionNote||'').trim();
   const remotePayload=options?.payload?normalizePayload(options.payload):null;
   const remoteSig=remotePayload?payloadSignature(remotePayload):'';
   const {merged}=loadUD(CU,remotePayload);
@@ -2143,6 +2214,7 @@ async function startApp(u,options={}){
   document.getElementById('app').classList.remove('hidden');
   document.getElementById('huser').textContent=CU;
   document.getElementById('cu').textContent=CU;
+  setSessionMode(sessionMode,sessionNote|| (sessionMode==='cloud'?'Sincronização ativa com o servidor.':'Dados locais carregados.'));
   buildSidebar();
   renderDashboard();
   updateProg();
@@ -2151,6 +2223,29 @@ async function startApp(u,options={}){
   lastCloudSyncHash=remoteSig;
   if(CTOKEN&&currentSig!==remoteSig)scheduleCloudSync('start-merge',true);
   else lastCloudSyncHash=currentSig;
+}
+async function tryRefreshFromCloud(reason='resume'){
+  if(!CU||!CTOKEN||!SUPABASE_ENABLED)return false;
+  try{
+    const data=await eblRpc('ebl_get_payload',{p_token:CTOKEN});
+    if(!data?.ok||!data?.username)throw new Error(data?.error||'Falha ao restaurar a sessão.');
+    const merged=mergePayload(buildPayload(),data.payload||{});
+    applyPayload(merged);
+    saveLocalPayload(CU,merged);
+    lastCloudSyncHash=payloadSignature(merged);
+    setSessionMode('cloud','Sincronização ativa com o servidor.');
+    buildSidebar();
+    if(CVIEW==='tool'&&CPHASE)renderTool(CPHASE);
+    else renderDashboard();
+    updateProg();
+    renderLevelHud();
+    return true;
+  }catch(err){
+    const msg=String(err?.message||'Falha ao conectar ao servidor.');
+    setSessionMode('local',msg);
+    console.warn('[EBL refresh]',reason,msg,err);
+    return false;
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -3078,6 +3173,8 @@ function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/<
 (async function init(){
   document.getElementById('lp')?.addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
   document.getElementById('lu')?.addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('lp').focus();});
+  window.addEventListener('online',()=>{if(!document.getElementById('app')?.classList.contains('hidden'))tryRefreshFromCloud('online');});
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&!document.getElementById('app')?.classList.contains('hidden'))tryRefreshFromCloud('visible');});
   const remembered=getStoredUsernameHint();
   if(remembered)document.getElementById('lu').value=remembered;
   sf('login');
@@ -3090,12 +3187,18 @@ function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/<
   try{
     const data=await eblRpc('ebl_get_payload',{p_token:token});
     if(!data?.ok||!data?.username)throw new Error(data?.error||'Sessão expirada.');
-    await startApp(String(data.username||''),{token,payload:data.payload||{}});
+    await startApp(String(data.username||''),{token,payload:data.payload||{},sessionMode:'cloud'});
   }catch(err){
-    console.warn('[EBL init]',err);
-    clearAuthSession();
+    const msg=String(err?.message||'Falha ao restaurar a sessão.');
+    console.warn('[EBL init]',msg,err);
+    const fallbackUser=getBestStoredUser();
+    if(fallbackUser){
+      await startApp(fallbackUser,{token,payload:loadLocalPayload(fallbackUser),sessionMode:'local',sessionNote:msg});
+      return;
+    }
+    if(isInvalidSessionMessage(msg))clearAuthSession();
     sf('login');
-    showE('le',String(err?.message||'Sessão expirada. Faça login novamente.'));
+    showE('le',msg);
     if(remembered)document.getElementById('lu').value=remembered;
   }
 })();
