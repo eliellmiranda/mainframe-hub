@@ -2063,6 +2063,55 @@ function togglePracticeMinimized(kind, spaceId, subId, itemId) {
   renderPractice(kind);
 }
 
+const practiceDrafts = {};
+function practiceDraftKey(kind, spaceId, subId, itemId, field='user') {
+  return [kind, spaceId, subId, itemId, field].join('::');
+}
+function getPracticeFieldValue(item, field='user') {
+  return field === 'model' ? String(item?.modelAnswer || '') : String(item?.userAnswer || '');
+}
+function getPracticeDraftValue(kind, spaceId, subId, item, field='user') {
+  const key = practiceDraftKey(kind, spaceId, subId, item?.id || '', field);
+  return Object.prototype.hasOwnProperty.call(practiceDrafts, key) ? String(practiceDrafts[key] || '') : getPracticeFieldValue(item, field);
+}
+function isPracticeDraftDirty(kind, spaceId, subId, item, field='user') {
+  return getPracticeDraftValue(kind, spaceId, subId, item, field) !== getPracticeFieldValue(item, field);
+}
+function updatePracticeDraft(kind, spaceId, subId, itemId, field, value) {
+  const item = getPracticeSubspace(kind, spaceId, subId)?.items?.find(i=>i.id===itemId); if(!item)return;
+  const key = practiceDraftKey(kind, spaceId, subId, itemId, field);
+  const normalized = String(value || '');
+  const savedValue = getPracticeFieldValue(item, field);
+  if (normalized === savedValue) delete practiceDrafts[key];
+  else practiceDrafts[key] = normalized;
+
+  const btn = document.getElementById(`practice-save-${field}-${itemId}`);
+  if (btn) {
+    const dirty = normalized !== savedValue;
+    btn.disabled = !dirty;
+    btn.textContent = dirty ? 'Salvar' : 'Salvo';
+  }
+  const status = document.getElementById(`practice-status-${field}-${itemId}`);
+  if (status) status.textContent = normalized !== savedValue ? 'Alterações pendentes' : 'Sem alterações pendentes';
+}
+function savePracticeField(kind, spaceId, subId, itemId, field='user') {
+  const item = getPracticeSubspace(kind, spaceId, subId)?.items?.find(i=>i.id===itemId); if(!item)return;
+  const key = practiceDraftKey(kind, spaceId, subId, itemId, field);
+  const value = Object.prototype.hasOwnProperty.call(practiceDrafts, key) ? String(practiceDrafts[key] || '') : getPracticeFieldValue(item, field);
+  if (field === 'model') item.modelAnswer = value;
+  else item.userAnswer = value;
+  delete practiceDrafts[key];
+  saveUserData();
+  renderPractice(kind);
+  showToast(field === 'model' ? 'Resposta modelo salva.' : 'Resposta salva.');
+}
+function savePracticeUserAnswer(kind, spaceId, subId, itemId) {
+  savePracticeField(kind, spaceId, subId, itemId, 'user');
+}
+function savePracticeModelAnswer(kind, spaceId, subId, itemId) {
+  savePracticeField(kind, spaceId, subId, itemId, 'model');
+}
+
 
 // ── Navigation helpers (needed because currentDetail is not global) ──
 function backToPracticeList(kind) {
@@ -2130,6 +2179,10 @@ function renderPractice(kind) {
 function renderPracticeItem(kind, spaceId, subId, item) {
   const answered = isPracticeAnswered(item);
   const itemWord = kind === 'exercise' ? 'Exercício' : 'Pergunta';
+  const userDraft = getPracticeDraftValue(kind, spaceId, subId, item, 'user');
+  const modelDraft = getPracticeDraftValue(kind, spaceId, subId, item, 'model');
+  const userDirty = isPracticeDraftDirty(kind, spaceId, subId, item, 'user');
+  const modelDirty = isPracticeDraftDirty(kind, spaceId, subId, item, 'model');
   return `
   <div class="panel ${item.minimized ? 'minimized' : ''}" id="${kind}-item-${item.id}">
     <div class="row-top">
@@ -2144,12 +2197,20 @@ function renderPracticeItem(kind, spaceId, subId, item) {
       <div class="row-text">${nl2br(item.prompt)}</div>
       <div style="margin-top:14px">
         <label class="lbl">Sua resposta</label>
-        <textarea class="textarea" oninput="updatePracticeUserAnswer('${kind}','${spaceId}','${subId}','${item.id}', this.value)">${esc(item.userAnswer||'')}</textarea>
+        <textarea class="textarea" oninput="updatePracticeDraft('${kind}','${spaceId}','${subId}','${item.id}','user', this.value)">${esc(userDraft)}</textarea>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px">
+          <button class="btn xs primary" id="practice-save-user-${item.id}" onclick="savePracticeUserAnswer('${kind}','${spaceId}','${subId}','${item.id}')" ${userDirty ? '' : 'disabled'}>${userDirty ? 'Salvar' : 'Salvo'}</button>
+          <span class="muted" id="practice-status-user-${item.id}" style="font-size:12px">${userDirty ? 'Alterações pendentes' : 'Sem alterações pendentes'}</span>
+        </div>
       </div>
       <div style="margin-top:14px">
         <label class="lbl">Resposta modelo</label>
         <div class="${item.showModel ? '' : 'answer-hidden'}" id="model-${item.id}">
-          <textarea class="textarea" placeholder="Sem resposta modelo cadastrada." oninput="updatePracticeModelAnswer('${kind}','${spaceId}','${subId}','${item.id}', this.value)">${esc(item.modelAnswer||'')}</textarea>
+          <textarea class="textarea" placeholder="Sem resposta modelo cadastrada." oninput="updatePracticeDraft('${kind}','${spaceId}','${subId}','${item.id}','model', this.value)">${esc(modelDraft)}</textarea>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px">
+            <button class="btn xs primary" id="practice-save-model-${item.id}" onclick="savePracticeModelAnswer('${kind}','${spaceId}','${subId}','${item.id}')" ${modelDirty ? '' : 'disabled'}>${modelDirty ? 'Salvar' : 'Salvo'}</button>
+            <span class="muted" id="practice-status-model-${item.id}" style="font-size:12px">${modelDirty ? 'Alterações pendentes' : 'Sem alterações pendentes'}</span>
+          </div>
         </div>
         ${item.showModel ? '' : '<div class="empty">Resposta oculta. Clique em “Visualizar resposta”.</div>'}
       </div>
@@ -2188,12 +2249,10 @@ function deletePracticeItem(kind, spaceId, subId, itemId) {
   sub.items = (sub.items||[]).filter(i=>i.id!==itemId); saveUserData(); renderPractice(kind); showToast(kind === 'exercise' ? 'Exercício removido.' : 'Pergunta removida.');
 }
 function updatePracticeUserAnswer(kind, spaceId, subId, itemId, value) {
-  const item = getPracticeSubspace(kind, spaceId, subId)?.items?.find(i=>i.id===itemId); if(!item)return;
-  item.userAnswer = value; saveUserData();
+  updatePracticeDraft(kind, spaceId, subId, itemId, 'user', value);
 }
 function updatePracticeModelAnswer(kind, spaceId, subId, itemId, value) {
-  const item = getPracticeSubspace(kind, spaceId, subId)?.items?.find(i=>i.id===itemId); if(!item)return;
-  item.modelAnswer = value; saveUserData();
+  updatePracticeDraft(kind, spaceId, subId, itemId, 'model', value);
 }
 function toggleModelAnswer(kind, spaceId, subId, itemId) {
   const item = getPracticeSubspace(kind, spaceId, subId)?.items?.find(i=>i.id===itemId); if(!item)return;
@@ -4068,6 +4127,9 @@ window.toggleLinkedinStatus           = toggleLinkedinStatus;
 window.toggleModelAnswer              = toggleModelAnswer;
 window.updatePracticeUserAnswer       = updatePracticeUserAnswer;
 window.updatePracticeModelAnswer      = updatePracticeModelAnswer;
+window.savePracticeUserAnswer         = savePracticeUserAnswer;
+window.savePracticeModelAnswer        = savePracticeModelAnswer;
+window.updatePracticeDraft            = updatePracticeDraft;
 window.toggleModuleDone               = toggleModuleDone;
 window.togglePracticeIndex            = togglePracticeIndex;
 window.togglePracticeMinimized        = togglePracticeMinimized;
