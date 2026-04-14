@@ -1,0 +1,23 @@
+ARQUIVOS FINAIS PARA SUBIR
+
+1) SUBA ESTES ARQUIVOS NO SITE:
+- app.js
+- app-hotfix-storage-route-admin.js
+- styles.css
+- supabase-config.js
+- emunah-bank-lab.html (somente se voce usa esta pagina no mesmo projeto)
+
+2) NO SUPABASE, RODE PRIMEIRO:
+- mfhub-supabase-io-optimization.sql
+
+3) SE PRECISAR CORRIGIR APENAS A RPC mfhub_put_state, RODE:
+- mfhub-put-state-fix.sql
+
+4) O ARQUIVO ABAIXO E A VERSAO GRANDE/COMBINADA. NAO COMECE POR ELE SE O BANCO ESTIVER LENTO:
+- site-hub-combined-supabase.sql
+
+NOMES DEFINITIVOS:
+- app.js = versao otimizada final
+- app-hotfix-storage-route-admin.js = hotfix final SEM admin, mantido com esse nome para evitar quebrar referencia antiga
+- mfhub-put-state-fix.sql = versao corrigida final
+- site-hub-combined-supabase.sql = versao otimizada final
