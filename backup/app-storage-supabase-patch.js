@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const PATCH_VERSION = '2026-04-16-storage-supabase-mfhub-fix1';
+  const PATCH_VERSION = '2026-04-13-storage-supabase-mfhub';
   if (window.__MFHUB_STORAGE_SUPABASE_PATCH__) return;
   window.__MFHUB_STORAGE_SUPABASE_PATCH__ = { version: PATCH_VERSION };
 
@@ -278,32 +278,6 @@
     );
   };
 
-
-  const originalOpenAttachment = typeof openAttachment === 'function' ? openAttachment : null;
-  const originalDownloadAttachment = typeof downloadAttachment === 'function' ? downloadAttachment : null;
-  const originalRemoveAttachment = typeof removeAttachment === 'function' ? removeAttachment : null;
-  const originalSaveUploads = typeof saveUploads === 'function' ? saveUploads : null;
-
-  function resolveRemoteFilePath(file) {
-    if (!file || typeof file !== 'object') return '';
-    const candidates = [file.storagePath, file.path, file.filePath, file.remotePath, file.assetPath, file.assetId];
-    for (const value of candidates) {
-      if (isStoragePath(value)) return String(value);
-    }
-    return '';
-  }
-
-  function resolveInlineFileHref(file) {
-    if (!file || typeof file !== 'object') return '';
-    const candidates = [file.data, file.url, file.previewUrl, file.href];
-    for (const value of candidates) {
-      const href = String(value || '').trim();
-      if (!href) continue;
-      if (/^(data:|blob:|https?:)/i.test(href)) return href;
-    }
-    return '';
-  }
-
   const originalRenderSidebarIdentity = renderSidebarIdentity;
   renderSidebarIdentity = function patchedRenderSidebarIdentity() {
     originalRenderSidebarIdentity.apply(this, arguments);
@@ -325,39 +299,21 @@
     }).catch(() => {});
   };
 
-
   openAttachment = async function patchedOpenAttachment(type, id1, id2, fileId, id3 = '') {
     const { file } = getAttachmentRecord(type, id1, id2, fileId, id3);
     if (!file) return showToast('Arquivo não encontrado.');
     try {
-      const remotePath = resolveRemoteFilePath(file);
-      if (remotePath) {
-        const href = await signPath(remotePath, file.name || 'arquivo');
-        if (!href) return showToast('Arquivo não encontrado.');
-        const a = document.createElement('a');
-        a.href = href;
-        a.target = '_blank';
-        a.rel = 'noopener';
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        return;
-      }
-      const inlineHref = resolveInlineFileHref(file);
-      if (inlineHref) {
-        const a = document.createElement('a');
-        a.href = inlineHref;
-        a.target = '_blank';
-        a.rel = 'noopener';
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        return;
-      }
-      if (typeof originalOpenAttachment === 'function') {
-        return await originalOpenAttachment.apply(this, arguments);
-      }
-      return showToast('Arquivo não encontrado.');
+      let href = '';
+      if (file.storagePath) href = await signPath(file.storagePath, file.name || 'arquivo');
+      else if (file.data) href = file.data;
+      if (!href) return showToast('Arquivo não encontrado.');
+      const a = document.createElement('a');
+      a.href = href;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
     } catch (err) {
       console.error(err);
       showToast(err?.message || 'Não foi possível abrir o arquivo.');
@@ -368,32 +324,16 @@
     const { file } = getAttachmentRecord(type, id1, id2, fileId, id3);
     if (!file) return showToast('Arquivo não encontrado.');
     try {
-      const remotePath = resolveRemoteFilePath(file);
-      if (remotePath) {
-        const href = await signPath(remotePath, file.name || 'arquivo');
-        if (!href) return showToast('Arquivo não encontrado.');
-        const a = document.createElement('a');
-        a.href = href;
-        a.download = file.name || 'arquivo';
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        return;
-      }
-      const inlineHref = resolveInlineFileHref(file);
-      if (inlineHref) {
-        const a = document.createElement('a');
-        a.href = inlineHref;
-        a.download = file.name || 'arquivo';
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        return;
-      }
-      if (typeof originalDownloadAttachment === 'function') {
-        return await originalDownloadAttachment.apply(this, arguments);
-      }
-      return showToast('Arquivo não encontrado.');
+      let href = '';
+      if (file.storagePath) href = await signPath(file.storagePath, file.name || 'arquivo');
+      else if (file.data) href = file.data;
+      if (!href) return showToast('Arquivo não encontrado.');
+      const a = document.createElement('a');
+      a.href = href;
+      a.download = file.name || 'arquivo';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
     } catch (err) {
       console.error(err);
       showToast(err?.message || 'Não foi possível baixar o arquivo.');
@@ -405,20 +345,9 @@
     if (!holder || !file) return showToast('Arquivo não encontrado.');
     if (!confirm(`Excluir o arquivo "${file.name}"?`)) return;
     try {
-      const remotePath = resolveRemoteFilePath(file);
-      if (remotePath) {
-        await deletePath(remotePath);
-        holder.attachments = (holder.attachments || []).filter(item => item.id !== fileId);
-        saveUserData({ reason:'Removeu anexo do Storage' });
-        renderAll();
-        showToast('Arquivo removido.');
-        return;
-      }
-      if (typeof originalRemoveAttachment === 'function') {
-        return await originalRemoveAttachment.apply(this, arguments);
-      }
+      if (file.storagePath) await deletePath(file.storagePath);
       holder.attachments = (holder.attachments || []).filter(item => item.id !== fileId);
-      saveUserData({ reason:'Removeu anexo local' });
+      saveUserData({ reason:'Removeu anexo do Storage' });
       renderAll();
       showToast('Arquivo removido.');
     } catch (err) {
@@ -435,10 +364,6 @@
     holder.attachments ||= [];
     if (!files.length) return;
     if (holder.attachments.length + files.length > 5) return alert('O limite é de até 5 arquivos.');
-    if (!isReady()) {
-      if (typeof originalSaveUploads === 'function') return await originalSaveUploads.apply(this, arguments);
-      return showToast('Storage indisponível neste build.');
-    }
     try {
       for (const file of files) {
         const uploaded = await storageUpload(file, 'attachment');
@@ -457,11 +382,6 @@
       showToast('Arquivos anexados ao Storage.');
     } catch (err) {
       console.error(err);
-      if (typeof originalSaveUploads === 'function') {
-        try {
-          return await originalSaveUploads.apply(this, arguments);
-        } catch {}
-      }
       showToast(err?.message || 'Falha ao enviar os arquivos ao Storage.');
     }
   };
