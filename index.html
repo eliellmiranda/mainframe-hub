@@ -44,10 +44,12 @@
 @keyframes spin { to { transform:rotate(360deg); } }
 #loading-screen .load-text { font-size:14px;letter-spacing:.12em;text-transform:uppercase;opacity:.7; }
 </style>
+<!-- Storage fix: anexos grandes vão para o Supabase Storage -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-config.js?v=20260413-2"></script>
-<script src="app-manual-save.js?v=20260416-idxfix3" defer></script>
-<script src="app.js?v=20260416-idxfix3" defer></script>
+<script src="supabase-config.js?v=20260416-storagefix1"></script>
+<script src="app-manual-save.js?v=20260416-storagefix1" defer></script>
+<script src="app.js?v=20260416-storagefix1" defer></script>
+<script src="app-storage-supabase-patch.js?v=20260416-storagefix1" defer></script>
 </head>
 <body>
 <noscript>

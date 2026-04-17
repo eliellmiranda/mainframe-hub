@@ -1,23 +1,40 @@
-ARQUIVOS FINAIS PARA SUBIR
+PACOTE FINAL — MFHUB / INDEX.HTML / STORAGE FIX
 
-1) SUBA ESTES ARQUIVOS NO SITE:
+OBJETIVO
+Corrigir upload e abertura de anexos grandes no espaço Cursos e demais áreas com anexos,
+mandando os arquivos para o Supabase Storage em vez de salvar base64 dentro do payload do app.
+
+ARQUIVOS PARA SUBIR NO SITE
+- index.html
 - app.js
-- app-hotfix-storage-route-admin.js
+- app-manual-save.js
+- app-storage-supabase-patch.js
 - styles.css
 - supabase-config.js
-- emunah-bank-lab.html (somente se voce usa esta pagina no mesmo projeto)
 
-2) NO SUPABASE, RODE PRIMEIRO:
-- mfhub-supabase-io-optimization.sql
+NO SUPABASE
+1) Publique a Edge Function com o arquivo:
+   - site-storage-edge-function.ts
 
-3) SE PRECISAR CORRIGIR APENAS A RPC mfhub_put_state, RODE:
-- mfhub-put-state-fix.sql
+2) Rode este SQL:
+   - site-storage-patch.sql
 
-4) O ARQUIVO ABAIXO E A VERSAO GRANDE/COMBINADA. NAO COMECE POR ELE SE O BANCO ESTIVER LENTO:
-- site-hub-combined-supabase.sql
+3) Se quiser manter a métrica do painel admin, rode também:
+   - mfhub-admin-supabase-metrics.sql
 
-NOMES DEFINITIVOS:
-- app.js = versao otimizada final
-- app-hotfix-storage-route-admin.js = hotfix final SEM admin, mantido com esse nome para evitar quebrar referencia antiga
-- mfhub-put-state-fix.sql = versao corrigida final
-- site-hub-combined-supabase.sql = versao otimizada final
+4) O arquivo site-hub-combined-supabase.sql é a versão combinada/grande.
+   Use apenas se você realmente quiser consolidar tudo no mesmo projeto.
+
+O QUE FOI AJUSTADO
+- index.html agora carrega app-storage-supabase-patch.js
+- o patch envia anexos para o bucket privado site-assets
+- a abertura do arquivo passa a usar signed URL
+- isso evita o erro de arquivo inexistente após upload grande
+
+TESTE RECOMENDADO
+- faça Ctrl+F5
+- envie de novo o PDF de 23 MB em Cursos
+- abra o anexo a partir do próprio site
+
+COMMIT SUGERIDO
+fix(index-storage): envia anexos grandes de Cursos para Supabase Storage e abre por signed URL
