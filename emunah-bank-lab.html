@@ -740,7 +740,9 @@ html,body{
   border:1px solid rgba(255,138,34,.24);background:rgba(255,138,34,.09);
   color:var(--green);font-family:var(--mono);font-size:calc(.62rem + 2pt);
   font-weight:700;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;
+  cursor:pointer;transition:filter .15s;
 }
+.sync-pill:hover{filter:brightness(1.15)}
 .sync-pill::before{content:'';width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.85;flex-shrink:0}
 .sync-pill.local{
   color:var(--amber);border-color:rgba(251,191,36,.28);background:rgba(251,191,36,.10);
@@ -907,6 +909,7 @@ html,body{
     <div class="h-right">
       <span class="h-shortcut" title="Atalho para abrir o Diário rápido">Ctrl + '</span>
       <span class="h-shortcut" title="Atalho para abrir a árvore local">Ctrl + \\</span>
+      <span id="session-pill" class="sync-pill" onclick="forceSyncNow()" title="Clique para forçar sincronização agora">SYNC ONLINE</span>
       <span class="h-user" id="huser"></span>
       <button class="h-btn" onclick="toggleSettings()">Config</button>
       <button class="h-btn" onclick="doLogout()">Sair</button>
@@ -920,6 +923,7 @@ html,body{
     <div id="tnav"></div>
     <div class="sbl" style="margin-top:.8rem">Ações</div>
     <div class="sidebar-actions">
+      <button class="h-btn" style="width:100%;text-align:left;padding:.45rem .7rem" onclick="forceSyncNow()" title="Empurra suas alterações pra nuvem e puxa o que houver de novo">↻ Forçar sync agora</button>
       <button class="h-btn" style="width:100%;text-align:left;padding:.45rem .7rem" onclick="exportData()">↓ Exportar progresso</button>
       <button class="h-btn" style="width:100%;text-align:left;padding:.45rem .7rem" onclick="importData()">↑ Importar progresso</button>
     </div>
@@ -2040,13 +2044,31 @@ function setSessionMode(mode='cloud',detail=''){
     el.textContent=local?'MODO LOCAL':'SYNC ONLINE';
     el.title=detail||(local?'Dados locais carregados. A sincronização volta quando o servidor responder.':'Sincronização ativa com o servidor');
   }
-  // Toast visível só quando há transição de estado (evita ruído em cada save)
+  // Toast: avisa sempre que entra em local (1ª chamada inclusive) e quando volta pra cloud.
   const newMode=local?'local':'cloud';
-  if(__lastSessionMode && __lastSessionMode!==newMode){
-    if(local) showSyncToast('local','Sem sincronização: usando dados locais. '+(detail?'('+detail+')':''),5000);
+  const isTransition=__lastSessionMode && __lastSessionMode!==newMode;
+  const isFirstLocal=!__lastSessionMode && local;
+  if(isFirstLocal||isTransition){
+    if(local) showSyncToast('local','Sem sincronização: dados ficam só neste navegador. '+(detail?'('+detail+')':''),7000);
     else showSyncToast('cloud','Sincronização restabelecida com o servidor.',2800);
   }
   __lastSessionMode=newMode;
+}
+async function forceSyncNow(){
+  if(!SUPABASE_ENABLED){showSyncToast('error','Supabase não configurado neste HTML.',6000);return;}
+  if(!CU||!CTOKEN){showSyncToast('error','Faça login para sincronizar com a nuvem.',6000);return;}
+  showSyncToast('cloud','Sincronizando…',1800);
+  try{
+    await flushCloudSync('force');
+    if(lastCloudSyncError){
+      showSyncToast('error','Falha ao enviar: '+lastCloudSyncError,8000);
+      return;
+    }
+    const okPull=await tryRefreshFromCloud('manual');
+    showSyncToast(okPull?'cloud':'error', okPull?'Sincronizado com o servidor.':'Falha ao puxar dados do servidor.',okPull?2800:8000);
+  }catch(err){
+    showSyncToast('error','Erro: '+(err?.message||'desconhecido'),8000);
+  }
 }
 async function eblRpc(fn,params={}){
   if(!SUPABASE_ENABLED)throw new Error('Supabase não configurado neste HTML. Verifique supabase-config.js.');
