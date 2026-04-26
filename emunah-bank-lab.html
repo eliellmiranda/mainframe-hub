@@ -373,11 +373,6 @@ textarea.ann:focus{border-color:var(--green);outline:none;color:var(--text)}
   .h-right{width:100%;justify-content:flex-end}
   .level-hud-card{padding:.7rem .72rem}
 }
-  .day-head{padding:.85rem .8rem}
-  .hero-row{flex-direction:column}
-  #level-hud{top:auto;bottom:14px;right:10px;width:calc(100vw - 20px)}
-  .level-hud-grid{grid-template-columns:repeat(6,minmax(40px,1fr))}
-}
 
 
 
@@ -799,6 +794,67 @@ html,body{
   pre{font-size:calc(.64rem + 2pt) !important;line-height:1.55 !important}
 }
 
+/* ── MOBILE TIGHT (<=480px) — phones in portrait ── */
+@media (max-width: 480px){
+  html{font-size:calc(14px + 2pt)}
+  #main{padding:12px 10px 22px !important}
+  #header{padding:8px 10px 10px !important;gap:.55rem !important}
+  .bank-logo{width:62px !important;height:62px !important}
+  .h-logo-copy{font-size:calc(.6rem + 2pt) !important;letter-spacing:.1em !important}
+  .h-right{display:flex !important;flex-direction:column !important;gap:.4rem !important;width:100% !important}
+  .h-right .h-btn,.h-right .sync-pill,.h-right .h-user{width:100% !important;text-align:center !important;justify-content:center !important}
+  .h-shortcut{display:none !important}
+  #sidebar{padding:.4rem !important;gap:.35rem !important;max-height:140px !important}
+  .pni{min-width:74px !important;padding:.35rem .4rem !important}
+  .pni-t{font-size:calc(.62rem + 2pt) !important;white-space:normal !important}
+  .step-grid,.day-info-grid,.kpi-grid,.quest-grid,.phase-summary-grid,.board-grid{grid-template-columns:1fr !important;gap:.6rem !important}
+  .ph-big{font-size:calc(1.4rem + 2pt) !important}
+  .ph-title{font-size:calc(1rem + 2pt) !important}
+  .ph-desc{font-size:calc(.78rem + 2pt) !important}
+  .legend{flex-direction:column;align-items:flex-start;padding:.55rem .6rem}
+  .level-hud-card{padding:.55rem .6rem !important;gap:.45rem !important}
+  .level-hud-emblem{width:38px !important;height:38px !important;font-size:1.05rem !important}
+  .level-rank{min-width:46px !important}
+  .diary-modal-box{padding:.95rem !important;border-radius:8px !important}
+  #diary-modal{padding:1.2rem .6rem !important}
+  pre{font-size:calc(.6rem + 2pt) !important;padding:.6rem .65rem !important}
+  textarea.ann{min-height:160px !important}
+  .auth-box{padding:0 .25rem}
+  .auth-brand-logo{width:min(220px,80vw) !important}
+  .btn,.h-btn{padding:.55rem .8rem !important}
+}
+
+/* Very narrow (<=380px) — small phones */
+@media (max-width: 380px){
+  html{font-size:calc(13px + 2pt)}
+  .bank-logo{width:54px !important;height:54px !important}
+  .ph-num-row{flex-wrap:wrap;gap:.5rem}
+  .level-hud-grid{gap:4px !important}
+  .level-rank{min-width:42px !important;padding:.3rem .2rem !important}
+}
+
+/* ── SYNC TOAST — visibility for cloud sync state changes ── */
+#sync-toast{
+  position:fixed;left:50%;bottom:18px;transform:translateX(-50%) translateY(140%);
+  z-index:300;display:flex;align-items:center;gap:.55rem;
+  background:var(--bg1);border:1px solid var(--border2);border-radius:10px;
+  padding:.62rem .9rem;box-shadow:0 14px 40px rgba(0,0,0,.45);
+  font-family:var(--mono);font-size:calc(.7rem + 2pt);color:var(--text);
+  max-width:min(560px,calc(100vw - 28px));pointer-events:auto;
+  opacity:0;transition:transform .25s ease,opacity .25s ease;
+}
+#sync-toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+#sync-toast .st-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;background:var(--green)}
+#sync-toast.local .st-dot{background:var(--amber)}
+#sync-toast.error .st-dot{background:var(--red)}
+#sync-toast .st-msg{flex:1;min-width:0;line-height:1.45}
+#sync-toast .st-x{cursor:pointer;color:var(--text3);padding:0 4px;border-radius:4px}
+#sync-toast .st-x:hover{color:var(--text);background:var(--bg3)}
+@media (max-width:480px){
+  #sync-toast{left:8px;right:8px;bottom:10px;transform:translateY(140%);max-width:none}
+  #sync-toast.show{transform:translateY(0)}
+}
+
 </style>
 </head>
 <body>
@@ -895,6 +951,13 @@ html,body{
     <button class="btn btn-d" style="width:100%" onclick="clearCmds()">Limpar comandos</button>
   </div>
   <div style="margin-top:.8rem"><button class="btn btn-g" style="width:100%" onclick="toggleSettings()">Fechar</button></div>
+</div>
+
+<!-- ═══════════ SYNC TOAST ═══════════ -->
+<div id="sync-toast" role="status" aria-live="polite">
+  <span class="st-dot"></span>
+  <span class="st-msg"></span>
+  <span class="st-x" onclick="hideSyncToast()" title="Fechar">×</span>
 </div>
 
 <!-- ═══════════ DIARY QUICK MODAL (Ctrl+') ═══════════ -->
@@ -1956,7 +2019,35 @@ function getStoredSessionUser(){return String(localStorage.getItem(K.SESSION_USE
 function getStoredUsernameHint(){return String(localStorage.getItem(K.REMEMBER)||localStorage.getItem(K.SESSION_USER)||localStorage.getItem(K.LEGACY_REMEMBER)||'').trim().toUpperCase();}
 function getBestStoredUser(){return String(getStoredSessionUser()||getStoredUsernameHint()||'').trim().toUpperCase();}
 function isInvalidSessionMessage(msg=''){const s=String(msg||'').toLowerCase();return s.includes('sessão inválida')||s.includes('sessao inválida')||s.includes('sessão expirada')||s.includes('sessao expirada')||s.includes('invalid')||s.includes('expired');}
-function setSessionMode(mode='cloud',detail=''){const el=document.getElementById('session-pill');if(!el)return;const local=mode!=='cloud';el.classList.toggle('local',local);el.textContent=local?'MODO LOCAL':'SYNC ONLINE';el.title=detail||(local?'Dados locais carregados. A sincronização volta quando o servidor responder.':'Sincronização ativa com o servidor');}
+let __lastSessionMode='';
+let __syncToastTimer=null;
+function hideSyncToast(){const t=document.getElementById('sync-toast');if(t)t.classList.remove('show');clearTimeout(__syncToastTimer);}
+function showSyncToast(kind,msg,ms=4200){
+  const t=document.getElementById('sync-toast');if(!t)return;
+  t.classList.remove('local','error');
+  if(kind==='local')t.classList.add('local');
+  else if(kind==='error')t.classList.add('error');
+  t.querySelector('.st-msg').textContent=String(msg||'');
+  t.classList.add('show');
+  clearTimeout(__syncToastTimer);
+  __syncToastTimer=setTimeout(hideSyncToast,Math.max(2000,ms));
+}
+function setSessionMode(mode='cloud',detail=''){
+  const el=document.getElementById('session-pill');
+  const local=mode!=='cloud';
+  if(el){
+    el.classList.toggle('local',local);
+    el.textContent=local?'MODO LOCAL':'SYNC ONLINE';
+    el.title=detail||(local?'Dados locais carregados. A sincronização volta quando o servidor responder.':'Sincronização ativa com o servidor');
+  }
+  // Toast visível só quando há transição de estado (evita ruído em cada save)
+  const newMode=local?'local':'cloud';
+  if(__lastSessionMode && __lastSessionMode!==newMode){
+    if(local) showSyncToast('local','Sem sincronização: usando dados locais. '+(detail?'('+detail+')':''),5000);
+    else showSyncToast('cloud','Sincronização restabelecida com o servidor.',2800);
+  }
+  __lastSessionMode=newMode;
+}
 async function eblRpc(fn,params={}){
   if(!SUPABASE_ENABLED)throw new Error('Supabase não configurado neste HTML. Verifique supabase-config.js.');
   const {data,error}=await supabaseClient.rpc(fn,params);
